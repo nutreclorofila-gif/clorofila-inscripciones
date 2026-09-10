@@ -92,6 +92,32 @@ function probarEstado(titulo, estado) {
                 ', solapa Cupos ' + JSON.stringify(montos(cupos)));
   }
 
+  // Y tampoco con alertas altas que hablan de plata: esas se muestran arriba de
+  // Cupos, así que su detalle no puede llevar montos.
+  corridos++;
+  const conAlertas = JSON.parse(JSON.stringify(estado));
+  conAlertas.alertas = [
+    { nivel:'alta', tipo:'sin_verificar', edicion:'X', conPlata:true,
+      texto:'Fulana: hay un pago sin verificar',
+      detalle:'La planilla dice "no" y esos $ 2.600 están sumando al cobrado.' },
+    { nivel:'alta', tipo:'precio_viejo', edicion:'', conPlata:true,
+      texto:'El precio del curso que usa la app quedó viejo',
+      detalle:'La mayoría paga $ 13.500 pero la app calcula contra $ 12.200.' },
+    { nivel:'alta', tipo:'formula', edicion:'Y', conPlata:false,
+      texto:'No se pudo leer cómo cuenta "Y"',
+      detalle:'La fórmula cuenta lo que dice B2, pero esta es la fila 5.' }
+  ];
+  const ui2 = cargarUI(conAlertas);
+  const cupos2 = ui2.vistaCupos();
+  const m2 = montos(cupos2);
+  if (m2.length === 0 && /pago sin verificar/.test(cupos2) && /fila 5/.test(cupos2)) {
+    console.log('  ok    las alertas altas se ven en la portada, pero sin los montos');
+  } else {
+    fallas++;
+    console.log('  FALLA montos en la portada: ' + JSON.stringify(m2) +
+                (/fila 5/.test(cupos2) ? '' : ' — y se perdió el detalle de las que no hablan de plata'));
+  }
+
   // Pero tiene que seguir estando a un toque.
   corridos++;
   const conPlata = montos(ui.vistaPlata()).length;

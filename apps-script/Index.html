@@ -525,7 +525,7 @@
     var html = '';
 
     var urgentes = DATOS.alertas.filter(function (a) { return a.nivel === 'alta'; });
-    if (urgentes.length) html += urgentes.map(aviso).join('');
+    if (urgentes.length) html += urgentes.map(avisoSinPlata).join('');
 
     if (!vigentes.length) html += '<div class="vacio">No hay ninguna edición abierta ni por venir.</div>';
     else html += vigentes.map(tarjeta).join('');
@@ -725,6 +725,16 @@
   function aviso(a) {
     return '<div class="aviso ' + a.nivel + '"><div class="q">' + esc(a.texto) + '</div>' +
       '<div class="p">' + esc(a.detalle) + '</div></div>';
+  }
+
+  /**
+   * La misma alerta, para la portada: sin el detalle cuando habla de plata.
+   * En Cupos no se muestran montos — el detalle completo está en Alertas.
+   */
+  function avisoSinPlata(a) {
+    if (!a.conPlata) return aviso(a);
+    return '<div class="aviso ' + a.nivel + '"><div class="q">' + esc(a.texto) + '</div>' +
+      '<div class="p">Los números están en Alertas.</div></div>';
   }
 
   /* ---------- eventos ---------- */

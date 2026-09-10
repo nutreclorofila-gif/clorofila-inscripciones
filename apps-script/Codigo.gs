@@ -1187,9 +1187,12 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
       if (!p.enDuda) return;
       alertas.push({
         nivel: 'alta', tipo: 'sin_verificar', edicion: ed.edicion,
-        texto: p.nombre + ': ' + plata(p.enDuda) + ' sin verificar',
+        // El monto va en el detalle, no en el texto: el texto se muestra en la
+        // portada y ahí no se muestra plata.
+        texto: p.nombre + ': hay un pago sin verificar',
         detalle: 'La planilla dice "' + p.verificado + '" en la columna pago verificado (fila ' + p.fila +
-                 ' de ' + p.hoja + '), pero ese monto está sumando al cobrado de "' + ed.edicion + '".'
+                 ' de ' + p.hoja + '), y esos ' + plata(p.enDuda) + ' están sumando al cobrado de "' +
+                 ed.edicion + '".'
       });
     });
   });
@@ -1228,6 +1231,12 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
         detalle: 'Está al ' + Math.round(ed.ocupacion * 100) + '% del cupo.'
       });
     }
+  });
+
+  // Se marca sola: la portada no muestra el detalle de las que hablan de plata.
+  // Calcularlo acá y no a mano evita que una alerta nueva se olvide de marcarse.
+  alertas.forEach(function (a) {
+    a.conPlata = /\$/.test((a.texto || '') + ' ' + (a.detalle || ''));
   });
 
   var orden = { alta: 0, media: 1, info: 2 };
