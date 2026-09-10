@@ -36,6 +36,9 @@ var FILAS_PANEL = 500;
 /** Pestañas que NO son ediciones y no cuentan en ningún cupo. */
 var HOJAS_IGNORADAS = ['Lista de espera', 'Gift Cards', 'Panel'];
 
+/** De acá salen todas las ediciones: sin esta pestaña la app no tiene nada que mostrar. */
+var HOJA_PANEL = 'Panel';
+
 /**
  * Pestañas que no ocupan cupo pero sí hay que mirar: cuando un taller se llena,
  * lo que se necesita es a quién llamar; y una gift card vendida es plata cobrada
@@ -51,6 +54,40 @@ var PREFIJOS_INTENCIONALES = ['Reubicado', 'Lista de espera', 'Cancelado', 'Anul
 /* ======================================================================
    1. ENTRADA WEB
    ====================================================================== */
+
+/**
+ * Los errores de la API de Sheets llegan en inglés y no dicen qué hacer
+ * ("Unable to parse range: Panel!A1:F500"). Acá se traducen a algo accionable.
+ * El texto original va entre paréntesis, que sirve cuando hay que buscar el
+ * problema de verdad.
+ */
+function explicarError(err) {
+  var m = String((err && err.message) || err || 'Error desconocido');
+
+  // Los mensajes que escribe esta app ya están en castellano y ya explican.
+  if (/^(PIN|El PIN|Falta configurar|Demasiados intentos|No encuentro|Escribí el PIN)/.test(m)) return m;
+
+  var causas = [
+    [/unable to parse range|invalid range|rango/i,
+     'Le cambiaron el nombre a una pestaña que la app necesita, o la borraron.'],
+    [/requested entity was not found|not found|notfound/i,
+     'No encuentro la planilla. Fijate si la movieron, la borraron o cambió el ID.'],
+    [/permission|forbidden|not authorized|no tiene autorización/i,
+     'La cuenta que corre la app perdió el acceso a la planilla.'],
+    [/quota|rate limit|too many requests|429/i,
+     'Google frenó las consultas por unos minutos. Probá de nuevo en un rato.'],
+    [/timeout|deadline|exceeded maximum execution time/i,
+     'La planilla tardó demasiado en responder. Probá de nuevo.'],
+    [/service invoked too many times|servicio/i,
+     'Google limitó la app por hoy. Vuelve a andar sola mañana.'],
+    [/sheets is not defined|advanced service/i,
+     'Falta activar el servicio Sheets en el proyecto de Apps Script (Servicios → Sheets API v4).']
+  ];
+  for (var i = 0; i < causas.length; i++) {
+    if (causas[i][0].test(m)) return causas[i][1] + ' (Google dijo: "' + m + '")';
+  }
+  return m;
+}
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
@@ -76,7 +113,7 @@ function doGet(e) {
       verificarPin(p.pin);
       salida = { ok: true, estado: construirEstado(leerPlanilla()) };
     } catch (err) {
-      salida = { ok: false, error: err.message };
+      salida = { ok: false, error: explicarError(err) };
     }
     return ContentService
       .createTextOutput(JSON.stringify(salida))
@@ -189,8 +226,18 @@ function leerPlanilla() {
   var meta = Sheets.Spreadsheets.get(ID_PLANILLA, { fields: 'sheets.properties.title' });
   var titulos = (meta.sheets || []).map(function (h) { return h.properties.title; });
 
-  var valores = leerRango('Panel!A1:F' + FILAS_PANEL, 'FORMATTED_VALUE');
-  var formulas = leerRango('Panel!A1:F' + FILAS_PANEL, 'FORMULA');
+  // Se busca por nombre real y no fijo: si un día la pestaña se llamara "PANEL"
+  // o "panel", con el nombre fijo la app se rompía entera con un error de Google
+  // en inglés que no dice qué pasó.
+  var panelReal = buscarHoja(titulos, HOJA_PANEL);
+  if (!panelReal) {
+    throw new Error('No encuentro la pestaña "' + HOJA_PANEL + '" en la planilla, y de ahí salen ' +
+      'todas las ediciones. Las pestañas que hay son: ' + titulos.join(', ') + '.');
+  }
+  var rangoPanel = "'" + panelReal.replace(/'/g, "''") + "'!A1:F" + FILAS_PANEL;
+
+  var valores = leerRango(rangoPanel, 'FORMATTED_VALUE');
+  var formulas = leerRango(rangoPanel, 'FORMULA');
 
   // Qué pestañas hay que leer: las que empiezan con "Inscriptos", más cualquier
   // otra que las fórmulas del Panel nombren. Así, si mañana una edición apunta a

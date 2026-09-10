@@ -14,12 +14,20 @@ const recortar = (filas) => filas.map(f => {
 const llamadas = [];
 // Los nombres de las pestañas los escribe Leo: la prueba los cambia al final
 // para comprobar que la app no depende de las mayúsculas exactas.
-let nombreEspera = 'Lista de espera', nombreGift = 'Gift Cards';
+let nombreEspera = 'Lista de espera', nombreGift = 'Gift Cards', nombrePanel = 'Panel';
 const titulos = () => [
-  'Clorofila — Master contactos 2026 v5 DEFINITIVO', 'Panel', nombreEspera,
+  'Clorofila — Master contactos 2026 v5 DEFINITIVO', nombrePanel, nombreEspera,
   nombreGift, 'Curso Octubre 2026', 'Tapeo 07-08-2026',
   ...Object.keys(fixture.hojas)
-];
+].filter(Boolean);
+
+// La API de verdad rechaza un rango cuya pestaña no existe. Sin esto, la prueba
+// de "le cambiaron el nombre al Panel" pasaría por la razón equivocada.
+const hojaDelRango = (r) => String(r).replace(/^'/, '').replace(/'?!.*$/, '').replace(/''/g, "'");
+const exigirQueExista = (rango) => {
+  const h = hojaDelRango(rango);
+  if (!titulos().includes(h)) throw new Error('Unable to parse range: ' + rango);
+};
 const igual = (a, b) => String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 const Sheets = {
   Spreadsheets: {
@@ -30,6 +38,7 @@ const Sheets = {
     Values: {
       get: (id, rango, opts) => {
         llamadas.push({ op: 'values.get', rango, render: opts.valueRenderOption });
+        exigirQueExista(rango);
         const base = opts.valueRenderOption === 'FORMULA' ? fixture.panelFormulas : fixture.panelValores;
         return { values: recortar(base) };
       },
@@ -164,6 +173,33 @@ chequear('la lista de espera llega igual a la app',
   estado2.espera.length === 2 && estado2.resumen.giftSinUsar === 1,
   'espera: ' + estado2.espera.length + ', gift sin usar: ' + estado2.resumen.giftSinUsar);
 nombreEspera = 'Lista de espera'; nombreGift = 'Gift Cards';
+
+console.log('\n--- Cuando se rompe algo: qué mensaje ve Leo ---');
+// Importa porque: "Unable to parse range: Panel!A1:F500" no le dice a nadie qué
+// hacer, y Leo va a estar editando la planilla todo el tiempo.
+nombrePanel = 'PANEL';
+let sirve = true, dijo = '';
+try { api.leerPlanilla(); } catch (e) { sirve = false; dijo = e.message; }
+chequear('si el Panel se llama "PANEL", la app lo encuentra igual',
+  sirve, 'se rompió con: ' + dijo);
+
+nombrePanel = null;   // la pestaña ya no está
+let mensaje = '';
+try { api.leerPlanilla(); } catch (e) { mensaje = api.explicarError(e); }
+chequear('si no está el Panel, dice cuál falta y qué pestañas hay',
+  /No encuentro la pestaña "Panel"/.test(mensaje) && /Inscriptos Agosto 2026/.test(mensaje),
+  'dijo: ' + mensaje);
+
+nombrePanel = 'Panel';
+chequear('un error de Google se traduce a algo accionable',
+  /Le cambiaron el nombre a una pestaña/.test(api.explicarError(new Error('Unable to parse range: X!A1:B2'))),
+  'dijo: ' + api.explicarError(new Error('Unable to parse range: X!A1:B2')));
+chequear('y no se pierde el texto original de Google',
+  /Google dijo/.test(api.explicarError(new Error('Requested entity was not found.'))),
+  'sin el original no hay con qué buscar el problema de verdad');
+chequear('los mensajes que ya están en castellano no se tocan',
+  api.explicarError(new Error('PIN incorrecto.')) === 'PIN incorrecto.',
+  'quedó: ' + api.explicarError(new Error('PIN incorrecto.')));
 
 console.log('\n' + (fallas === 0 ? 'LECTURA VERIFICADA' : fallas + ' FALLAS'));
 process.exit(fallas ? 1 : 0);
