@@ -56,11 +56,14 @@
     border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px; cursor: pointer;
   }
   .refrescar:active { transform: scale(0.97); }
-  .botonesCabecera { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+  /* El hueco es grande a propósito: Actualizar se toca todo el tiempo y Salir
+     borra los datos del teléfono. Con 8px se tocaba uno por el otro. */
+  .botonesCabecera { display: flex; align-items: center; gap: 16px; flex: 0 0 auto; }
   /* Salir se usa una vez cada tanto: que no le pelee el lugar a Actualizar. */
   .salir {
     border: none; background: none; color: var(--apagado); font: inherit; font-size: 13px;
-    padding: 7px 2px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+    padding: 10px 4px; min-width: 44px; cursor: pointer;
+    text-decoration: underline; text-underline-offset: 3px;
   }
   .salir:active { opacity: 0.6; }
   .refrescar[disabled] { opacity: 0.5; }
