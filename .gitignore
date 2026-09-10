@@ -1,0 +1,8 @@
+local/fixture.json
+local/estado.json
+local/preview.html
+local/preview-xss.html
+local/pin.txt
+local/Codigo-con-pin.gs
+.netlify/
+.claude/

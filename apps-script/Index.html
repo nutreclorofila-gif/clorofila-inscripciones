@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Clorofila — Inscripciones</title>
+  </head>
+  <body>
+<!-- Clorofila — Inscripciones. Pantalla única, pensada para el celu. -->
+<style>
+  :root {
+    --crema: #F5F0E8;
+    --verde: #2D4A3E;
+    --verde-claro: #5C7A67;
+    --dorado: #A98F5C;
+    --linea: #E2DBCB;
+    --fondo: #FAFAF7;
+    --papel: #FFFFFF;
+    --texto: #23281F;
+    --tenue: #7A7A70;
+    --rojo: #B03A32;
+    --ambar: #9A6B1E;
+    --ambar-fondo: #FDF4E0;
+    --rojo-fondo: #FBEBE9;
+    --verde-fondo: #EAF0EC;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --crema: #22271F; --verde: #A8C9B4; --verde-claro: #7FA98C;
+      --dorado: #C7AC77; --linea: #343A30; --fondo: #141713; --papel: #1B1F19;
+      --texto: #E9E7DE; --tenue: #9A9B90; --rojo: #E9897F; --ambar: #DCB463;
+      --ambar-fondo: #2C2517; --rojo-fondo: #2E1C19; --verde-fondo: #1F2A22;
+    }
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--fondo); color: var(--texto);
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px; line-height: 1.45;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 0 14px 40px; }
+
+  /* --- encabezado --- */
+  header {
+    position: sticky; top: 0; z-index: 10; background: var(--fondo);
+    padding: 14px 0 8px; border-bottom: 1px solid var(--linea);
+  }
+  .tituloFila { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  h1 { margin: 0; font-size: 19px; letter-spacing: -0.01em; font-weight: 700; }
+  .sello { font-size: 12px; color: var(--tenue); }
+  .refrescar {
+    border: 1px solid var(--linea); background: var(--papel); color: var(--texto);
+    border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .refrescar:active { transform: scale(0.97); }
+  .refrescar[disabled] { opacity: 0.5; }
+
+  /* --- tira de totales --- */
+  .totales { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0 4px; }
+  .total { background: var(--crema); border-radius: 14px; padding: 10px 8px; text-align: center; }
+  .total .n { font-size: 26px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .total .n.chico { font-size: 19px; }
+  .total .r { font-size: 11px; color: var(--tenue); text-transform: uppercase; letter-spacing: 0.04em; }
+
+  /* --- solapas --- */
+  nav { display: flex; gap: 6px; margin: 12px 0 16px; overflow-x: auto; scrollbar-width: none; }
+  nav::-webkit-scrollbar { display: none; }
+  .solapa {
+    flex: 0 0 auto; border: none; background: var(--crema); color: var(--texto);
+    border-radius: 999px; padding: 9px 15px; font: inherit; font-size: 14px; cursor: pointer;
+  }
+  .solapa[aria-selected="true"] { background: var(--verde); color: var(--fondo); font-weight: 600; }
+  .globo {
+    display: inline-block; min-width: 19px; margin-left: 6px; padding: 0 5px;
+    border-radius: 999px; background: var(--rojo); color: #fff;
+    font-size: 11px; font-weight: 700; line-height: 19px; text-align: center;
+  }
+  .solapa[aria-selected="true"] .globo { background: var(--fondo); color: var(--verde); }
+
+  /* --- tarjeta de edición --- */
+  .tarjeta {
+    background: var(--papel); border: 1px solid var(--linea); border-radius: 16px;
+    margin-bottom: 12px; overflow: hidden;
+  }
+  .tarjeta.llena { border-color: var(--verde-claro); }
+  .cabeza { display: block; width: 100%; text-align: left; background: none; border: none;
+            color: inherit; font: inherit; padding: 14px; cursor: pointer; }
+  .quees { font-size: 12px; color: var(--tenue); text-transform: uppercase; letter-spacing: 0.05em; }
+  .cual { font-size: 16px; font-weight: 600; margin-top: 1px; }
+  .cifra { display: flex; align-items: baseline; gap: 10px; margin-top: 8px; }
+  .grande { font-size: 44px; font-weight: 700; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .de { font-size: 20px; color: var(--tenue); font-variant-numeric: tabular-nums; }
+  .quedan { margin-left: auto; font-size: 13px; text-align: right; color: var(--tenue); }
+  .quedan b { display: block; font-size: 17px; color: var(--texto); }
+  .barra { height: 7px; border-radius: 999px; background: var(--crema); margin-top: 11px; overflow: hidden; }
+  .barra i { display: block; height: 100%; border-radius: 999px; background: var(--verde-claro); }
+  .barra i.alta { background: var(--dorado); }
+  .barra i.full { background: var(--verde); }
+  .pie { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--tenue); }
+  .pie b { color: var(--texto); font-variant-numeric: tabular-nums; }
+  .detalle { border-top: 1px solid var(--linea); padding: 4px 14px 12px; background: var(--crema); }
+
+  /* --- persona --- */
+  .persona { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--linea); }
+  .persona:last-child { border-bottom: none; }
+  .persona .quien { min-width: 0; flex: 1; }
+  .persona .nom { font-size: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .persona .sub { font-size: 12px; color: var(--tenue); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chip { flex: 0 0 auto; font-size: 11.5px; font-weight: 600; padding: 4px 9px; border-radius: 999px; white-space: nowrap; }
+  .chip.completo { background: var(--verde-fondo); color: var(--verde); }
+  .chip.cubierto { background: var(--crema); color: var(--tenue); }
+  .chip.parcial  { background: var(--ambar-fondo); color: var(--ambar); }
+  .chip.sin_pago, .chip.revisar { background: var(--rojo-fondo); color: var(--rojo); }
+
+  /* --- avisos --- */
+  .aviso { border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; border: 1px solid transparent; }
+  .aviso.alta  { background: var(--rojo-fondo); border-color: var(--rojo); }
+  .aviso.media { background: var(--ambar-fondo); border-color: var(--linea); }
+  .aviso.info  { background: var(--verde-fondo); border-color: var(--linea); }
+  .aviso .q { font-size: 15px; font-weight: 600; }
+  .aviso .p { font-size: 13px; color: var(--tenue); margin-top: 3px; }
+
+  .seccion { margin: 24px 0 10px; font-size: 12px; color: var(--tenue);
+             text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; }
+  details > summary { cursor: pointer; list-style: none; color: var(--tenue); font-size: 14px; padding: 10px 0; }
+  details > summary::-webkit-details-marker { display: none; }
+  .vacio { color: var(--tenue); font-size: 15px; padding: 26px 4px; text-align: center; }
+  .buscador {
+    width: 100%; font: inherit; font-size: 16px; padding: 11px 14px; margin-bottom: 12px;
+    border: 1px solid var(--linea); border-radius: 12px; background: var(--papel); color: var(--texto);
+  }
+  .oculto { display: none !important; }
+
+  .puerta { padding: 56px 4px 24px; text-align: center; }
+  .puerta h2 { margin: 0 0 6px; font-size: 20px; }
+  .puerta p { margin: 0 0 22px; color: var(--tenue); font-size: 14px; }
+  .puerta input {
+    width: 100%; max-width: 240px; text-align: center; font: inherit;
+    font-size: 30px; letter-spacing: 0.32em; padding: 12px 10px;
+    border: 1px solid var(--linea); border-radius: 14px;
+    background: var(--papel); color: var(--texto); font-variant-numeric: tabular-nums;
+  }
+  .puerta button {
+    display: block; width: 100%; max-width: 240px; margin: 12px auto 0;
+    padding: 13px; border: none; border-radius: 12px;
+    background: var(--verde); color: var(--fondo); font: inherit; font-size: 16px; font-weight: 600;
+  }
+  .puerta button[disabled] { opacity: 0.5; }
+  .puerta .mal { color: var(--rojo); font-size: 14px; margin-top: 14px; min-height: 20px; }
+  .error { background: var(--rojo-fondo); color: var(--rojo); border-radius: 12px; padding: 12px 14px; margin: 12px 0; font-size: 14px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="tituloFila">
+      <h1>Inscripciones</h1>
+      <button class="refrescar" id="btnRefrescar" type="button">Actualizar</button>
+    </div>
+    <div class="sello" id="sello"></div>
+  </header>
+
+  <div id="error" class="error oculto"></div>
+  <div class="totales" id="totales"></div>
+  <nav id="solapas" role="tablist"></nav>
+  <main id="panel"></main>
+</div>
+
+<script>
+  var DATOS = <?!= datosIniciales ?>;
+  var SOLAPA = 'cupos';
+  var ABIERTAS = {};
+  var CLAVE_PIN = 'clorofila_pin';
+
+  function pinGuardado() {
+    try { return localStorage.getItem(CLAVE_PIN) || ''; } catch (e) { return ''; }
+  }
+  function guardarPin(p) {
+    try { localStorage.setItem(CLAVE_PIN, p); } catch (e) {}
+  }
+  function olvidarPin() {
+    try { localStorage.removeItem(CLAVE_PIN); } catch (e) {}
+  }
+
+  /**
+   * Trae los datos del servidor mandando el PIN.
+   *
+   * La misma página funciona en los dos lugares donde vive:
+   *  - servida por Apps Script  -> habla por google.script.run
+   *  - servida como página suelta (GitHub Pages) -> habla por fetch contra la API
+   * La segunda existe porque abrir la app en script.google.com falla en
+   * navegadores con varias cuentas de Google: Google reescribe la URL con /u/N/
+   * y esa forma no resuelve. Desde otro dominio, con credentials:'omit', no hay
+   * cookies de sesión y el problema desaparece.
+   */
+  var API = (typeof URL_API !== 'undefined') ? URL_API : null;
+
+  function pedirDatos(pin, alLograrlo, alFallar) {
+    if (!API && window.google && google.script && google.script.run) {
+      google.script.run.withSuccessHandler(alLograrlo).withFailureHandler(alFallar).obtenerEstado(pin);
+      return;
+    }
+    fetch(API + '?formato=json&pin=' + encodeURIComponent(pin), { credentials: 'omit' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d && d.ok) alLograrlo(d.estado);
+        else alFallar(new Error((d && d.error) || 'No se pudo leer la planilla.'));
+      })
+      .catch(function (e) {
+        alFallar(new Error('Sin conexión con la planilla. ' + (e.message || '')));
+      });
+  }
+
+  function mostrarPuerta(mensaje) {
+    document.getElementById('totales').classList.add('oculto');
+    document.getElementById('solapas').classList.add('oculto');
+    document.getElementById('sello').textContent = '';
+    document.getElementById('btnRefrescar').classList.add('oculto');
+    document.getElementById('panel').innerHTML =
+      '<div class="puerta">' +
+        '<h2>Inscripciones</h2>' +
+        '<p>Escribí el PIN para ver los números.</p>' +
+        '<input id="pin" type="tel" inputmode="numeric" maxlength="6" autocomplete="off" ' +
+          'pattern="[0-9]*" placeholder="······">' +
+        '<button id="entrar" type="button">Entrar</button>' +
+        '<div class="mal" id="malPin">' + esc(mensaje || '') + '</div>' +
+      '</div>';
+
+    var campo = document.getElementById('pin');
+    var boton = document.getElementById('entrar');
+    var aviso = document.getElementById('malPin');
+
+    function intentar() {
+      var pin = campo.value.trim();
+      if (!pin) { campo.focus(); return; }
+      boton.disabled = true;
+      boton.textContent = 'Entrando…';
+      aviso.textContent = '';
+      pedirDatos(pin, function (estado) {
+        guardarPin(pin);
+        DATOS = estado;
+        abrirApp();
+      }, function (e) {
+        boton.disabled = false;
+        boton.textContent = 'Entrar';
+        aviso.textContent = (e && e.message) ? e.message : 'No se pudo entrar.';
+        campo.value = '';
+        campo.focus();
+      });
+    }
+
+    boton.addEventListener('click', intentar);
+    campo.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') intentar(); });
+    campo.focus();
+  }
+
+  function abrirApp() {
+    document.getElementById('totales').classList.remove('oculto');
+    document.getElementById('solapas').classList.remove('oculto');
+    document.getElementById('btnRefrescar').classList.remove('oculto');
+    pintarTodo();
+  }
+
+  function arrancar() {
+    if (DATOS) { abrirApp(); return; }
+    var pin = pinGuardado();
+    if (!pin) { mostrarPuerta(''); return; }
+    // Ya entró antes en este teléfono: no le pedimos el PIN de nuevo.
+    document.getElementById('panel').innerHTML = '<div class="vacio">Buscando los números…</div>';
+    pedirDatos(pin, function (estado) {
+      DATOS = estado;
+      abrirApp();
+    }, function () {
+      olvidarPin();
+      mostrarPuerta('Volvé a escribir el PIN.');
+    });
+  }
+
+  /* ---------- helpers ---------- */
+  function esc(t) {
+    return String(t === null || t === undefined ? '' : t)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+  function plata(n) {
+    var v = Math.round(Number(n) || 0);
+    return (v < 0 ? '-' : '') + '$ ' + String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+  function hora(iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) return '';
+    var dd = function (x) { return (x < 10 ? '0' : '') + x; };
+    return dd(d.getDate()) + '/' + dd(d.getMonth() + 1) + ' ' + dd(d.getHours()) + ':' + dd(d.getMinutes());
+  }
+  var ETIQUETAS = {
+    completo: 'Pagó', parcial: 'Debe', cubierto: 'Cubierto',
+    sin_pago: 'Sin pago', revisar: 'Revisar'
+  };
+
+  /* ---------- render ---------- */
+  function pintarTodo() {
+    document.getElementById('sello').textContent =
+      'Datos de la planilla · ' + hora(DATOS.generadoEn);
+    pintarTotales();
+    pintarSolapas();
+    pintarPanel();
+  }
+
+  function pintarTotales() {
+    var r = DATOS.resumen;
+    document.getElementById('totales').innerHTML =
+      caja(r.anotados + '<span style="font-size:.55em;color:var(--tenue)">/' + r.cupo + '</span>', 'anotados') +
+      caja(r.libres, 'lugares libres') +
+      caja(plata(r.recaudado), 'cobrado', true);
+  }
+  function caja(n, rotulo, chico) {
+    return '<div class="total"><div class="n' + (chico ? ' chico' : '') + '">' + n +
+           '</div><div class="r">' + rotulo + '</div></div>';
+  }
+
+  function pintarSolapas() {
+    var altas = DATOS.resumen.alertasAltas;
+    var total = DATOS.resumen.alertasTotal;
+    var defs = [
+      ['cupos', 'Cupos', 0],
+      ['plata', 'Plata', 0],
+      ['gente', 'Gente', 0],
+      ['alertas', 'Alertas', total]
+    ];
+    document.getElementById('solapas').innerHTML = defs.map(function (d) {
+      return '<button class="solapa" role="tab" data-solapa="' + d[0] + '" aria-selected="' +
+        (SOLAPA === d[0]) + '">' + d[1] +
+        (d[2] ? '<span class="globo"' + (altas ? '' : ' style="background:var(--dorado)"') + '>' + d[2] + '</span>' : '') +
+        '</button>';
+    }).join('');
+  }
+
+  function pintarPanel() {
+    var p = document.getElementById('panel');
+    if (SOLAPA === 'cupos') p.innerHTML = vistaCupos();
+    else if (SOLAPA === 'plata') p.innerHTML = vistaPlata();
+    else if (SOLAPA === 'gente') {
+      p.innerHTML = '<input class="buscador" id="buscador" type="search" autocomplete="off" ' +
+        'placeholder="Buscar por nombre, mail o celular"><div id="listaGente"></div>';
+      var b = document.getElementById('buscador');
+      var lista = document.getElementById('listaGente');
+      lista.innerHTML = vistaGente('');
+      b.addEventListener('input', function () { lista.innerHTML = vistaGente(b.value); });
+    }
+    else p.innerHTML = vistaAlertas();
+  }
+
+  /* ---------- cupos ---------- */
+  function vistaCupos() {
+    var vigentes = DATOS.ediciones.filter(function (e) { return e.vigente; });
+    var pasadas = DATOS.ediciones.filter(function (e) { return !e.vigente; });
+    var html = '';
+
+    var urgentes = DATOS.alertas.filter(function (a) { return a.nivel === 'alta'; });
+    if (urgentes.length) html += urgentes.map(aviso).join('');
+
+    if (!vigentes.length) html += '<div class="vacio">No hay ninguna edición abierta ni por venir.</div>';
+    else html += vigentes.map(tarjeta).join('');
+
+    if (pasadas.length) {
+      html += '<details><summary>Ver las ' + pasadas.length + ' ediciones que ya pasaron</summary>' +
+        pasadas.map(tarjeta).join('') + '</details>';
+    }
+    if (DATOS.fueraDeCupo.length) {
+      html += '<div class="seccion">No ocupan cupo</div>' +
+        DATOS.fueraDeCupo.map(function (f) {
+          return '<div class="persona"><div class="quien"><div class="nom">' + esc(f.nombre) +
+            '</div><div class="sub">' + esc(f.edicion) + (f.monto ? ' · ' + plata(f.monto) : '') +
+            '</div></div></div>';
+        }).join('');
+    }
+    return html;
+  }
+
+  function tarjeta(e) {
+    var pct = Math.round(e.ocupacion * 100);
+    var clase = pct >= 100 ? 'full' : (pct >= 70 ? 'alta' : '');
+    var abierta = ABIERTAS[e.id];
+    return '<div class="tarjeta' + (pct >= 100 ? ' llena' : '') + '">' +
+      '<button class="cabeza" data-ed="' + e.id + '" aria-expanded="' + !!abierta + '">' +
+        '<div class="quees">' + esc(e.titulo) + (e.abierta ? '' : ' · cerrada') + '</div>' +
+        '<div class="cual">' + esc(e.subtitulo || e.edicion) + '</div>' +
+        '<div class="cifra">' +
+          '<span class="grande">' + e.anotados + '</span>' +
+          '<span class="de">de ' + e.cupo + '</span>' +
+          '<span class="quedan">' + (e.quedan > 0
+            ? '<b>' + e.quedan + '</b>' + (e.quedan === 1 ? 'lugar libre' : 'lugares libres')
+            : (e.quedan === 0 ? '<b>Lleno</b>' : '<b>' + Math.abs(e.quedan) + ' de más</b>')) +
+          '</span>' +
+        '</div>' +
+        '<div class="barra"><i class="' + clase + '" style="width:' + Math.min(pct, 100) + '%"></i></div>' +
+        '<div class="pie"><span>Cobrado <b>' + plata(e.recaudado) + '</b></span>' +
+          (e.saldo ? '<span>Falta <b>' + plata(e.saldo) + '</b></span>' : '') +
+          (e.pendientes.length ? '<span><b>' + e.pendientes.length + '</b> con el pago pendiente</span>' : '') +
+          '<span style="margin-left:auto">' + (abierta ? 'ocultar ▴' : 'ver la gente ▾') + '</span>' +
+        '</div>' +
+      '</button>' +
+      (abierta ? '<div class="detalle">' + (e.personas.length
+        ? e.personas.map(persona).join('')
+        : '<div class="vacio">Todavía no se anotó nadie.</div>') + '</div>' : '') +
+    '</div>';
+  }
+
+  function persona(p) {
+    var etiqueta = ETIQUETAS[p.estadoPago] + (p.estadoPago === 'parcial' ? ' ' + plata(p.saldo) : '');
+    var sub = [p.horario, p.medioPago, p.monto ? plata(p.monto) : ''].filter(Boolean).join(' · ');
+    return '<div class="persona"><div class="quien">' +
+      '<div class="nom">' + esc(p.nombre || '(sin nombre)') + '</div>' +
+      '<div class="sub">' + esc(sub) + '</div></div>' +
+      '<span class="chip ' + p.estadoPago + '">' + esc(etiqueta) + '</span></div>';
+  }
+
+  /* ---------- plata ---------- */
+  function vistaPlata() {
+    var vigentes = DATOS.ediciones.filter(function (e) { return e.vigente; });
+    var r = DATOS.resumen;
+    var t = DATOS.tikzet;
+    var html =
+      '<div class="tarjeta"><div style="padding:14px">' +
+        '<div class="quees">Cobrado en lo que viene</div>' +
+        '<div class="grande" style="margin-top:6px">' + plata(r.recaudado) + '</div>' +
+        '<div class="pie">' +
+          (r.saldo ? '<span>Falta cobrar <b>' + plata(r.saldo) + '</b></span>' : '<span>Sin saldos pendientes</span>') +
+          '<span><b>' + r.pendientes + '</b> ' + (r.pendientes === 1 ? 'persona' : 'personas') + ' con algo pendiente</span>' +
+        '</div>' +
+      '</div></div>';
+
+    html += '<div class="seccion">Por edición</div>';
+    html += vigentes.map(function (e) {
+      return '<div class="persona"><div class="quien">' +
+        '<div class="nom">' + esc(e.subtitulo || e.edicion) + '</div>' +
+        '<div class="sub">' + esc(e.titulo) + ' · ' + e.anotados + (e.anotados === 1 ? ' anotado' : ' anotados') +
+          (e.saldo ? ' · falta ' + plata(e.saldo) : '') + '</div></div>' +
+        '<span style="font-weight:700;font-variant-numeric:tabular-nums">' + plata(e.recaudado) + '</span></div>';
+    }).join('') || '<div class="vacio">No hay ediciones vigentes.</div>';
+
+    var pendientes = [];
+    vigentes.forEach(function (e) {
+      e.pendientes.forEach(function (p) { pendientes.push({ e: e, p: p }); });
+    });
+    html += '<div class="seccion">Falta que paguen</div>';
+    html += pendientes.length
+      ? pendientes.map(function (x) {
+          return '<div class="persona"><div class="quien">' +
+            '<div class="nom">' + esc(x.p.nombre) + '</div>' +
+            '<div class="sub">' + esc(x.e.subtitulo || x.e.edicion) + ' · ' + esc(x.p.nota || '') + '</div></div>' +
+            '<span class="chip ' + x.p.estadoPago + '">' +
+              ETIQUETAS[x.p.estadoPago] + (x.p.saldo ? ' ' + plata(x.p.saldo) : '') + '</span></div>';
+        }).join('')
+      : '<div class="vacio">Está todo cobrado.</div>';
+
+    html += '<div class="seccion">Tikzet</div>' +
+      '<div class="tarjeta"><div style="padding:14px">' +
+        '<div class="cifra"><span class="grande">' + t.entradas + '</span>' +
+        '<span class="de">' + (t.entradas === 1 ? 'entrada' : 'entradas') + '</span>' +
+        '<span class="quedan"><b>' + plata(t.recaudado) + '</b>cobrado</span></div>' +
+        '<div class="pie">' + (t.sinMonto
+          ? '<span style="color:var(--rojo)"><b>' + t.sinMonto + '</b> sin el monto cargado</span>'
+          : '<span>Todas con su monto cargado</span>') +
+          '<span>Se carga a mano: cruzalo contra el panel de Tikzet.</span></div>' +
+      '</div></div>' +
+      t.porEdicion.map(function (x) {
+        return '<div class="persona"><div class="quien">' +
+          '<div class="nom">' + esc(x.titulo + ' · ' + (x.subtitulo || '')) + '</div>' +
+          '<div class="sub">' + x.entradas + ' ' + (x.entradas === 1 ? 'entrada' : 'entradas') +
+          (x.sinMonto ? ' · ' + x.sinMonto + ' sin monto' : '') + '</div></div>' +
+          '<span style="font-weight:600">' + plata(x.recaudado) + '</span></div>';
+      }).join('') +
+      (t.historico.entradas
+        ? '<div class="sub" style="font-size:13px;color:var(--tenue);padding:10px 0">' +
+          'En ediciones que ya pasaron: ' + t.historico.entradas + ' entradas más, ' +
+          plata(t.historico.recaudado) + '.</div>'
+        : '');
+    return html;
+  }
+
+  /* ---------- gente ---------- */
+  function vistaGente(filtro) {
+    var todas = [];
+    DATOS.ediciones.forEach(function (e) {
+      e.personas.forEach(function (p) { todas.push({ e: e, p: p }); });
+    });
+    todas.sort(function (a, b) {
+      if (a.e.vigente !== b.e.vigente) return a.e.vigente ? -1 : 1;
+      return (a.p.nombre || '').localeCompare(b.p.nombre || '', 'es');
+    });
+
+    var q = (filtro || '').trim().toLowerCase();
+    var lista = q ? todas.filter(function (x) {
+      return ((x.p.nombre || '') + ' ' + (x.p.email || '') + ' ' + (x.p.celular || '') + ' ' + x.e.edicion)
+        .toLowerCase().indexOf(q) !== -1;
+    }) : todas;
+
+    return '<div class="seccion">' + lista.length + ' de ' + todas.length + '</div>' +
+      (lista.length ? lista.map(function (x) {
+        var etiqueta = ETIQUETAS[x.p.estadoPago] + (x.p.estadoPago === 'parcial' ? ' ' + plata(x.p.saldo) : '');
+        return '<div class="persona"><div class="quien">' +
+          '<div class="nom">' + esc(x.p.nombre || '(sin nombre)') + '</div>' +
+          '<div class="sub">' + esc(x.e.titulo + ' · ' + (x.e.subtitulo || x.e.edicion) +
+            (x.e.vigente ? '' : ' · ya pasó')) + '</div></div>' +
+          '<span class="chip ' + x.p.estadoPago + '">' + esc(etiqueta) + '</span></div>';
+      }).join('') : '<div class="vacio">No hay nadie con eso.</div>');
+  }
+
+  /* ---------- alertas ---------- */
+  function vistaAlertas() {
+    if (!DATOS.alertas.length) {
+      return '<div class="vacio">No hay nada para revisar.<br>Los cupos, los pagos y Tikzet cierran.</div>';
+    }
+    return DATOS.alertas.map(aviso).join('');
+  }
+  function aviso(a) {
+    return '<div class="aviso ' + a.nivel + '"><div class="q">' + esc(a.texto) + '</div>' +
+      '<div class="p">' + esc(a.detalle) + '</div></div>';
+  }
+
+  /* ---------- eventos ---------- */
+  document.getElementById('solapas').addEventListener('click', function (ev) {
+    var b = ev.target.closest('.solapa');
+    if (!b) return;
+    SOLAPA = b.dataset.solapa;
+    pintarSolapas();
+    pintarPanel();
+    window.scrollTo(0, 0);
+  });
+
+  document.getElementById('panel').addEventListener('click', function (ev) {
+    var b = ev.target.closest('.cabeza');
+    if (!b) return;
+    ABIERTAS[b.dataset.ed] = !ABIERTAS[b.dataset.ed];
+    pintarPanel();
+  });
+
+  document.getElementById('btnRefrescar').addEventListener('click', function () {
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Buscando…';
+    document.getElementById('error').classList.add('oculto');
+    pedirDatos(pinGuardado(), function (nuevo) {
+      DATOS = nuevo;
+      btn.disabled = false;
+      btn.textContent = 'Actualizar';
+      pintarTodo();
+    }, function (e) {
+      btn.disabled = false;
+      btn.textContent = 'Actualizar';
+      var mensaje = (e && e.message) ? e.message : String(e);
+      if (/PIN/i.test(mensaje)) { olvidarPin(); mostrarPuerta(mensaje); return; }
+      var caja = document.getElementById('error');
+      caja.textContent = 'No se pudo leer la planilla: ' + mensaje;
+      caja.classList.remove('oculto');
+    });
+  });
+
+  arrancar();
+</script>
+
+  </body>
+</html>
