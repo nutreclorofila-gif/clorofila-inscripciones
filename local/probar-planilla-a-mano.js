@@ -1,7 +1,7 @@
 // Lo que pasa cuando la planilla se edita a mano, que es como se va a usar
 // siempre: cada taller nuevo es una fórmula copiada, y la lista de espera y las
 // gift cards se escriben a dedo. Todos estos casos rompían la app antes.
-const { cargar } = require('/Users/leonardolemes/Proyectos/clorofila-inscripciones/local/cargar.js');
+const { cargar } = require('./cargar.js');
 const G = cargar();
 
 let fallas = 0, corridos = 0;
