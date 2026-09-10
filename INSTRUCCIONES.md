@@ -145,7 +145,7 @@ URL y hay que actualizarla en `web/index.html`.
 ## Verificar
 
 ```bash
-./verificar.sh                  # corre las 8 suites; tiene que pasar entero antes de subir
+./verificar.sh                  # corre las 10 suites; tiene que pasar entero antes de subir
 node local/bajar-fixture.js     # refresca local/fixture.json con los datos de hoy
 node local/generar-preview.js   # arma local/preview.html para mirarla en el navegador
 ```
@@ -155,7 +155,9 @@ node local/generar-preview.js   # arma local/preview.html para mirarla en el nav
 | `local/probar.js` | Los conteos contra el Panel real, edición por edición. **12 de 12 cuadran.** |
 | `local/casos-limite.js` | 11 escenarios plausibles de la planilla que podrían romperla. |
 | `local/probar-lectura.js` | `leerPlanilla()` con un Sheets falso: qué pestañas lee y cuáles no. |
+| `local/probar-codigo.js` | Control estático de `Codigo.gs` **antes de pegarlo**: que parsee, que no llame funciones que no existen, que no vuelva a usar `SpreadsheetApp`, que no escriba en la planilla y que la página se siga sirviendo vacía. Verificado rompiendo el archivo a propósito: detecta los cuatro casos. |
 | `local/probar-pin.js` | Que sin el PIN correcto no salga nada, y el freno a los intentos. |
+| `local/probar-plata.js` | 16 casos de la lógica de plata: señas, precio del curso, montos raros, comprobantes repetidos, columna de verificación. |
 | `local/probar-planilla-a-mano.js` | 33 casos: cómo se puede escribir la fórmula del Panel, la lista de espera y las gift cards. |
 | `local/probar-cache.js` | 17 casos: qué queda guardado en el teléfono, cuándo vence y que "Salir" lo borre. |
 | `local/probar-vistas.js` | Las cuatro solapas con datos nuevos, con un backend viejo y con la planilla vacía. |
@@ -215,5 +217,21 @@ apunte a otra pestaña no produce un descuadre falso.
 tienen datos personales reales (nombres, mails, celulares). No subirlos a ningún lado —
 están en `.gitignore`.
 
+### Tercera vuelta (10/9/2026)
+
+11. **El precio del curso estaba escrito a mano y nada avisaba si quedaba viejo.** El día
+    que cambie, los saldos se calcularían contra el precio anterior en silencio. Ahora la
+    app mira lo que está pagando la gente y avisa si dejó de coincidir. No adivina el
+    precio nuevo ni lo usa para calcular.
+12. **La columna "pago verificado" se leía y no se usaba.** Está vacía en las 102 filas,
+    pero el día que se use, un "no" ahí tiene que pesar. Ahora pasa a Revisar y sale una
+    alerta con la plata en duda.
+13. **Los nombres de pestaña se comparaban exactos.** Si un día fuera "Lista de Espera" o
+    "Gift cards", esas vistas quedaban vacías **para siempre y sin ninguna alerta**.
+14. **La caché del teléfono y el botón Salir**, verificados en el navegador contra la
+    planilla real. Ahí apareció que quedaban 8px entre "Actualizar" y "Salir": en un
+    celular se tocaba uno por el otro.
+
 ⚠️ **Nunca copiar un dato de la planilla a un comentario o a una prueba.** El repo es
-público. Para los ejemplos van números y nombres inventados con la misma forma.
+público. Para los ejemplos van números y nombres inventados con la misma forma. Las
+pruebas tampoco imprimen nombres por pantalla: esa salida se pega en cualquier lado.
