@@ -16,7 +16,7 @@ const localStorage = {
 };
 const ctx = new Function('localStorage', trozo +
   '\nreturn {guardarCache,leerCache,borrarCache,guardarPin,pinGuardado,olvidarPin,olvidarTodo,VIDA_CACHE,' +
-  'verAlmacen:()=>0};')(localStorage);
+  'compararEstados,quienesEstan,recibirEstado,verNovedades:()=>NOVEDADES};')(localStorage);
 
 let fallas = 0, corridos = 0;
 function caso(nombre, esperado, obtenido) {
@@ -68,9 +68,52 @@ ctx.olvidarTodo();
 caso('no queda nada guardado', [], Object.keys(almacen));
 caso('y no se puede recuperar', null, ctx.leerCache('511208'));
 
+console.log('\n--- Qué cambió desde la última vez ---');
+// Se abre la app varias veces por día: lo primero que uno quiere saber es si se
+// anotó alguien.
+const conGente = (personas, vigente) => ({
+  ediciones: [{ edicion: 'Taller X — 12/11/2026', vigente: vigente !== false, personas: personas }]
+});
+const P = (nombre, email) => ({ nombre: nombre, email: email || (nombre.toLowerCase() + '@x.com') });
+
+almacen = {};
+ctx.guardarCache(conGente([P('Ana'), P('Beto')]), '511208');
+ctx.recibirEstado(conGente([P('Ana'), P('Beto')]), '511208');
+caso('si no cambió nada, no avisa nada', null, ctx.verNovedades());
+
+almacen = {};
+ctx.guardarCache(conGente([P('Ana'), P('Beto')]), '511208');
+ctx.recibirEstado(conGente([P('Ana'), P('Beto'), P('Caro')]), '511208');
+caso('si se anotó alguien, dice quién', ['Caro'], (ctx.verNovedades().gente || []).map(x => x.nombre));
+
+// El caso que rompe las comparaciones por número de fila.
+almacen = {};
+ctx.guardarCache(conGente([P('Ana'), P('Beto')]), '511208');
+ctx.recibirEstado(conGente([P('Beto'), P('Ana')]), '511208');
+caso('si se reordenan las filas, NO inventa anotados', null, ctx.verNovedades());
+
+almacen = {};
+ctx.guardarCache(conGente([P('Ana')]), '511208');
+ctx.recibirEstado(conGente([P('Ana'), P('Caro')], false), '511208');
+caso('no avisa de una edición que ya pasó', null, ctx.verNovedades());
+
+almacen = {};   // primera vez en este teléfono: no hay con qué comparar
+ctx.recibirEstado(conGente([P('Ana'), P('Beto')]), '511208');
+caso('la primera vez no dice que se anotaron todos', null, ctx.verNovedades());
+
+almacen = {};
+ctx.guardarCache(conGente([P('Ana')]), '511208');
+ctx.recibirEstado(conGente([P('Ana'), P('Sin Mail', '')]), '511208');
+caso('a quien no tiene mail lo ubica por el nombre', ['Sin Mail'], (ctx.verNovedades().gente || []).map(x => x.nombre));
+
+almacen = {};
+ctx.guardarCache(conGente([P('Ana')]), '511208');
+ctx.recibirEstado(conGente([P('Ana'), P('Caro')]), '511208');
+caso('y el estado nuevo igual queda guardado', true, !!ctx.leerCache('511208'));
+
 console.log('\n--- Almacenamiento roto (modo privado, sitio bloqueado) ---');
 // Importa porque: si tirar una excepción rompe la app, Leo se queda sin números.
-const roto = new Function('localStorage', trozo + '\nreturn {guardarCache,leerCache,pinGuardado,olvidarTodo};')({
+const roto = new Function('localStorage', trozo + '\nreturn {guardarCache,leerCache,pinGuardado,olvidarTodo,recibirEstado};')({
   getItem: () => { throw new Error('bloqueado'); },
   setItem: () => { throw new Error('bloqueado'); },
   removeItem: () => { throw new Error('bloqueado'); }

@@ -5,7 +5,7 @@
 const fs = require('fs'), path = require('path');
 const base = path.join(__dirname, '..');
 
-function cargarUI(datos) {
+function cargarUI(datos, novedades) {
   const html = fs.readFileSync(path.join(base, 'apps-script', 'Index.html'), 'utf8');
   const js = html.split('<script>')[1].split('</script>')[0].replace('<?!= datosIniciales ?>', 'null');
 
@@ -32,9 +32,9 @@ function cargarUI(datos) {
   const window = { google: null, addEventListener() {}, confirm: () => false, location: { href: '' } };
 
   const api = new Function('document', 'localStorage', 'window', 'navigator', 'setTimeout', 'fetch',
-    js + '\nDATOS = arguments[6];' +
-    '\nreturn {vistaCupos,vistaPlata,vistaGente,vistaAlertas,pintarTotales,plata,esc};')
-    (document, localStorage, window, { clipboard: null }, () => {}, () => Promise.reject(new Error('sin red')), datos);
+    js + '\nDATOS = arguments[6]; NOVEDADES = arguments[7] || null;' +
+    '\nreturn {vistaCupos,vistaPlata,vistaGente,vistaAlertas,pintarTotales,avisoDeNovedades,plata,esc};')
+    (document, localStorage, window, { clipboard: null }, () => {}, () => Promise.reject(new Error('sin red')), datos, novedades);
   api.verEscrito = verEscrito;
   return api;
 }
@@ -118,6 +118,31 @@ function probarEstado(titulo, estado) {
                 (/fila 5/.test(cupos2) ? '' : ' — y se perdió el detalle de las que no hablan de plata'));
   }
 
+  // El aviso de "se anotó gente" también se ve en la portada: sin montos.
+  corridos++;
+  const uiN = cargarUI(estado, {
+    desde: Date.now() - 26 * 60 * 60 * 1000,
+    gente: [{ nombre: 'Fulana', edicion: 'X' }, { nombre: 'Mengano', edicion: 'X' },
+            { nombre: 'Zutano', edicion: 'X' }, { nombre: 'Perengano', edicion: 'X' }]
+  });
+  const banner = uiN.avisoDeNovedades();
+  if (/Se anotaron 4 personas/.test(banner) && /y 1 más/.test(banner) && montos(banner).length === 0
+      && /desde hace 1 día/.test(banner)) {
+    console.log('  ok    avisa quién se anotó, sin montos y sin listar a todos');
+  } else {
+    fallas++;
+    console.log('  FALLA el aviso de novedades quedó: ' + banner);
+  }
+
+  corridos++;
+  if (cargarUI(estado, null).avisoDeNovedades() === '' &&
+      cargarUI(estado, { desde: Date.now(), gente: [] }).avisoDeNovedades() === '') {
+    console.log('  ok    si no se anotó nadie, no muestra nada');
+  } else {
+    fallas++;
+    console.log('  FALLA muestra el aviso sin novedades');
+  }
+
   // Pero tiene que seguir estando a un toque.
   corridos++;
   const conPlata = montos(ui.vistaPlata()).length;
@@ -162,6 +187,23 @@ if (archivo) {
   // Planilla recién estrenada: todo vacío.
   probarEstado('Planilla vacía', G.construirEstado({ panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado']], panelFormulas: [['','','','','','']], hojas: {}, extras: {} }, new Date()));
 }
+
+// Las piezas se prueban sueltas; esto comprueba que estén enchufadas.
+console.log('\n--- Que las piezas estén conectadas ---');
+const fuente = fs.readFileSync(path.join(base, 'apps-script', 'Index.html'), 'utf8');
+[['el aviso de novedades se pinta en Cupos', /SOLAPA === 'cupos'\)\s*p\.innerHTML = avisoDeCache\(\) \+ avisoDeNovedades\(\)/],
+ ['y NO en Plata, que es donde están los montos', /SOLAPA === 'plata'\) p\.innerHTML = avisoDeCache\(\) \+ vistaPlata/],
+ ['cada estado que llega del servidor pasa por recibirEstado', /recibirEstado\(/],
+ ['ya no se guarda la caché por afuera de recibirEstado', /^(?![\s\S]*guardarCache\(nuevo)/]
+].forEach(([nombre, re]) => {
+  corridos++;
+  if (re.test(fuente)) console.log('  ok    ' + nombre);
+  else { fallas++; console.log('  FALLA ' + nombre); }
+});
+const cuantos = (fuente.match(/recibirEstado\(/g) || []).length;
+corridos++;
+if (cuantos === 4) console.log('  ok    se usa en los 3 lugares que traen datos (más su definición)');
+else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' veces, esperaba 4'); }
 
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);

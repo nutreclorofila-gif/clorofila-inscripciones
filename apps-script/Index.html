@@ -131,6 +131,7 @@
   .aviso.media { background: var(--ambar-fondo); border-color: var(--linea); }
   .aviso.info  { background: var(--verde-fondo); border-color: var(--linea); }
   .aviso .q { font-size: 15px; font-weight: 600; }
+  .aviso.nuevo { border-color: var(--verde); }
   .aviso .p { font-size: 13px; color: var(--tenue); margin-top: 3px; }
 
   .seccion { margin: 24px 0 10px; font-size: 12px; color: var(--tenue);
@@ -217,6 +218,7 @@
   var CLAVE_CACHE = 'clorofila_ultimo';
   var DESDE_CACHE = false;
   var PIN_ACTUAL = '';
+  var NOVEDADES = null;
 
   /** Después de esto, lo guardado no se muestra más y hay que buscar de nuevo. */
   var VIDA_CACHE = 3 * 24 * 60 * 60 * 1000;   // 3 días
@@ -249,6 +251,44 @@
     try { localStorage.removeItem(CLAVE_CACHE); } catch (e) {}
   }
 
+  /**
+   * Qué cambió desde la última vez. La app se abre varias veces por día y lo
+   * primero que uno quiere saber es si se anotó alguien.
+   *
+   * Se compara por mail (o por nombre si no hay), NO por número de fila:
+   * insertar una fila arriba correría todas las demás y la app diría que se
+   * anotaron doce personas de golpe.
+   */
+  function quienesEstan(estado) {
+    var mapa = {};
+    ((estado && estado.ediciones) || []).forEach(function (e) {
+      (e.personas || []).forEach(function (p) {
+        var quien = String(p.email || p.nombre || '').trim().toLowerCase();
+        if (quien) mapa[e.edicion + '|' + quien] = { nombre: p.nombre, edicion: e.edicion, vigente: e.vigente };
+      });
+    });
+    return mapa;
+  }
+
+  function compararEstados(antes, ahora) {
+    if (!antes) return null;
+    var viejos = quienesEstan(antes), nuevos = quienesEstan(ahora);
+    var aparecidos = Object.keys(nuevos)
+      .filter(function (k) { return !viejos[k] && nuevos[k].vigente; })
+      .map(function (k) { return nuevos[k]; });
+    return aparecidos.length ? aparecidos : null;
+  }
+
+  /** Un estado recién traído del servidor: compara, guarda y pinta. */
+  function recibirEstado(estado, pin) {
+    var antes = leerCache(pin);
+    NOVEDADES = antes ? { gente: compararEstados(antes.estado, estado), desde: antes.cuando } : null;
+    if (NOVEDADES && !NOVEDADES.gente) NOVEDADES = null;
+    guardarCache(estado, pin);
+    DATOS = estado;
+    DESDE_CACHE = false;
+  }
+
   function pinGuardado() {
     if (PIN_ACTUAL) return PIN_ACTUAL;
     try { return localStorage.getItem(CLAVE_PIN) || ''; } catch (e) { return ''; }
@@ -267,6 +307,7 @@
     borrarCache();
     DATOS = null;
     DESDE_CACHE = false;
+    NOVEDADES = null;
   }
 
   /**
@@ -326,9 +367,7 @@
       aviso.textContent = '';
       pedirDatos(pin, function (estado) {
         guardarPin(pin);
-        guardarCache(estado, pin);
-        DATOS = estado;
-        DESDE_CACHE = false;
+        recibirEstado(estado, pin);
         abrirApp();
       }, function (e) {
         var mensaje = (e && e.message) ? e.message : 'No se pudo entrar.';
@@ -369,9 +408,7 @@
     // Ya entró antes en este teléfono: no le pedimos el PIN de nuevo.
     document.getElementById('panel').innerHTML = '<div class="vacio">Buscando los números…</div>';
     pedirDatos(pin, function (estado) {
-      guardarCache(estado, pin);
-      DATOS = estado;
-      DESDE_CACHE = false;
+      recibirEstado(estado, pin);
       abrirApp();
     }, function (e) {
       var mensaje = (e && e.message) ? e.message : '';
@@ -487,6 +524,24 @@
     }).join('');
   }
 
+  /**
+   * "Se anotaron 2 desde ayer". Sin montos: esto se ve en la portada.
+   * Aparece solo cuando hay gente nueva; si no cambió nada, no se muestra nada.
+   */
+  function avisoDeNovedades() {
+    if (!NOVEDADES || !NOVEDADES.gente || !NOVEDADES.gente.length) return '';
+    var g = NOVEDADES.gente;
+    var min = Math.round((Date.now() - NOVEDADES.desde) / 60000);
+    var desde = min < 60 ? 'en la última hora'
+              : (min < 1440 ? ('desde hace ' + Math.round(min / 60) + ' h')
+              : ('desde hace ' + Math.round(min / 1440) + (Math.round(min / 1440) === 1 ? ' día' : ' días')));
+    var quienes = g.slice(0, 3).map(function (x) { return esc(x.nombre || 'alguien'); }).join(', ');
+    if (g.length > 3) quienes += ' y ' + (g.length - 3) + ' más';
+    return '<div class="aviso info nuevo"><div class="q">' +
+      (g.length === 1 ? 'Se anotó 1 persona ' : 'Se anotaron ' + g.length + ' personas ') + desde +
+      '</div><div class="p">' + quienes + '</div></div>';
+  }
+
   function avisoDeCache() {
     if (!DESDE_CACHE) return '';
     var min = Math.round((Date.now() - DESDE_CACHE) / 60000);
@@ -499,7 +554,7 @@
 
   function pintarPanel() {
     var p = document.getElementById('panel');
-    if (SOLAPA === 'cupos') p.innerHTML = avisoDeCache() + vistaCupos();
+    if (SOLAPA === 'cupos') p.innerHTML = avisoDeCache() + avisoDeNovedades() + vistaCupos();
     else if (SOLAPA === 'plata') p.innerHTML = avisoDeCache() + vistaPlata();
     else if (SOLAPA === 'gente') {
       p.innerHTML = '<input class="buscador" id="buscador" type="search" autocomplete="off" ' +
@@ -813,9 +868,7 @@
     btn.textContent = 'Buscando…';
     document.getElementById('error').classList.add('oculto');
     pedirDatos(pinGuardado(), function (nuevo) {
-      guardarCache(nuevo, pinGuardado());
-      DATOS = nuevo;
-      DESDE_CACHE = false;
+      recibirEstado(nuevo, pinGuardado());
       btn.disabled = false;
       btn.textContent = 'Actualizar';
       pintarTodo();

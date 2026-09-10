@@ -175,6 +175,16 @@ el desglose por edición, quién debe y las gift cards.
 Hay una prueba que lo garantiza (`local/probar-vistas.js`): si algún día un monto vuelve a
 la portada, la verificación falla. Comprobado devolviéndolo a propósito.
 
+## Qué cambió desde la última vez
+
+Al abrirla, si se anotó alguien desde la última vez que la abriste, aparece arriba:
+*"Se anotaron 2 personas desde hace 6 h — Fulana, Mengano"*. Si no cambió nada, no aparece
+nada. Sin montos, como todo lo de la portada.
+
+La comparación es **por mail** (o por nombre si no hay mail), nunca por número de fila:
+insertar una fila en la planilla correría todas las demás y la app diría que se anotaron
+doce personas de golpe.
+
 ## Lo que queda guardado en el teléfono
 
 La app guarda el último estado en el navegador del celular para poder abrirla sin señal.
