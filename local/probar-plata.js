@@ -145,7 +145,11 @@ caso(
     const a = tipos(e, 'sin_verificar');
     if (a.length !== 1) return 'esperaba 1 alerta, hubo ' + a.length;
     if (a[0].nivel !== 'alta') return 'la alerta es ' + a[0].nivel;
-    if (!/2\.600/.test(a[0].texto)) return 'no dice cuánta plata: ' + a[0].texto;
+    // El monto va en el detalle y no en el texto: el texto se muestra en la
+    // portada, donde no se muestra plata. Pero tiene que estar en algún lado.
+    if (!/2\.600/.test(a[0].detalle)) return 'no dice cuánta plata: ' + a[0].detalle;
+    if (/\$/.test(a[0].texto)) return 'el texto lleva plata y se ve en la portada: ' + a[0].texto;
+    if (a[0].conPlata !== true) return 'no quedó marcada como alerta con plata';
     return true;
   }
 );

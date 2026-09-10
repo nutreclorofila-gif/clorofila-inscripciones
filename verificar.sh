@@ -1,7 +1,13 @@
 #!/bin/bash
 # Corre todas las verificaciones. Tiene que pasar entero antes de subir cambios
 # al proyecto de Apps Script.
+#
+# pipefail NO es opcional: cada suite se pasa por "| tail -2" para no llenar la
+# pantalla, y sin pipefail el código de salida es el del tail — siempre 0. Sin
+# esto el script imprime "TODO VERIFICADO" con pruebas rotas, que es peor que
+# no tener pruebas.
 set -e
+set -o pipefail
 cd "$(dirname "$0")"
 
 echo "=== 1/10  El código, antes de pegarlo en Apps Script ==="
