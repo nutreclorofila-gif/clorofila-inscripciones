@@ -12,15 +12,20 @@ const recortar = (filas) => filas.map(f => {
 });
 
 const llamadas = [];
+// Los nombres de las pestañas los escribe Leo: la prueba los cambia al final
+// para comprobar que la app no depende de las mayúsculas exactas.
+let nombreEspera = 'Lista de espera', nombreGift = 'Gift Cards';
+const titulos = () => [
+  'Clorofila — Master contactos 2026 v5 DEFINITIVO', 'Panel', nombreEspera,
+  nombreGift, 'Curso Octubre 2026', 'Tapeo 07-08-2026',
+  ...Object.keys(fixture.hojas)
+];
+const igual = (a, b) => String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 const Sheets = {
   Spreadsheets: {
     get: (id, opts) => {
       llamadas.push({ op: 'get', id, fields: opts && opts.fields });
-      return { sheets: [
-        'Clorofila — Master contactos 2026 v5 DEFINITIVO', 'Panel', 'Lista de espera',
-        'Gift Cards', 'Curso Octubre 2026', 'Tapeo 07-08-2026',
-        ...Object.keys(fixture.hojas)
-      ].map(t => ({ properties: { title: t } })) };
+      return { sheets: titulos().map(t => ({ properties: { title: t } })) };
     },
     Values: {
       get: (id, rango, opts) => {
@@ -32,14 +37,14 @@ const Sheets = {
         llamadas.push({ op: 'batchGet', ranges: opts.ranges });
         return { valueRanges: opts.ranges.map(r => {
           const nombre = r.replace(/^'/, '').replace(/'!A:[KN]$/, '').replace(/''/g, "'");
-          if (nombre === 'Lista de espera') {
+          if (igual(nombre, nombreEspera)) {
             return { values: [
               ['nombre','email','celular','edición'],
               ['Ana Espera','ana@ejemplo.com','099111222','Taller de tapeo — 18/09/2026'],
               ['Beto Espera','beto@ejemplo.com','','Otro taller que no existe']
             ]};
           }
-          if (nombre === 'Gift Cards') {
+          if (igual(nombre, nombreGift)) {
             return { values: [
               ['nombre','de','email','monto','usada'],
               ['Regalada A','Menganita','a@ejemplo.com','2600',''],
@@ -130,11 +135,35 @@ chequear('cuenta las gift cards sin usar en el resumen',
   estado.resumen.giftSinUsar === 1, 'dio ' + estado.resumen.giftSinUsar);
 
 console.log('\n--- quién repite ---');
-const repetidores = [];
-estado.ediciones.forEach(e => e.personas.forEach(p => { if (p.veces > 1) repetidores.push(p.nombre + ' (' + p.veces + ')'); }));
+// A propósito NO se imprimen los nombres: esta salida se pega en cualquier lado.
+const repetidores = {};
+estado.ediciones.forEach(e => e.personas.forEach(p => { if (p.veces > 1) repetidores[p.email || p.nombre] = p.veces; }));
+const cuantos = Object.keys(repetidores).length;
+const maximo = cuantos ? Math.max(...Object.values(repetidores)) : 0;
 chequear('detecta a los que vinieron más de una vez',
-  repetidores.length > 0, 'no encontró ninguno, y en la planilla hay gente repetida');
-console.log('        ' + [...new Set(repetidores)].slice(0, 6).join(', '));
+  cuantos > 0, 'no encontró ninguno, y en la planilla hay gente repetida');
+console.log('        ' + cuantos + ' personas repiten; la que más vino estuvo ' + maximo + ' veces');
+
+console.log('\n--- Si las pestañas se llaman con otras mayúsculas ---');
+// Importa porque: con comparación exacta, "Lista de Espera" hacía que esa vista
+// quedara vacía para siempre y la app no decía nada.
+nombreEspera = 'Lista de Espera';
+nombreGift = 'Gift cards';
+const crudo2 = api.leerPlanilla();
+chequear('encuentra "Lista de Espera" con E mayúscula',
+  !!(crudo2.extras && crudo2.extras['Lista de espera']),
+  'extras leídos: ' + Object.keys(crudo2.extras || {}).join(', '));
+chequear('encuentra "Gift cards" con c minúscula',
+  !!(crudo2.extras && crudo2.extras['Gift Cards']),
+  'extras leídos: ' + Object.keys(crudo2.extras || {}).join(', '));
+chequear('y siguen sin contar como inscriptos',
+  !Object.keys(crudo2.hojas).some(n => /lista de espera|gift/i.test(n)),
+  'se colaron en los cupos: ' + Object.keys(crudo2.hojas).join(', '));
+const estado2 = api.construirEstado(crudo2, new Date(2026, 8, 9));
+chequear('la lista de espera llega igual a la app',
+  estado2.espera.length === 2 && estado2.resumen.giftSinUsar === 1,
+  'espera: ' + estado2.espera.length + ', gift sin usar: ' + estado2.resumen.giftSinUsar);
+nombreEspera = 'Lista de espera'; nombreGift = 'Gift Cards';
 
 console.log('\n' + (fallas === 0 ? 'LECTURA VERIFICADA' : fallas + ' FALLAS'));
 process.exit(fallas ? 1 : 0);

@@ -200,14 +200,19 @@ function leerPlanilla() {
     hojasDeFormula(f[3]).forEach(function (n) { nombradas[n] = true; });
   });
 
+  var ignoradas = HOJAS_IGNORADAS.map(normalizarNombre);
   var aLeer = titulos.filter(function (n) {
-    if (HOJAS_IGNORADAS.indexOf(n) !== -1) return false;
-    return /^Inscriptos /.test(n) || nombradas[n];
+    if (ignoradas.indexOf(normalizarNombre(n)) !== -1) return false;
+    return /^inscriptos /i.test(String(n).trim()) || nombradas[n];
   });
 
-  // Van aparte de las de inscriptos: no cuentan en ningún cupo.
-  var extrasALeer = [HOJA_ESPERA, HOJA_GIFT].filter(function (n) {
-    return titulos.indexOf(n) !== -1;
+  // Van aparte de las de inscriptos: no cuentan en ningún cupo. Se buscan sin
+  // exigir mayúsculas exactas: "Gift cards" tiene que valer igual que "Gift Cards".
+  var extrasALeer = [];
+  var nombreReal = {};
+  [[HOJA_ESPERA, 'espera'], [HOJA_GIFT, 'gift']].forEach(function (par) {
+    var real = buscarHoja(titulos, par[0]);
+    if (real) { extrasALeer.push(real); nombreReal[real] = par[0]; }
   });
 
   // Todo en UNA sola llamada: las de inscriptos (hasta la columna K) y las dos
@@ -226,7 +231,8 @@ function leerPlanilla() {
     (resp.valueRanges || []).forEach(function (vr, i) {
       var d = todas[i];
       var filas = rellenar(vr.values || [], d.ancho);
-      if (d.extra) extras[d.nombre] = filas; else hojas[d.nombre] = filas;
+      if (d.extra) extras[nombreReal[d.nombre] || d.nombre] = filas;
+      else hojas[d.nombre] = filas;
     });
   }
 
@@ -260,6 +266,27 @@ function porEncabezado(filas) {
     if (!vacia) salida.push(o);
   }
   return salida;
+}
+
+/**
+ * Nombre de pestaña normalizado. Las pestañas las nombra Leo a mano: si un día
+ * escribe "Lista de Espera" o "Gift cards", con comparación exacta la app las
+ * ignora y esas dos vistas quedan vacías sin decir nada.
+ */
+function normalizarNombre(n) {
+  return String(n || '').trim().toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/[áàä]/g, 'a').replace(/[éèë]/g, 'e').replace(/[íìï]/g, 'i')
+    .replace(/[óòö]/g, 'o').replace(/[úùü]/g, 'u');
+}
+
+/** Busca una pestaña por nombre sin exigir mayúsculas ni acentos exactos. */
+function buscarHoja(titulos, nombre) {
+  var buscado = normalizarNombre(nombre);
+  for (var i = 0; i < titulos.length; i++) {
+    if (normalizarNombre(titulos[i]) === buscado) return titulos[i];
+  }
+  return null;
 }
 
 /** Devuelve el primer campo que exista, probando varios nombres posibles. */
