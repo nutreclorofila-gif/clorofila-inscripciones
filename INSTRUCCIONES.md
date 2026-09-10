@@ -163,6 +163,18 @@ node local/generar-preview.js   # arma local/preview.html para mirarla en el nav
 | `local/probar-vistas.js` | Las cuatro solapas con datos nuevos, con un backend viejo y con la planilla vacía. |
 | `local/probar-xss.js` | Datos hostiles cargados desde el Tally público. |
 
+## La plata no se ve en la portada
+
+Lo primero que aparece al abrir la app son **anotados, lugares libres y pagos pendientes**.
+Ningún monto: ni arriba, ni en las tarjetas de cada edición. La app se abre en el local y
+en la calle, con gente al lado.
+
+Lo cobrado vive entero en la solapa **Plata**, a un toque: el total, lo que falta cobrar,
+el desglose por edición, quién debe y las gift cards.
+
+Hay una prueba que lo garantiza (`local/probar-vistas.js`): si algún día un monto vuelve a
+la portada, la verificación falla. Comprobado devolviéndolo a propósito.
+
 ## Lo que queda guardado en el teléfono
 
 La app guarda el último estado en el navegador del celular para poder abrirla sin señal.

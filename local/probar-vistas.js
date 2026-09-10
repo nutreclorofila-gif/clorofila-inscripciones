@@ -15,17 +15,27 @@ function cargarUI(datos) {
     addEventListener() {}, appendChild() {}, removeChild() {}, focus() {}, querySelector: () => null,
     querySelectorAll: () => []
   });
+  const escrito = {};
   const document = {
-    getElementById: () => nodo(), querySelector: () => nodo(), querySelectorAll: () => [],
+    getElementById: (id) => {
+      const n = nodo();
+      Object.defineProperty(n, 'innerHTML', {
+        get: () => escrito[id] || '', set: (v) => { escrito[id] = v; }
+      });
+      return n;
+    },
+    querySelector: () => nodo(), querySelectorAll: () => [],
     createElement: nodo, body: nodo(), addEventListener() {}
   };
+  const verEscrito = (id) => escrito[id] || '';
   const localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
   const window = { google: null, addEventListener() {}, confirm: () => false, location: { href: '' } };
 
   const api = new Function('document', 'localStorage', 'window', 'navigator', 'setTimeout', 'fetch',
     js + '\nDATOS = arguments[6];' +
-    '\nreturn {vistaCupos,vistaPlata,vistaGente,vistaAlertas,plata,esc};')
+    '\nreturn {vistaCupos,vistaPlata,vistaGente,vistaAlertas,pintarTotales,plata,esc};')
     (document, localStorage, window, { clipboard: null }, () => {}, () => Promise.reject(new Error('sin red')), datos);
+  api.verEscrito = verEscrito;
   return api;
 }
 
@@ -65,6 +75,32 @@ function probarEstado(titulo, estado) {
     fallas++;
     console.log('  FALLA el buscador no filtra: ' + cuantos(todos) + ' personas con texto vacío, ' +
                 cuantos(nada) + ' buscando algo que no existe');
+  }
+
+  // La plata no puede aparecer en lo primero que se ve. La app se abre en el
+  // local y en la calle, con gente al lado.
+  corridos++;
+  ui.pintarTotales();
+  const barra = ui.verEscrito('totales');
+  const cupos = ui.vistaCupos();
+  const montos = (h) => (h.match(/\$\s?[\d.]+/g) || []);
+  if (montos(barra).length === 0 && montos(cupos).length === 0) {
+    console.log('  ok    no hay ningún monto en la portada');
+  } else {
+    fallas++;
+    console.log('  FALLA se ve plata en la portada: barra ' + JSON.stringify(montos(barra)) +
+                ', solapa Cupos ' + JSON.stringify(montos(cupos)));
+  }
+
+  // Pero tiene que seguir estando a un toque.
+  corridos++;
+  const conPlata = montos(ui.vistaPlata()).length;
+  const hayPlata = (estado.ediciones || []).some(e => e.recaudado > 0);
+  if (!hayPlata || conPlata > 0) {
+    console.log('  ok    la solapa Plata sigue mostrando los montos (' + conPlata + ')');
+  } else {
+    fallas++;
+    console.log('  FALLA se escondió la plata también en la solapa Plata');
   }
 
   // Y tiene que encontrar a alguien concreto.

@@ -457,10 +457,13 @@
 
   function pintarTotales() {
     var r = DATOS.resumen;
+    // La plata NO va acá. Esta barra se ve apenas se abre la app, y la app se
+    // abre en el local, en la calle, con gente al lado. Lo cobrado vive en la
+    // solapa Plata, a un toque de distancia.
     document.getElementById('totales').innerHTML =
       caja(r.anotados + '<span style="font-size:.55em;color:var(--tenue)">/' + r.cupo + '</span>', 'anotados') +
       caja(r.libres, 'lugares libres') +
-      caja(plata(r.recaudado), 'cobrado', true);
+      caja(r.pendientes, r.pendientes === 1 ? 'pago pendiente' : 'pagos pendientes');
   }
   function caja(n, rotulo, chico) {
     return '<div class="total"><div class="n' + (chico ? ' chico' : '') + '">' + n +
@@ -535,8 +538,7 @@
       html += '<div class="seccion">No ocupan cupo</div>' +
         DATOS.fueraDeCupo.map(function (f) {
           return '<div class="persona"><div class="quien"><div class="nom">' + esc(f.nombre) +
-            '</div><div class="sub">' + esc(f.edicion) + (f.monto ? ' · ' + plata(f.monto) : '') +
-            '</div></div></div>';
+            '</div><div class="sub">' + esc(f.edicion) + '</div></div></div>';
         }).join('');
     }
     return html;
@@ -568,8 +570,7 @@
             ? '<span style="color:var(--dorado);font-weight:600">' + esperan.length +
               (esperan.length === 1 ? ' esperando lugar' : ' esperando lugar') + '</span>'
             : '') +
-          '<span>Cobrado <b>' + plata(e.recaudado) + '</b></span>' +
-          (e.saldo ? '<span>Falta <b>' + plata(e.saldo) + '</b></span>' : '') +
+          // Sin montos: los importes de cada edición están en la solapa Plata.
           (e.pendientes.length ? '<span><b>' + e.pendientes.length + '</b> con el pago pendiente</span>' : '') +
           '<span style="margin-left:auto">' + (abierta ? 'ocultar ▴' : 'ver la gente ▾') + '</span>' +
         '</div>' +
