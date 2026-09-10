@@ -56,6 +56,7 @@
     border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px; cursor: pointer;
   }
   .refrescar:active { transform: scale(0.97); }
+  .salir { color: var(--apagado); }
   .refrescar[disabled] { opacity: 0.5; }
 
   /* --- tira de totales --- */
@@ -186,6 +187,7 @@
     <div class="tituloFila">
       <h1>Inscripciones</h1>
       <button class="refrescar" id="btnRefrescar" type="button">Actualizar</button>
+      <button class="refrescar salir oculto" id="btnSalir" type="button">Salir</button>
     </div>
     <div class="sello" id="sello"></div>
   </header>
@@ -205,11 +207,20 @@
   var CLAVE_PIN = 'clorofila_pin';
   var CLAVE_CACHE = 'clorofila_ultimo';
   var DESDE_CACHE = false;
+  var PIN_ACTUAL = '';
+
+  /** Después de esto, lo guardado no se muestra más y hay que buscar de nuevo. */
+  var VIDA_CACHE = 3 * 24 * 60 * 60 * 1000;   // 3 días
 
   /**
    * Guarda el último estado en el teléfono para poder abrir la app sin señal
-   * (en el local, en la calle). Se guarda junto al PIN con que se obtuvo: sin
-   * el PIN correcto no se muestra, así que perder el teléfono no expone los datos.
+   * (en el local, en la calle).
+   *
+   * Qué protege y qué no, sin vueltas: esto queda escrito en el teléfono en
+   * texto plano, con los nombres, mails y celulares. La puerta de la app es el
+   * PIN, pero lo guardado NO está cifrado: quien tenga el teléfono desbloqueado
+   * y sepa mirar el almacenamiento del navegador lo lee. Por eso vence a los
+   * tres días y por eso está el botón "Salir", que lo borra.
    */
   function guardarCache(estado, pin) {
     try {
@@ -219,18 +230,34 @@
   function leerCache(pin) {
     try {
       var c = JSON.parse(localStorage.getItem(CLAVE_CACHE) || 'null');
-      return (c && c.pin === pin && c.estado) ? c : null;
+      if (!c || !c.estado || c.pin !== pin) return null;
+      // Vencida: mostrar plata y cupos de hace una semana es peor que no mostrar nada.
+      if (!c.cuando || (Date.now() - c.cuando) > VIDA_CACHE) { borrarCache(); return null; }
+      return c;
     } catch (e) { return null; }
+  }
+  function borrarCache() {
+    try { localStorage.removeItem(CLAVE_CACHE); } catch (e) {}
   }
 
   function pinGuardado() {
+    if (PIN_ACTUAL) return PIN_ACTUAL;
     try { return localStorage.getItem(CLAVE_PIN) || ''; } catch (e) { return ''; }
   }
   function guardarPin(p) {
+    PIN_ACTUAL = p;
     try { localStorage.setItem(CLAVE_PIN, p); } catch (e) {}
   }
   function olvidarPin() {
+    PIN_ACTUAL = '';
     try { localStorage.removeItem(CLAVE_PIN); } catch (e) {}
+  }
+  /** Deja el teléfono como si nunca se hubiera entrado. */
+  function olvidarTodo() {
+    olvidarPin();
+    borrarCache();
+    DATOS = null;
+    DESDE_CACHE = false;
   }
 
   /**
@@ -267,6 +294,7 @@
     document.getElementById('solapas').classList.add('oculto');
     document.getElementById('sello').textContent = '';
     document.getElementById('btnRefrescar').classList.add('oculto');
+    document.getElementById('btnSalir').classList.add('oculto');
     document.getElementById('panel').innerHTML =
       '<div class="puerta">' +
         '<h2>Inscripciones</h2>' +
@@ -321,6 +349,7 @@
     document.getElementById('totales').classList.remove('oculto');
     document.getElementById('solapas').classList.remove('oculto');
     document.getElementById('btnRefrescar').classList.remove('oculto');
+    document.getElementById('btnSalir').classList.remove('oculto');
     pintarTodo();
   }
 
@@ -751,6 +780,12 @@
     try { document.execCommand('copy'); listo(); } catch (e) {}
     document.body.removeChild(t);
   }
+
+  document.getElementById('btnSalir').addEventListener('click', function () {
+    if (!window.confirm('¿Salir y borrar del teléfono el PIN y los datos guardados?')) return;
+    olvidarTodo();
+    mostrarPuerta('');
+  });
 
   document.getElementById('btnRefrescar').addEventListener('click', function () {
     var btn = this;

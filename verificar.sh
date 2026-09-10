@@ -4,27 +4,31 @@
 set -e
 cd "$(dirname "$0")"
 
-echo "=== 1/6  Conteos contra el Panel (datos reales) ==="
+echo "=== 1/7  Conteos contra el Panel (datos reales) ==="
 node local/probar.js | tail -3
 
 echo
-echo "=== 2/6  Casos límite ==="
+echo "=== 2/7  Casos límite ==="
 node local/casos-limite.js | tail -2
 
 echo
-echo "=== 3/6  Lectura de la planilla ==="
+echo "=== 3/7  Lectura de la planilla ==="
 node local/probar-lectura.js | tail -2
 
 echo
-echo "=== 4/6  PIN ==="
+echo "=== 4/7  PIN ==="
 node local/probar-pin.js | tail -2
 
 echo
-echo "=== 5/6  Planilla editada a mano ==="
+echo "=== 5/7  Planilla editada a mano ==="
 node local/probar-planilla-a-mano.js | tail -2
 
 echo
-echo "=== 6/6  Datos hostiles del Tally público ==="
+echo "=== 6/7  Lo que queda guardado en el teléfono ==="
+node local/probar-cache.js | tail -2
+
+echo
+echo "=== 7/7  Datos hostiles del Tally público ==="
 node local/probar-xss.js
 echo
 echo "TODO VERIFICADO"
