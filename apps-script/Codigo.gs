@@ -197,8 +197,7 @@ function leerPlanilla() {
   // una pestaña con otro nombre, la app la sigue en vez de dar un descuadre falso.
   var nombradas = {};
   formulas.forEach(function (f) {
-    var m, re = /'([^']+)'!/g, t = (f[3] || '');
-    while ((m = re.exec(t)) !== null) nombradas[m[1]] = true;
+    hojasDeFormula(f[3]).forEach(function (n) { nombradas[n] = true; });
   });
 
   var aLeer = titulos.filter(function (n) {
@@ -269,9 +268,13 @@ function campo(obj, nombres) {
     var k = nombres[i].toLowerCase();
     if (obj[k]) return obj[k];
   }
-  // Último intento: cualquier clave que contenga el texto buscado.
+  // Último intento: cualquier clave que CONTENGA el texto buscado, para tolerar
+  // encabezados tipo "monto abonado". Solo con palabras de 4 letras o más: con
+  // "de" o "id" cualquier encabezado engancha ("fecha DE compra" se leería como
+  // el nombre de quien regala).
   var claves = Object.keys(obj);
   for (var n = 0; n < nombres.length; n++) {
+    if (nombres[n].length < 4) continue;
     for (var c = 0; c < claves.length; c++) {
       if (claves[c].indexOf(nombres[n].toLowerCase()) !== -1 && obj[claves[c]]) return obj[claves[c]];
     }
@@ -437,21 +440,145 @@ function coincideCriterio(valor, criterio) {
  *   =COUNTIFS('Inscriptos Octubre 2026'!K:K;"Curso de cocina — Octubre 2026";
  *             'Inscriptos Octubre 2026'!E:E;"Mañana*")
  */
-function parsearRegla(formula, edicion) {
-  if (!formula) return null;
+function parsearRegla(formula, edicion, filaPanel) {
+  return analizarFormula(formula, edicion, filaPanel).regla || null;
+}
+
+/**
+ * Devuelve { regla } si la entendió, o { motivo } explicando por qué no.
+ * El motivo se muestra en la alerta: si un día una fórmula queda rara, lo que
+ * hace falta es saber QUÉ tiene de raro, no que la app diga "no se pudo leer".
+ */
+function analizarFormula(formula, edicion, filaPanel) {
+  var f = String(formula || '').trim();
+  if (!f) return { motivo: 'la celda Anotados no tiene fórmula: el número está escrito a mano.' };
+
+  var cuantos = (f.match(/COUNTIFS?\s*\(/gi) || []).length;
+  if (!cuantos) return { motivo: 'la fórmula no usa COUNTIF ni COUNTIFS.' };
+  if (cuantos > 1) {
+    return { motivo: 'la fórmula suma más de un COUNTIF. La app sabe leer uno solo, ' +
+                     'así que no puede saber qué filas son de esta edición.' };
+  }
+
+  var args = argumentosDeFuncion(f, 'COUNTIFS') || argumentosDeFuncion(f, 'COUNTIF');
+  if (!args) return { motivo: 'la fórmula tiene los paréntesis sin cerrar.' };
+  if (args.length % 2 !== 0) return { motivo: 'la fórmula tiene un rango sin su criterio.' };
+
+  var regla = { hoja: '', criterioK: null, criterioE: null, origen: 'formula' };
+  for (var i = 0; i < args.length; i += 2) {
+    var rango = parsearRango(args[i]);
+    if (!rango) return { motivo: 'no se entiende el rango ' + args[i].trim() + '.' };
+    if (regla.hoja && regla.hoja !== rango.hoja) {
+      return { motivo: 'la fórmula cuenta en dos pestañas a la vez (' + regla.hoja + ' y ' + rango.hoja + ').' };
+    }
+    regla.hoja = rango.hoja;
+
+    if (rango.columna !== 'K' && rango.columna !== 'E') {
+      return { motivo: 'la fórmula mira la columna ' + rango.columna + '. La app espera K (Edición) y, en el curso, E (horario).' };
+    }
+
+    var crit = parsearCriterio(args[i + 1], edicion, filaPanel);
+    if (crit.motivo) return { motivo: crit.motivo };
+    if (rango.columna === 'K') regla.criterioK = crit.valor;
+    else regla.criterioE = crit.valor;
+  }
+
+  if (regla.criterioK === null) {
+    return { motivo: 'la fórmula no cuenta por la columna K (Edición), que es la que dice a qué edición va cada anotado.' };
+  }
+  return { regla: regla };
+}
+
+/**
+ * Saca los argumentos de COUNTIF(...) respetando comillas y paréntesis
+ * anidados, así una fórmula envuelta en IFERROR o con ";" adentro de un texto
+ * no la confunde.
+ */
+function argumentosDeFuncion(formula, nombre) {
   var f = String(formula);
+  var re = new RegExp(nombre + '\\s*\\(', 'i');
+  var m = re.exec(f);
+  if (!m) return null;
 
-  var multi = f.match(/COUNTIFS\(\s*'([^']+)'!\s*K:K\s*[;,]\s*"([^"]*)"\s*[;,]\s*'([^']+)'!\s*E:E\s*[;,]\s*"([^"]*)"\s*\)/i);
-  if (multi) {
-    return { hoja: multi[1], criterioK: multi[2], criterioE: multi[4], origen: 'formula' };
+  var nivel = 1, comilla = null, actual = '', args = [];
+  for (var i = m.index + m[0].length; i < f.length; i++) {
+    var c = f.charAt(i);
+    if (comilla) {
+      if (c === comilla && f.charAt(i + 1) === comilla) { actual += c + c; i++; continue; }
+      if (c === comilla) comilla = null;
+      actual += c;
+      continue;
+    }
+    if (c === '"' || c === "'") { comilla = c; actual += c; continue; }
+    if (c === '(') { nivel++; actual += c; continue; }
+    if (c === ')') {
+      nivel--;
+      if (nivel === 0) { args.push(actual); return args; }
+      actual += c;
+      continue;
+    }
+    if ((c === ';' || c === ',') && nivel === 1) { args.push(actual); actual = ''; continue; }
+    actual += c;
   }
-
-  var simple = f.match(/COUNTIF\(\s*'([^']+)'!\s*K:K\s*[;,]\s*(?:"([^"]*)"|(B\d+))\s*\)/i);
-  if (simple) {
-    return { hoja: simple[1], criterioK: simple[2] !== undefined ? simple[2] : edicion, criterioE: null, origen: 'formula' };
-  }
-
   return null;
+}
+
+/**
+ * 'Inscriptos Agosto 2026'!K:K  ->  { hoja: 'Inscriptos Agosto 2026', columna: 'K' }
+ * Acepta la pestaña sin comillas (cuando el nombre es una sola palabra), los
+ * $ de las referencias absolutas y los rangos acotados tipo K2:K500.
+ */
+function parsearRango(texto) {
+  var s = String(texto || '').trim();
+  var m = s.match(/^(?:'((?:[^']|'')+)'|([^'!]+))!\s*\$?([A-Za-z]{1,2})\$?\d*\s*:\s*\$?([A-Za-z]{1,2})\$?\d*$/);
+  if (!m) return null;
+  var hoja = (m[1] !== undefined ? m[1].replace(/''/g, "'") : m[2]).trim();
+  if (!hoja) return null;
+  var c1 = m[3].toUpperCase(), c2 = m[4].toUpperCase();
+  if (c1 !== c2) return null;   // rango de varias columnas: no se sabe qué mira
+  return { hoja: hoja, columna: c1 };
+}
+
+/**
+ * Todas las pestañas que nombra una fórmula, con comillas o sin ellas. Se usa
+ * para saber qué hay que leer: tiene que aceptar exactamente lo mismo que
+ * parsearRango, o la app arma una regla que apunta a una pestaña que no leyó.
+ */
+function hojasDeFormula(formula) {
+  var re = /(?:'((?:[^']|'')+)'|([A-Za-z0-9_\u00C0-\u024F][A-Za-z0-9_\u00C0-\u024F ]*))!\s*\$?[A-Za-z]{1,2}/g;
+  var salida = [], m;
+  while ((m = re.exec(String(formula || ''))) !== null) {
+    var h = (m[1] !== undefined ? m[1].replace(/''/g, "'") : m[2]).trim();
+    if (h && salida.indexOf(h) === -1) salida.push(h);
+  }
+  return salida;
+}
+
+/**
+ * El criterio puede ser un texto ("Mañana*") o la celda de la columna B de la
+ * misma fila del Panel, que es la Edición. Si apunta a OTRA fila, es un
+ * copiar-pegar mal hecho: esa fórmula está contando la edición de al lado.
+ */
+function parsearCriterio(texto, edicion, filaPanel) {
+  var s = String(texto || '').trim();
+
+  var literal = s.match(/^"([\s\S]*)"$/);
+  if (literal) return { valor: literal[1].replace(/""/g, '"') };
+
+  var ref = s.match(/^\$?([A-Za-z]{1,2})\$?(\d+)$/);
+  if (ref) {
+    var col = ref[1].toUpperCase(), fila = Number(ref[2]);
+    if (col !== 'B') {
+      return { motivo: 'el criterio apunta a la celda ' + s + '. La app espera la columna B, que es donde está la Edición.' };
+    }
+    if (filaPanel && fila !== filaPanel) {
+      return { motivo: 'la fórmula cuenta lo que dice B' + fila + ', pero esta es la fila ' + filaPanel +
+                       '. Quedó apuntando a otra edición (copiar y pegar mal hecho).' };
+    }
+    return { valor: edicion };
+  }
+
+  return { motivo: 'no se entiende el criterio ' + s + '.' };
 }
 
 
@@ -548,12 +675,7 @@ function marcarRepetidores(ediciones) {
 function leerEspera(filas, ediciones) {
   return porEncabezado(filas).map(function (o) {
     var texto = campo(o, ['edición', 'edicion', 'actividad', 'taller', 'curso']);
-    var ligada = null;
-    ediciones.forEach(function (e) {
-      if (!texto) return;
-      var t = texto.toLowerCase();
-      if (t.indexOf(e.edicion.toLowerCase()) !== -1 || e.edicion.toLowerCase().indexOf(t) !== -1) ligada = e.edicion;
-    });
+    var ligada = ligarAEdicion(texto, ediciones);
     return {
       nombre: campo(o, ['nombre', 'quien']),
       email: campo(o, ['email', 'mail', 'correo']),
@@ -566,6 +688,26 @@ function leerEspera(filas, ediciones) {
   }).filter(function (x) { return x.nombre || x.email; });
 }
 
+/**
+ * Liga un texto escrito a mano ("tapeo 18/9") con una edición del Panel.
+ * Solo liga cuando NO hay dudas: si el texto le calza a dos ediciones (poner
+ * "taller" a secas le calza a todas), se deja sin ligar. Ligarlo a una
+ * cualquiera es peor que no ligarlo: la alerta nombraría la edición equivocada.
+ */
+function ligarAEdicion(texto, ediciones) {
+  var t = String(texto || '').trim().toLowerCase();
+  if (!t) return null;
+
+  var exactas = (ediciones || []).filter(function (e) { return e.edicion.toLowerCase() === t; });
+  if (exactas.length === 1) return exactas[0].edicion;
+
+  var parecidas = (ediciones || []).filter(function (e) {
+    var n = e.edicion.toLowerCase();
+    return n.indexOf(t) !== -1 || t.indexOf(n) !== -1;
+  });
+  return parecidas.length === 1 ? parecidas[0].edicion : null;
+}
+
 /** Gift cards: una vendida sin usar es plata cobrada y un lugar que se va a ocupar. */
 function leerGiftCards(filas) {
   return porEncabezado(filas).map(function (o) {
@@ -576,10 +718,23 @@ function leerGiftCards(filas) {
       email: campo(o, ['email', 'mail', 'correo']),
       monto: parsearMonto(campo(o, ['monto', 'importe', 'precio', 'valor'])),
       estado: usada,
-      usada: /^(s[ií]|usada|usado|canjeada|canjeado|x)$/i.test(usada.trim()),
+      usada: estaUsada(usada),
       fila: o._fila
     };
   }).filter(function (x) { return x.nombre || x.email || x.monto; });
+}
+
+/**
+ * ¿La gift card ya se canjeó? La columna se escribe a mano y puede decir "No",
+ * "Sin usar", "Sí", "Usada" o "Canjeada el 12/8". Los negativos se miran
+ * primero: "sin usar" contiene "usar", y darla por usada la sacaría de la
+ * plata que todavía hay que cubrir.
+ */
+function estaUsada(texto) {
+  var t = String(texto || '').trim().toLowerCase();
+  if (!t) return false;
+  if (/^(no|sin usar|sin canjear|no usada|pendiente|vigente|activa|disponible)/.test(t)) return false;
+  return /^(s[ií]|x)$/.test(t) || /(usad|canjead|entregad|cobrad)/.test(t);
 }
 
 /**
@@ -650,6 +805,7 @@ function leerEdicionesDelPanel(valores, formulas, hoy) {
     var abierta = /^abierto/i.test(estado);
     var partes = edicion.split('—');
     var fecha = fechaDeEdicion(edicion);
+    var analisis = analizarFormula((formulas[i] || [])[3], edicion, i + 1);
 
     salida.push({
       id: 'ed' + (i + 1),
@@ -667,7 +823,8 @@ function leerEdicionesDelPanel(valores, formulas, hoy) {
       fecha: fecha ? fecha.toISOString() : null,
       vigente: estaVigente(edicion, abierta, hoy),
       esCurso: /curso de cocina/i.test(edicion),
-      regla: parsearRegla((formulas[i] || [])[3], edicion),
+      regla: analisis.regla || null,
+      motivoFormula: analisis.motivo || '',
       personas: [],
       recaudado: 0,
       saldo: 0,
@@ -785,7 +942,9 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
       alertas.push({
         nivel: 'alta', tipo: 'formula', edicion: ed.edicion,
         texto: 'No se pudo leer cómo cuenta "' + ed.edicion + '"',
-        detalle: 'La fórmula de la columna Anotados del Panel (fila ' + ed.filaPanel + ') no tiene el formato esperado, así que la app no puede mostrar la gente de esta edición.'
+        detalle: 'Fila ' + ed.filaPanel + ' del Panel, columna Anotados: ' +
+                 (ed.motivoFormula || 'no tiene el formato esperado.') +
+                 ' Mientras esté así, la app no puede mostrar la gente de esta edición.'
       });
       return;
     }
