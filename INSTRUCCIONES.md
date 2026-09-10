@@ -5,8 +5,11 @@ Misma familia que `~/Proyectos/clorofila-comandas`: un solo archivo, sin build, 
 
 ## URL
 
-**https://clorofila-inscripciones.netlify.app** — se abre con un PIN de 6 dígitos.
-El PIN queda guardado en el teléfono: se escribe una sola vez.
+**https://nutreclorofila-gif.github.io/clorofila-inscripciones/** — se abre con un PIN de
+6 dígitos. El PIN queda guardado en el teléfono: se escribe una sola vez.
+
+(Sigue existiendo una copia en `clorofila-inscripciones.netlify.app`, de cuando la página
+vivía ahí. Funciona igual, pero la de GitHub es la buena: no consume créditos de Netlify.)
 
 Desde Safari en el celu: **Compartir → Añadir a pantalla de inicio** y queda como una app.
 
@@ -16,7 +19,7 @@ Son dos piezas:
 
 | Pieza | Dónde | Qué hace |
 |---|---|---|
-| Página | Netlify (`clorofila-inscripciones`) | Todo lo que se ve. Un solo HTML, sin build. |
+| Página | GitHub Pages, repo público `nutreclorofila-gif/clorofila-inscripciones`, rama `gh-pages` | Todo lo que se ve. Un solo HTML. Gratis, cuota aparte de Netlify. |
 | API | Apps Script de `nutreclorofila` | Lee la Master Sheet y devuelve los números en JSON. |
 
 **Por qué la página no vive en Apps Script**, que sería más simple: abrir una web app de
@@ -40,6 +43,28 @@ PIN es lo único que separa la URL de los datos personales de los inscriptos:
 Para cambiarlo hay que borrar la propiedad `PIN_HASH` del script
 (Configuración del proyecto → Propiedades de la secuencia de comandos) y volver a llamar a
 `?configurar=`.
+
+## Agregar un taller o un curso nuevo
+
+**No hay que tocar la app.** Alcanza con cargarlo en la pestaña **Panel** como se hace hoy,
+y la app lo muestra sola en cuanto le des a Actualizar.
+
+Para un **taller**: una fila con la fecha en la Edición y `COUNTIF` sobre la columna K.
+```
+Taller de risotto | Taller de risotto — 03/12/2026 | 10 | =COUNTIF('Inscriptos Diciembre 2026'!K:K;B7) | =C7-D7 | Abierto
+```
+
+Para un **curso con grupos**: una fila por grupo, con `COUNTIFS` sobre K (genérica) y E (el
+horario), igual que los del curso de octubre.
+
+También hay que tener creada la pestaña `Inscriptos <Mes> <Año>`; la app la detecta sola por
+el nombre, y no se rompe si todavía está vacía.
+
+Probado el 9/9/2026 simulando un taller de una actividad que nunca existió, un curso nuevo
+con dos grupos y una pestaña de un mes nuevo: la app tomó las tres cosas sin tocar código.
+
+El Panel se lee hasta la fila **500**. Si alguna vez se llegara a ese tope, la app avisa con
+una alerta alta en vez de dejar de mostrar ediciones en silencio.
 
 ## Qué muestra
 
