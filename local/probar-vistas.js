@@ -5,39 +5,7 @@
 const fs = require('fs'), path = require('path');
 const base = path.join(__dirname, '..');
 
-function cargarUI(datos, novedades) {
-  const html = fs.readFileSync(path.join(base, 'apps-script', 'Index.html'), 'utf8');
-  const js = html.split('<script>')[1].split('</script>')[0].replace('<?!= datosIniciales ?>', 'null');
-
-  const nodo = () => ({
-    innerHTML: '', textContent: '', value: '', disabled: false, dataset: {},
-    classList: { add() {}, remove() {}, contains: () => false },
-    addEventListener() {}, appendChild() {}, removeChild() {}, focus() {}, querySelector: () => null,
-    querySelectorAll: () => []
-  });
-  const escrito = {};
-  const document = {
-    getElementById: (id) => {
-      const n = nodo();
-      Object.defineProperty(n, 'innerHTML', {
-        get: () => escrito[id] || '', set: (v) => { escrito[id] = v; }
-      });
-      return n;
-    },
-    querySelector: () => nodo(), querySelectorAll: () => [],
-    createElement: nodo, body: nodo(), addEventListener() {}
-  };
-  const verEscrito = (id) => escrito[id] || '';
-  const localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
-  const window = { google: null, addEventListener() {}, confirm: () => false, location: { href: '' } };
-
-  const api = new Function('document', 'localStorage', 'window', 'navigator', 'setTimeout', 'fetch',
-    js + '\nDATOS = arguments[6]; NOVEDADES = arguments[7] || null;' +
-    '\nreturn {vistaCupos,vistaPlata,vistaGente,vistaAlertas,pintarTotales,avisoDeNovedades,plata,esc};')
-    (document, localStorage, window, { clipboard: null }, () => {}, () => Promise.reject(new Error('sin red')), datos, novedades);
-  api.verEscrito = verEscrito;
-  return api;
-}
+const { cargarUI } = require('./ui.js');
 
 let fallas = 0, corridos = 0;
 function correr(nombre, fn) {

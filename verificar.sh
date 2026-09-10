@@ -47,6 +47,6 @@ node local/probar-plata.js | tail -2
 
 echo
 echo "=== 10/10  Datos hostiles del Tally público ==="
-node local/probar-xss.js
+node local/probar-xss.js | tail -2
 echo
 echo "TODO VERIFICADO"

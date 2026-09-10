@@ -148,7 +148,12 @@ URL y hay que actualizarla en `web/index.html`.
 ./verificar.sh                  # corre las 10 suites; tiene que pasar entero antes de subir
 node local/bajar-fixture.js     # refresca local/fixture.json con los datos de hoy
 node local/generar-preview.js   # arma local/preview.html para mirarla en el navegador
+node local/probar-las-pruebas.js  # rompe el código a propósito y controla que la suite se dé cuenta
 ```
+
+⚠️ **`probar-las-pruebas.js` es el control más importante y no está en `verificar.sh`** (tarda
+unos minutos: corre la suite entera una vez por mutación). Correlo cada vez que se toquen las
+pruebas. Una prueba que nunca falla no prueba nada, y eso no se ve leyéndola.
 
 | Suite | Qué prueba |
 |---|---|
@@ -161,7 +166,7 @@ node local/generar-preview.js   # arma local/preview.html para mirarla en el nav
 | `local/probar-planilla-a-mano.js` | 33 casos: cómo se puede escribir la fórmula del Panel, la lista de espera y las gift cards. |
 | `local/probar-cache.js` | 17 casos: qué queda guardado en el teléfono, cuándo vence y que "Salir" lo borre. |
 | `local/probar-vistas.js` | Las cuatro solapas con datos nuevos, con un backend viejo y con la planilla vacía. |
-| `local/probar-xss.js` | Datos hostiles cargados desde el Tally público. |
+| `local/probar-xss.js` | Datos hostiles del Tally público: el escape al incrustar, y que al pintarlos no quede ninguna etiqueta ni ningún manejador vivo — incluidos los enlaces de contacto, que es donde el dato entra dentro de un `href`. |
 
 ## La plata no se ve en la portada
 
@@ -253,6 +258,22 @@ están en `.gitignore`.
 14. **La caché del teléfono y el botón Salir**, verificados en el navegador contra la
     planilla real. Ahí apareció que quedaban 8px entre "Actualizar" y "Salir": en un
     celular se tocaba uno por el otro.
+
+### Cuarta vuelta (10/9/2026) — revisar las pruebas, no el código
+
+15. **La suite "datos hostiles" no probaba nada.** Generaba una página envenenada con tres
+    cargas de XSS y **nunca miraba si el veneno se ejecutaba**; el único control real estaba
+    dentro de un `if` que hoy nunca se cumple. Se podía sacar el escape del XSS —el bug más
+    grave que tuvo este proyecto— y la verificación seguía diciendo "TODO VERIFICADO".
+    Descubierto rompiendo el código a propósito, no leyéndolo.
+16. **Los enlaces de contacto no se pintaban en ninguna prueba.** `contacto()` solo se
+    dibuja al tocar a la persona, y es el ÚNICO lugar donde un dato entra dentro de un
+    atributo (`href="mailto:..."`), que es justo donde importa escapar las comillas.
+17. **`local/inyeccion.js` no lo corría nadie.** Ahora lo usa la suite de XSS para
+    comprobar que lo que `doGet` incrusta pasa por el camino escapado.
+18. **`verificar.sh` decía "TODO VERIFICADO" con pruebas en rojo** (faltaba `pipefail`).
+
+Hoy las 12 mutaciones se detectan.
 
 ⚠️ **Nunca copiar un dato de la planilla a un comentario o a una prueba.** El repo es
 público. Para los ejemplos van números y nombres inventados con la misma forma. Las
