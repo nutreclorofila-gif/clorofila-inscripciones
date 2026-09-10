@@ -60,8 +60,16 @@ horario), igual que los del curso de octubre.
 También hay que tener creada la pestaña `Inscriptos <Mes> <Año>`; la app la detecta sola por
 el nombre, y no se rompe si todavía está vacía.
 
+La fórmula podés escribirla como te salga. La app entiende `;` o `,`, la pestaña con
+comillas o sin ellas, `$K:$K`, `K2:K500`, `$B$5`, envuelta en `IFERROR`, en minúsculas, y
+en el curso da igual el orden de los pares (K primero o E primero). Si aun así no la
+entiende, no se queda callada: saca una alerta alta diciendo qué tiene de raro —
+*"cuenta lo que dice B2, pero esta es la fila 5"*, *"mira la columna D"*, *"suma más de un
+COUNTIF"*.
+
 Probado el 9/9/2026 simulando un taller de una actividad que nunca existió, un curso nuevo
 con dos grupos y una pestaña de un mes nuevo: la app tomó las tres cosas sin tocar código.
+El 10/9 se agregaron 12 formas distintas de escribir la fórmula (`local/probar-planilla-a-mano.js`).
 
 El Panel se lee hasta la fila **500**. Si alguna vez se llegara a ese tope, la app avisa con
 una alerta alta en vez de dejar de mostrar ediciones en silencio.
@@ -137,7 +145,7 @@ URL y hay que actualizarla en `web/index.html`.
 ## Verificar
 
 ```bash
-./verificar.sh                  # corre las 4 suites; tiene que pasar entero antes de subir
+./verificar.sh                  # corre las 8 suites; tiene que pasar entero antes de subir
 node local/bajar-fixture.js     # refresca local/fixture.json con los datos de hoy
 node local/generar-preview.js   # arma local/preview.html para mirarla en el navegador
 ```
@@ -147,7 +155,23 @@ node local/generar-preview.js   # arma local/preview.html para mirarla en el nav
 | `local/probar.js` | Los conteos contra el Panel real, edición por edición. **12 de 12 cuadran.** |
 | `local/casos-limite.js` | 11 escenarios plausibles de la planilla que podrían romperla. |
 | `local/probar-lectura.js` | `leerPlanilla()` con un Sheets falso: qué pestañas lee y cuáles no. |
+| `local/probar-pin.js` | Que sin el PIN correcto no salga nada, y el freno a los intentos. |
+| `local/probar-planilla-a-mano.js` | 33 casos: cómo se puede escribir la fórmula del Panel, la lista de espera y las gift cards. |
+| `local/probar-cache.js` | 17 casos: qué queda guardado en el teléfono, cuándo vence y que "Salir" lo borre. |
+| `local/probar-vistas.js` | Las cuatro solapas con datos nuevos, con un backend viejo y con la planilla vacía. |
 | `local/probar-xss.js` | Datos hostiles cargados desde el Tally público. |
+
+## Lo que queda guardado en el teléfono
+
+La app guarda el último estado en el navegador del celular para poder abrirla sin señal.
+**Eso incluye nombres, mails y celulares, en texto plano.** El PIN es la puerta de la app,
+no cifra lo guardado: quien tenga el teléfono desbloqueado y sepa mirar el almacenamiento
+del navegador lo lee.
+
+Por eso:
+- Vence a los **3 días**. Además de por privacidad, porque mostrar la plata de la semana
+  pasada como si fuera de hoy es peor que no mostrar nada.
+- Hay un botón **Salir** arriba a la derecha, que borra el PIN y los datos del teléfono.
 
 ## Lo que encontró la revisión (y ya está arreglado)
 
@@ -170,6 +194,26 @@ También se endureció `leerPlanilla()`: en vez de adivinar las pestañas por el
 "Inscriptos", lee además las que nombren las fórmulas del Panel, así una edición que
 apunte a otra pestaña no produce un descuadre falso.
 
+### Segunda vuelta (10/9/2026)
+
+5. **De 12 formas plausibles de escribir la fórmula del Panel, la app entendía 6.** Cada
+   edición nueva es una fórmula copiada; con la pestaña sin comillas, con `$K:$K`, con
+   `K2:K500` o con `COUNTIFS` usando `B5`, la edición aparecía **sin gente**. Ahora se
+   parsean los argumentos de verdad, y cuando no se puede, la alerta dice por qué.
+6. **El descubrimiento de pestañas tenía su propio regex** y también exigía comillas:
+   armaba reglas apuntando a pestañas que no había leído.
+7. **La lista de espera ligaba `"taller"` a secas a una edición cualquiera** — la última
+   que coincidiera — y la alerta nombraba la equivocada. Ahora liga solo si no hay dudas.
+8. **Las gift cards leían `"Fecha de compra"` como el nombre de quien regala**, y daban
+   por no usada una que dice `"Canjeada el 12/8"`.
+9. **La caché del teléfono no vencía nunca y no había forma de borrarla.** Ver arriba.
+10. **Tres celulares y el nombre de una clienta reales habían quedado en comentarios del
+    código**, en un repo público. Reemplazados por ejemplos inventados y sacados de toda
+    la historia del repo.
+
 ⚠️ `local/fixture.json`, `local/estado.json`, `local/preview.html` y `local/preview-xss.html`
 tienen datos personales reales (nombres, mails, celulares). No subirlos a ningún lado —
 están en `.gitignore`.
+
+⚠️ **Nunca copiar un dato de la planilla a un comentario o a una prueba.** El repo es
+público. Para los ejemplos van números y nombres inventados con la misma forma.
