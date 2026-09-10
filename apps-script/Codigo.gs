@@ -547,9 +547,25 @@ function leerEdicionesDelPanel(valores, formulas, hoy) {
 }
 
 /** Decide en qué situación de pago está cada persona. */
+/**
+ * Arma el número para wa.me. Los celulares están cargados de cualquier forma:
+ * "59891234567", "099123456", "43001234", "598099123456". Se normaliza a formato
+ * internacional uruguayo; si no se puede, se devuelve vacío y no se muestra el botón,
+ * que es mejor que ofrecer un link que abre un chat con el número equivocado.
+ */
+function paraWhatsapp(celular) {
+  var d = String(celular || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d.indexOf('598') === 0) d = d.slice(3);          // ya trae el país
+  d = d.replace(/^0+/, '');                            // 099... -> 99...
+  if (d.length === 8 && d.charAt(0) === '9') return '598' + d;   // celular uruguayo
+  return '';                                            // fijo o incompleto: no arriesgar
+}
+
 function evaluarPago(f, ed) {
   var p = {
     nombre: f.nombre, email: f.email, celular: f.celular, horario: f.horario,
+    whatsapp: paraWhatsapp(f.celular),
     medioPago: f.medioPago, comprobante: f.comprobante, montoTexto: f.montoTexto,
     fecha: f.fecha, hoja: f.hoja, fila: f.fila, verificado: f.verificado,
     esTikzet: /tikzet/i.test(f.medioPago + ' ' + f.comprobante),

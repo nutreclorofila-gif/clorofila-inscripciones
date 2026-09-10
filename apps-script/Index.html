@@ -134,6 +134,28 @@
   }
   .oculto { display: none !important; }
 
+  .persona { cursor: pointer; }
+  .contacto { display: flex; gap: 8px; padding: 2px 0 10px; flex-wrap: wrap; }
+  .contacto a, .contacto button {
+    flex: 1 1 auto; min-width: 116px; text-align: center; text-decoration: none;
+    font: inherit; font-size: 13px; font-weight: 600; padding: 9px 12px;
+    border-radius: 10px; border: 1px solid var(--linea);
+    background: var(--papel); color: var(--verde); cursor: pointer;
+  }
+  .contacto .apagado { color: var(--tenue); border-style: dashed; }
+  .cuando { font-size: 12px; color: var(--tenue); font-weight: 600; }
+  .cuando.ya { color: var(--rojo); }
+  .cuando.pronto { color: var(--ambar); }
+  .copiar {
+    width: 100%; margin-top: 8px; padding: 10px; border-radius: 10px;
+    border: 1px solid var(--linea); background: var(--papel); color: var(--texto);
+    font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .viejo {
+    background: var(--ambar-fondo); color: var(--ambar); border-radius: 10px;
+    padding: 9px 12px; font-size: 13px; margin-bottom: 10px;
+  }
+
   .puerta { padding: 56px 4px 24px; text-align: center; }
   .puerta h2 { margin: 0 0 6px; font-size: 20px; }
   .puerta p { margin: 0 0 22px; color: var(--tenue); font-size: 14px; }
@@ -173,6 +195,25 @@
   var SOLAPA = 'cupos';
   var ABIERTAS = {};
   var CLAVE_PIN = 'clorofila_pin';
+  var CLAVE_CACHE = 'clorofila_ultimo';
+  var DESDE_CACHE = false;
+
+  /**
+   * Guarda el último estado en el teléfono para poder abrir la app sin señal
+   * (en el local, en la calle). Se guarda junto al PIN con que se obtuvo: sin
+   * el PIN correcto no se muestra, así que perder el teléfono no expone los datos.
+   */
+  function guardarCache(estado, pin) {
+    try {
+      localStorage.setItem(CLAVE_CACHE, JSON.stringify({ pin: pin, estado: estado, cuando: Date.now() }));
+    } catch (e) {}
+  }
+  function leerCache(pin) {
+    try {
+      var c = JSON.parse(localStorage.getItem(CLAVE_CACHE) || 'null');
+      return (c && c.pin === pin && c.estado) ? c : null;
+    } catch (e) { return null; }
+  }
 
   function pinGuardado() {
     try { return localStorage.getItem(CLAVE_PIN) || ''; } catch (e) { return ''; }
@@ -240,12 +281,24 @@
       aviso.textContent = '';
       pedirDatos(pin, function (estado) {
         guardarPin(pin);
+        guardarCache(estado, pin);
         DATOS = estado;
+        DESDE_CACHE = false;
         abrirApp();
       }, function (e) {
+        var mensaje = (e && e.message) ? e.message : 'No se pudo entrar.';
+        // Sin señal: si el PIN es el mismo con que se guardó, se muestra lo último.
+        var c = /PIN/i.test(mensaje) ? null : leerCache(pin);
+        if (c) {
+          guardarPin(pin);
+          DATOS = c.estado;
+          DESDE_CACHE = c.cuando;
+          abrirApp();
+          return;
+        }
         boton.disabled = false;
         boton.textContent = 'Entrar';
-        aviso.textContent = (e && e.message) ? e.message : 'No se pudo entrar.';
+        aviso.textContent = mensaje;
         campo.value = '';
         campo.focus();
       });
@@ -270,9 +323,14 @@
     // Ya entró antes en este teléfono: no le pedimos el PIN de nuevo.
     document.getElementById('panel').innerHTML = '<div class="vacio">Buscando los números…</div>';
     pedirDatos(pin, function (estado) {
+      guardarCache(estado, pin);
       DATOS = estado;
+      DESDE_CACHE = false;
       abrirApp();
-    }, function () {
+    }, function (e) {
+      var mensaje = (e && e.message) ? e.message : '';
+      var c = /PIN/i.test(mensaje) ? null : leerCache(pin);
+      if (c) { DATOS = c.estado; DESDE_CACHE = c.cuando; abrirApp(); return; }
       olvidarPin();
       mostrarPuerta('Volvé a escribir el PIN.');
     });
@@ -294,6 +352,40 @@
     var dd = function (x) { return (x < 10 ? '0' : '') + x; };
     return dd(d.getDate()) + '/' + dd(d.getMonth() + 1) + ' ' + dd(d.getHours()) + ':' + dd(d.getMinutes());
   }
+  /** "hoy", "mañana", "en 9 días" — para saber qué es lo más urgente sin pensar. */
+  function cuandoEs(iso) {
+    if (!iso) return null;
+    var f = new Date(iso);
+    if (isNaN(f)) return null;
+    var hoy = new Date();
+    var dias = Math.round(
+      (new Date(f.getFullYear(), f.getMonth(), f.getDate()) -
+       new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())) / 86400000);
+    if (dias < 0) return { texto: 'ya pasó', clase: 'ya', dias: dias };
+    if (dias === 0) return { texto: 'ES HOY', clase: 'ya', dias: 0 };
+    if (dias === 1) return { texto: 'es mañana', clase: 'pronto', dias: 1 };
+    if (dias <= 7) return { texto: 'en ' + dias + ' días', clase: 'pronto', dias: dias };
+    return { texto: 'en ' + dias + ' días', clase: '', dias: dias };
+  }
+
+  /** Botones para escribirle a alguien. Sin dato, no se ofrece el botón. */
+  function contacto(p) {
+    var partes = [];
+    if (p.whatsapp) {
+      partes.push('<a href="https://wa.me/' + esc(p.whatsapp) + '" target="_blank" rel="noopener">WhatsApp</a>');
+    } else if (p.celular) {
+      partes.push('<a href="tel:' + esc(p.celular) + '">' + esc(p.celular) + '</a>');
+    }
+    if (p.email) {
+      partes.push('<a href="mailto:' + esc(p.email) + '">Mail</a>');
+    }
+    if (!partes.length) partes.push('<span class="apagado" style="padding:9px 12px">Sin contacto cargado</span>');
+    if (p.email) {
+      partes.push('<span class="apagado" style="flex:1 1 100%;padding:6px 2px;text-align:left;border:none;background:none;font-weight:400">' + esc(p.email) + '</span>');
+    }
+    return '<div class="contacto">' + partes.join('') + '</div>';
+  }
+
   var ETIQUETAS = {
     completo: 'Pagó', parcial: 'Debe', cubierto: 'Cubierto',
     sin_pago: 'Sin pago', revisar: 'Revisar'
@@ -337,10 +429,20 @@
     }).join('');
   }
 
+  function avisoDeCache() {
+    if (!DESDE_CACHE) return '';
+    var min = Math.round((Date.now() - DESDE_CACHE) / 60000);
+    var hace = min < 60 ? ('hace ' + (min || 1) + ' min')
+             : (min < 1440 ? ('hace ' + Math.round(min / 60) + ' h')
+             : ('hace ' + Math.round(min / 1440) + ' días'));
+    return '<div class="viejo">Sin conexión. Esto es lo último que se pudo leer, ' + hace +
+           '. Tocá Actualizar cuando tengas señal.</div>';
+  }
+
   function pintarPanel() {
     var p = document.getElementById('panel');
-    if (SOLAPA === 'cupos') p.innerHTML = vistaCupos();
-    else if (SOLAPA === 'plata') p.innerHTML = vistaPlata();
+    if (SOLAPA === 'cupos') p.innerHTML = avisoDeCache() + vistaCupos();
+    else if (SOLAPA === 'plata') p.innerHTML = avisoDeCache() + vistaPlata();
     else if (SOLAPA === 'gente') {
       p.innerHTML = '<input class="buscador" id="buscador" type="search" autocomplete="off" ' +
         'placeholder="Buscar por nombre, mail o celular"><div id="listaGente"></div>';
@@ -354,7 +456,13 @@
 
   /* ---------- cupos ---------- */
   function vistaCupos() {
-    var vigentes = DATOS.ediciones.filter(function (e) { return e.vigente; });
+    // Lo más próximo primero: es lo que hay que mirar hoy.
+    var vigentes = DATOS.ediciones.filter(function (e) { return e.vigente; })
+      .sort(function (a, b) {
+        if (!a.fecha) return 1;
+        if (!b.fecha) return -1;
+        return new Date(a.fecha) - new Date(b.fecha);
+      });
     var pasadas = DATOS.ediciones.filter(function (e) { return !e.vigente; });
     var html = '';
 
@@ -380,12 +488,15 @@
   }
 
   function tarjeta(e) {
+    var cuando = cuandoEs(e.fecha);
     var pct = Math.round(e.ocupacion * 100);
     var clase = pct >= 100 ? 'full' : (pct >= 70 ? 'alta' : '');
     var abierta = ABIERTAS[e.id];
     return '<div class="tarjeta' + (pct >= 100 ? ' llena' : '') + '">' +
       '<button class="cabeza" data-ed="' + e.id + '" aria-expanded="' + !!abierta + '">' +
-        '<div class="quees">' + esc(e.titulo) + (e.abierta ? '' : ' · cerrada') + '</div>' +
+        '<div class="quees">' + esc(e.titulo) + (e.abierta ? '' : ' · cerrada') +
+          (cuando && e.vigente ? ' · <span class="cuando ' + cuando.clase + '">' + cuando.texto + '</span>' : '') +
+        '</div>' +
         '<div class="cual">' + esc(e.subtitulo || e.edicion) + '</div>' +
         '<div class="cifra">' +
           '<span class="grande">' + e.anotados + '</span>' +
@@ -403,18 +514,23 @@
         '</div>' +
       '</button>' +
       (abierta ? '<div class="detalle">' + (e.personas.length
-        ? e.personas.map(persona).join('')
+        ? e.personas.map(function (p) { return persona(p); }).join('') +
+          '<button class="copiar" data-copiar="' + e.id + '">Copiar la lista de anotados</button>'
         : '<div class="vacio">Todavía no se anotó nadie.</div>') + '</div>' : '') +
     '</div>';
   }
 
-  function persona(p) {
+  var CONTACTOS = {};
+
+  function persona(p, id) {
     var etiqueta = ETIQUETAS[p.estadoPago] + (p.estadoPago === 'parcial' ? ' ' + plata(p.saldo) : '');
     var sub = [p.horario, p.medioPago, p.monto ? plata(p.monto) : ''].filter(Boolean).join(' · ');
-    return '<div class="persona"><div class="quien">' +
+    var clave = id || (p.hoja + '#' + p.fila);
+    return '<div class="persona" data-quien="' + esc(clave) + '"><div class="quien">' +
       '<div class="nom">' + esc(p.nombre || '(sin nombre)') + '</div>' +
       '<div class="sub">' + esc(sub) + '</div></div>' +
-      '<span class="chip ' + p.estadoPago + '">' + esc(etiqueta) + '</span></div>';
+      '<span class="chip ' + p.estadoPago + '">' + esc(etiqueta) + '</span></div>' +
+      (CONTACTOS[clave] ? contacto(p) : '');
   }
 
   /* ---------- plata ---------- */
@@ -532,11 +648,58 @@
   });
 
   document.getElementById('panel').addEventListener('click', function (ev) {
+    var copiar = ev.target.closest('[data-copiar]');
+    if (copiar) {
+      var ed = DATOS.ediciones.filter(function (x) { return x.id === copiar.dataset.copiar; })[0];
+      if (ed) copiarLista(ed, copiar);
+      return;
+    }
+
+    var quien = ev.target.closest('[data-quien]');
+    if (quien) {
+      CONTACTOS[quien.dataset.quien] = !CONTACTOS[quien.dataset.quien];
+      pintarPanel();
+      return;
+    }
+
     var b = ev.target.closest('.cabeza');
     if (!b) return;
     ABIERTAS[b.dataset.ed] = !ABIERTAS[b.dataset.ed];
     pintarPanel();
   });
+
+  /** Para pasar la lista al grupo o a la cocina. */
+  function copiarLista(ed, boton) {
+    var texto = (ed.titulo + ' — ' + (ed.subtitulo || '') + '\n' +
+      ed.anotados + ' de ' + ed.cupo + '\n\n' +
+      ed.personas.map(function (p, i) {
+        var estado = ETIQUETAS[p.estadoPago] + (p.estadoPago === 'parcial' ? ' ' + plata(p.saldo) : '');
+        return (i + 1) + '. ' + (p.nombre || '(sin nombre)') + ' — ' + estado;
+      }).join('\n')).trim();
+
+    var listo = function () {
+      boton.textContent = 'Copiada ✓';
+      setTimeout(function () { boton.textContent = 'Copiar la lista de anotados'; }, 2000);
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(texto).then(listo, function () { copiarAlaVieja(texto, listo); });
+    } else {
+      copiarAlaVieja(texto, listo);
+    }
+  }
+
+  // Safari en iOS no siempre deja usar el portapapeles moderno.
+  function copiarAlaVieja(texto, listo) {
+    var t = document.createElement('textarea');
+    t.value = texto;
+    t.style.position = 'fixed';
+    t.style.opacity = '0';
+    document.body.appendChild(t);
+    t.select();
+    try { document.execCommand('copy'); listo(); } catch (e) {}
+    document.body.removeChild(t);
+  }
 
   document.getElementById('btnRefrescar').addEventListener('click', function () {
     var btn = this;
@@ -544,7 +707,9 @@
     btn.textContent = 'Buscando…';
     document.getElementById('error').classList.add('oculto');
     pedirDatos(pinGuardado(), function (nuevo) {
+      guardarCache(nuevo, pinGuardado());
       DATOS = nuevo;
+      DESDE_CACHE = false;
       btn.disabled = false;
       btn.textContent = 'Actualizar';
       pintarTodo();
