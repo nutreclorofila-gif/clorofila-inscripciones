@@ -75,6 +75,19 @@ una alerta alta en vez de dejar de mostrar ediciones en silencio.
 | **Gente** | Todos los inscriptos con buscador por nombre, mail o celular, y su estado de pago. |
 | **Alertas** | Solo lo que necesita que alguien haga algo: descuadres, sobrecupo, pagos incompletos, Tikzet sin cargar. Si no hay nada, no hay nada. |
 
+Además:
+
+- **Tocar a una persona abre su contacto**: botón de WhatsApp y de mail. El celular se
+  normaliza a formato uruguayo (`099123456` → `598099123456`); si es un fijo o está
+  incompleto **no se ofrece el botón**, para no abrir un chat con el número equivocado.
+- **Las ediciones se ordenan por fecha**, lo más próximo primero, con `ES HOY` /
+  `es mañana` / `en N días`.
+- **Copiar la lista de anotados** de una edición, con el estado de pago de cada uno, para
+  pegarla en el grupo.
+- **Funciona sin señal**: guarda el último estado en el teléfono y lo muestra avisando de
+  cuándo es. El caché se guarda junto al PIN con que se obtuvo, así que sin el PIN correcto
+  no se muestra ni aunque alguien agarre el teléfono.
+
 ## De dónde salen los números
 
 De la Master Sheet `1C3UfC__jr3F0x_XWp5lRvL47MLjQqOwTa9wURKuXZBQ`. Nada está hardcodeado:
