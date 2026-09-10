@@ -850,6 +850,21 @@ function paraWhatsapp(celular) {
   return '';                                            // fijo o incompleto: no arriesgar
 }
 
+/**
+ * La columna I de las pestañas de inscriptos se llama "pago verificado" y hoy
+ * está vacía en las 102 filas: nadie la usa. Si algún día se empieza a usar, un
+ * "no" ahí tiene que pesar — sin esto, un pago marcado como no verificado
+ * seguiría figurando como plata cobrada.
+ *
+ * Vacío significa "sin opinión", que es exactamente como está hoy: mientras la
+ * columna siga en blanco, esto no cambia absolutamente nada.
+ */
+function pagoDesmentido(texto) {
+  var t = String(texto || '').trim().toLowerCase();
+  if (!t) return false;
+  return /^(no|false|falso|pendiente|sin verificar|no verificad|dudos|revisar|rechazad|falta verificar)/.test(t);
+}
+
 function evaluarPago(f, ed) {
   var p = {
     nombre: f.nombre, email: f.email, celular: f.celular, horario: f.horario,
@@ -892,6 +907,15 @@ function evaluarPago(f, ed) {
     // Talleres: el precio varía por edición (Tikzet cobra distinto), así que
     // no se calcula deuda. Si hay plata cargada, se da por pago.
     p.estadoPago = 'completo';
+  }
+
+  // Él mismo marcó que ese pago no está verificado: no se le puede dar por bueno.
+  // El monto sigue sumando al cobrado (es lo que dice la planilla), pero sale
+  // una alerta con la plata que está en duda.
+  if (pagoDesmentido(f.verificado)) {
+    p.estadoPago = 'revisar';
+    p.enDuda = p.monto;
+    p.nota = 'Marcado "' + f.verificado + '" en la columna pago verificado';
   }
   return p;
 }
@@ -1129,6 +1153,19 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
 
   // f-ter) Montos que no pueden ser un pago de verdad.
   detectarMontosRaros(ediciones).forEach(function (a) { alertas.push(a); });
+
+  // f-quater) Pagos que él mismo marcó como no verificados y siguen sumando al cobrado.
+  ediciones.forEach(function (ed) {
+    ed.personas.forEach(function (p) {
+      if (!p.enDuda) return;
+      alertas.push({
+        nivel: 'alta', tipo: 'sin_verificar', edicion: ed.edicion,
+        texto: p.nombre + ': ' + plata(p.enDuda) + ' sin verificar',
+        detalle: 'La planilla dice "' + p.verificado + '" en la columna pago verificado (fila ' + p.fila +
+                 ' de ' + p.hoja + '), pero ese monto está sumando al cobrado de "' + ed.edicion + '".'
+      });
+    });
+  });
 
   // g) Tikzet sin monto: es carga manual, es donde más se rompe.
   ediciones.forEach(function (ed) {

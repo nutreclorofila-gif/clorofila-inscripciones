@@ -18,7 +18,7 @@ function caso(nombre, porque, fn) {
 }
 
 const H = ['nombre','email','celular','actividad','horario','medio','comprobante','monto','verif','fecha','Edición'];
-const fila = (o) => [o.nombre||'', o.email||'', '', '', o.horario||'', o.medio||'', o.comprobante||'', o.monto||'', '', '', o.edicion||''];
+const fila = (o) => [o.nombre||'', o.email||'', '', '', o.horario||'', o.medio||'', o.comprobante||'', o.monto||'', o.verificado||'', '', o.edicion||''];
 const HOY = new Date(2026, 10, 1);   // 1 de noviembre de 2026
 
 // Arma un estado con una sola edición y la gente que se le pase.
@@ -116,6 +116,47 @@ caso(
   () => tipos(armar('Curso de cocina — Noviembre 2026', 15,
       [{nombre:'A',monto:'12200'},{nombre:'B',monto:'12200'},{nombre:'C',monto:'12200'},{nombre:'D',monto:'12200'},{nombre:'Seña',monto:'2000'}]), 'monto_raro').length === 0
       || 'duplicó el aviso de seña en el curso'
+);
+
+console.log('\n--- La columna "pago verificado" (hoy vacía en toda la planilla) ---');
+caso(
+  'vacía no cambia nada',
+  'está vacía en las 102 filas: si vacío significara "no verificado", la app marcaría todo para revisar',
+  () => {
+    const e = armar('Taller de pastas — 12/11/2026', 12, [{nombre:'A',monto:'2600'}]);
+    const p = e.ediciones[0].personas[0];
+    return (p.estadoPago === 'completo' && !p.enDuda) || 'dio ' + p.estadoPago;
+  }
+);
+caso(
+  'un "no" ahí saca el pago de "pagado"',
+  'si él marcó que no está verificado, la app no puede darlo por bueno',
+  () => {
+    const e = armar('Taller de pastas — 12/11/2026', 12, [{nombre:'Dudoso',monto:'2600',verificado:'no'}]);
+    const p = e.ediciones[0].personas[0];
+    return (p.estadoPago === 'revisar' && p.enDuda === 2600) || 'dio ' + p.estadoPago + ' / ' + p.enDuda;
+  }
+);
+caso(
+  'y sale una alerta alta con la plata en duda',
+  'ese monto sigue sumando al cobrado: hay que poder verlo, no que quede escondido',
+  () => {
+    const e = armar('Taller de pastas — 12/11/2026', 12, [{nombre:'Dudoso',monto:'2600',verificado:'pendiente'}]);
+    const a = tipos(e, 'sin_verificar');
+    if (a.length !== 1) return 'esperaba 1 alerta, hubo ' + a.length;
+    if (a[0].nivel !== 'alta') return 'la alerta es ' + a[0].nivel;
+    if (!/2\.600/.test(a[0].texto)) return 'no dice cuánta plata: ' + a[0].texto;
+    return true;
+  }
+);
+caso(
+  'un "sí" no molesta',
+  'marcar que está verificado tiene que ser lo normal, no disparar nada',
+  () => {
+    const e = armar('Taller de pastas — 12/11/2026', 12, [{nombre:'A',monto:'2600',verificado:'sí'}]);
+    return (e.ediciones[0].personas[0].estadoPago === 'completo' && tipos(e,'sin_verificar').length === 0)
+      || 'un pago verificado disparó algo'
+  }
 );
 
 console.log('\n--- Lo que ya andaba, que no se rompa ---');
