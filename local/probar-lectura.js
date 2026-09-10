@@ -31,7 +31,21 @@ const Sheets = {
       batchGet: (id, opts) => {
         llamadas.push({ op: 'batchGet', ranges: opts.ranges });
         return { valueRanges: opts.ranges.map(r => {
-          const nombre = r.replace(/^'|'!A:K$/g, '').replace(/''/g, "'");
+          const nombre = r.replace(/^'/, '').replace(/'!A:[KN]$/, '').replace(/''/g, "'");
+          if (nombre === 'Lista de espera') {
+            return { values: [
+              ['nombre','email','celular','edición'],
+              ['Ana Espera','ana@ejemplo.com','099111222','Taller de tapeo — 18/09/2026'],
+              ['Beto Espera','beto@ejemplo.com','','Otro taller que no existe']
+            ]};
+          }
+          if (nombre === 'Gift Cards') {
+            return { values: [
+              ['nombre','de','email','monto','usada'],
+              ['Regalada A','Menganita','a@ejemplo.com','2600',''],
+              ['Regalada B','Pedro','b@ejemplo.com','12200','sí']
+            ]};
+          }
           return { values: recortar(fixture.hojas[nombre] || []) };
         })};
       }
@@ -65,9 +79,13 @@ chequear('lee las 3 pestañas de Inscriptos',
   ['Inscriptos Agosto 2026','Inscriptos Septiembre 2026','Inscriptos Octubre 2026'].every(n => leidas.includes(n)),
   'leyó: ' + leidas.join(', '));
 
-chequear('NO lee "Lista de espera" ni "Gift Cards"',
+chequear('"Lista de espera" y "Gift Cards" NO entran como inscriptos',
   !leidas.includes('Lista de espera') && !leidas.includes('Gift Cards'),
   'no ocupan cupo; contarlas rompería todos los números. Leyó: ' + leidas.join(', '));
+
+chequear('pero SÍ se leen aparte',
+  !!(crudo.extras && crudo.extras['Lista de espera'] && crudo.extras['Gift Cards']),
+  'sin ellas no se puede saber a quién llamar cuando algo se llena');
 
 chequear('pide las fórmulas del Panel, no solo los valores',
   llamadas.some(l => l.render === 'FORMULA') && /COUNTIF/i.test(crudo.panelFormulas.map(f => f[3]).join(' ')),
@@ -90,6 +108,33 @@ chequear('los 12 conteos cuadran contra el Panel',
   estado.ediciones.filter(e => e.personas.length !== e.anotados).map(e => e.edicion).join(', '));
 chequear('el JSON viaja al navegador sin romperse',
   JSON.parse(JSON.stringify(estado)).ediciones.length === 12, 'no serializa');
+
+console.log('\n--- lista de espera y gift cards ---');
+chequear('lee la lista de espera',
+  estado.espera.length === 2, JSON.stringify(estado.espera));
+chequear('liga a la persona con la edición que espera',
+  estado.espera[0].edicion === 'Taller de tapeo — 18/09/2026',
+  'quedó: ' + estado.espera[0].edicion);
+chequear('si no puede ligarla, igual la muestra',
+  estado.espera[1].edicion === null && estado.espera[1].nombre === 'Beto Espera',
+  'se perdió una persona de la lista de espera');
+chequear('arma el WhatsApp de quien espera',
+  estado.espera[0].whatsapp === '59899111222', 'quedó: ' + estado.espera[0].whatsapp);
+chequear('avisa que hay alguien esperando en una edición llena',
+  estado.alertas.some(a => a.tipo === 'espera' && /Ana Espera/.test(a.texto)),
+  'el tapeo está 12/12 y hay alguien esperando: tiene que avisar');
+chequear('lee las gift cards y distingue usadas de sin usar',
+  estado.giftCards.length === 2 && estado.giftCards[0].usada === false && estado.giftCards[1].usada === true,
+  JSON.stringify(estado.giftCards));
+chequear('cuenta las gift cards sin usar en el resumen',
+  estado.resumen.giftSinUsar === 1, 'dio ' + estado.resumen.giftSinUsar);
+
+console.log('\n--- quién repite ---');
+const repetidores = [];
+estado.ediciones.forEach(e => e.personas.forEach(p => { if (p.veces > 1) repetidores.push(p.nombre + ' (' + p.veces + ')'); }));
+chequear('detecta a los que vinieron más de una vez',
+  repetidores.length > 0, 'no encontró ninguno, y en la planilla hay gente repetida');
+console.log('        ' + [...new Set(repetidores)].slice(0, 6).join(', '));
 
 console.log('\n' + (fallas === 0 ? 'LECTURA VERIFICADA' : fallas + ' FALLAS'));
 process.exit(fallas ? 1 : 0);

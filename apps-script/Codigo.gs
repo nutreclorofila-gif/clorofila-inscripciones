@@ -36,6 +36,14 @@ var FILAS_PANEL = 500;
 /** Pestañas que NO son ediciones y no cuentan en ningún cupo. */
 var HOJAS_IGNORADAS = ['Lista de espera', 'Gift Cards', 'Panel'];
 
+/**
+ * Pestañas que no ocupan cupo pero sí hay que mirar: cuando un taller se llena,
+ * lo que se necesita es a quién llamar; y una gift card vendida es plata cobrada
+ * y un lugar que alguien va a usar más adelante.
+ */
+var HOJA_ESPERA = 'Lista de espera';
+var HOJA_GIFT = 'Gift Cards';
+
 /** Prefijos de la columna K que son intencionales, no errores de carga. */
 var PREFIJOS_INTENCIONALES = ['Reubicado', 'Lista de espera', 'Cancelado', 'Anulado', 'Gift card'];
 
@@ -198,15 +206,28 @@ function leerPlanilla() {
     return /^Inscriptos /.test(n) || nombradas[n];
   });
 
+  // Van aparte de las de inscriptos: no cuentan en ningún cupo.
+  var extrasALeer = [HOJA_ESPERA, HOJA_GIFT].filter(function (n) {
+    return titulos.indexOf(n) !== -1;
+  });
+
+  // Todo en UNA sola llamada: las de inscriptos (hasta la columna K) y las dos
+  // pestañas extra (hasta la N, que tienen más columnas).
   var hojas = {};
-  if (aLeer.length) {
+  var extras = {};
+  var todas = aLeer.map(function (n) { return { nombre: n, rango: "'" + n.replace(/'/g, "''") + "'!A:K", ancho: 11, extra: false }; })
+    .concat(extrasALeer.map(function (n) { return { nombre: n, rango: "'" + n.replace(/'/g, "''") + "'!A:N", ancho: 14, extra: true }; }));
+
+  if (todas.length) {
     var resp = Sheets.Spreadsheets.Values.batchGet(ID_PLANILLA, {
-      ranges: aLeer.map(function (n) { return "'" + n.replace(/'/g, "''") + "'!A:K"; }),
+      ranges: todas.map(function (x) { return x.rango; }),
       valueRenderOption: 'FORMATTED_VALUE',
       dateTimeRenderOption: 'FORMATTED_STRING'
     });
     (resp.valueRanges || []).forEach(function (vr, i) {
-      hojas[aLeer[i]] = rellenar(vr.values || [], 11);
+      var d = todas[i];
+      var filas = rellenar(vr.values || [], d.ancho);
+      if (d.extra) extras[d.nombre] = filas; else hojas[d.nombre] = filas;
     });
   }
 
@@ -215,8 +236,47 @@ function leerPlanilla() {
     panelValores: valores,
     panelFormulas: formulas,
     hojas: hojas,
+    extras: extras,
     generadoEn: new Date().toISOString()
   };
+}
+
+/**
+ * Convierte una hoja en objetos usando la fila 1 como nombres de columna.
+ * Se busca por nombre y no por posición porque estas pestañas las arma Leo a
+ * mano y el orden de las columnas puede cambiar sin aviso.
+ */
+function porEncabezado(filas) {
+  if (!filas || filas.length < 2) return [];
+  var claves = filas[0].map(function (c) { return String(c || '').trim().toLowerCase(); });
+  var salida = [];
+  for (var i = 1; i < filas.length; i++) {
+    var o = { _fila: i + 1 }, vacia = true;
+    for (var j = 0; j < claves.length; j++) {
+      if (!claves[j]) continue;
+      var v = String(filas[i][j] === undefined ? '' : filas[i][j]).trim();
+      o[claves[j]] = v;
+      if (v) vacia = false;
+    }
+    if (!vacia) salida.push(o);
+  }
+  return salida;
+}
+
+/** Devuelve el primer campo que exista, probando varios nombres posibles. */
+function campo(obj, nombres) {
+  for (var i = 0; i < nombres.length; i++) {
+    var k = nombres[i].toLowerCase();
+    if (obj[k]) return obj[k];
+  }
+  // Último intento: cualquier clave que contenga el texto buscado.
+  var claves = Object.keys(obj);
+  for (var n = 0; n < nombres.length; n++) {
+    for (var c = 0; c < claves.length; c++) {
+      if (claves[c].indexOf(nombres[n].toLowerCase()) !== -1 && obj[claves[c]]) return obj[claves[c]];
+    }
+  }
+  return '';
 }
 
 function leerRango(rango, render) {
@@ -427,13 +487,18 @@ function construirEstado(crudo, ahora) {
   });
 
   var vigentes = ediciones.filter(function (e) { return e.vigente; });
-  var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas);
+  marcarRepetidores(ediciones);
+  var espera = leerEspera((crudo.extras || {})[HOJA_ESPERA], ediciones);
+  var gift = leerGiftCards((crudo.extras || {})[HOJA_GIFT]);
+  var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas, espera);
 
   return {
     generadoEn: crudo.generadoEn,
     hoy: hoy.toISOString(),
     ediciones: ediciones,
     alertas: alertas,
+    espera: espera,
+    giftCards: gift,
     fueraDeCupo: listarFueraDeCupo(filas, usadas, hoy),
     tikzet: resumirTikzet(ediciones),
     resumen: {
@@ -445,10 +510,76 @@ function construirEstado(crudo, ahora) {
       recaudado: sumar(vigentes, 'recaudado'),
       saldo: sumar(vigentes, 'saldo'),
       pendientes: vigentes.reduce(function (a, e) { return a + e.pendientes.length; }, 0),
+      enEspera: espera.length,
+      giftSinUsar: gift.filter(function (g) { return !g.usada; }).length,
       alertasAltas: alertas.filter(function (a) { return a.nivel === 'alta'; }).length,
       alertasTotal: alertas.length
     }
   };
+}
+
+/**
+ * Marca cuántas veces vino cada persona. Se cruza por mail, que es lo único
+ * estable: el nombre viene escrito distinto cada vez ("Fulana Pérez" /
+ * "Fulana Perez Rodriguez"). Sirve para saber a quién ya conocés.
+ */
+function marcarRepetidores(ediciones) {
+  var cuenta = {};
+  ediciones.forEach(function (ed) {
+    ed.personas.forEach(function (p) {
+      var k = (p.email || '').trim().toLowerCase();
+      if (!k) return;
+      cuenta[k] = (cuenta[k] || 0) + 1;
+    });
+  });
+  ediciones.forEach(function (ed) {
+    ed.personas.forEach(function (p) {
+      var k = (p.email || '').trim().toLowerCase();
+      p.veces = k ? cuenta[k] : 1;
+    });
+  });
+}
+
+/**
+ * Lista de espera. Es la pestaña que se mira cuando algo se llena: quién quiere
+ * entrar si alguien larga. Se liga a la edición por texto porque ahí se escribe
+ * a mano; si no se puede ligar, igual se muestra en la lista general.
+ */
+function leerEspera(filas, ediciones) {
+  return porEncabezado(filas).map(function (o) {
+    var texto = campo(o, ['edición', 'edicion', 'actividad', 'taller', 'curso']);
+    var ligada = null;
+    ediciones.forEach(function (e) {
+      if (!texto) return;
+      var t = texto.toLowerCase();
+      if (t.indexOf(e.edicion.toLowerCase()) !== -1 || e.edicion.toLowerCase().indexOf(t) !== -1) ligada = e.edicion;
+    });
+    return {
+      nombre: campo(o, ['nombre', 'quien']),
+      email: campo(o, ['email', 'mail', 'correo']),
+      celular: campo(o, ['celular', 'teléfono', 'telefono', 'whatsapp']),
+      whatsapp: paraWhatsapp(campo(o, ['celular', 'teléfono', 'telefono', 'whatsapp'])),
+      quiere: texto,
+      edicion: ligada,
+      fila: o._fila
+    };
+  }).filter(function (x) { return x.nombre || x.email; });
+}
+
+/** Gift cards: una vendida sin usar es plata cobrada y un lugar que se va a ocupar. */
+function leerGiftCards(filas) {
+  return porEncabezado(filas).map(function (o) {
+    var usada = campo(o, ['usada', 'usado', 'canjeada', 'estado']);
+    return {
+      nombre: campo(o, ['nombre', 'para', 'destinatario', 'quien']),
+      deQuien: campo(o, ['de', 'regala', 'compró', 'compro', 'comprador']),
+      email: campo(o, ['email', 'mail', 'correo']),
+      monto: parsearMonto(campo(o, ['monto', 'importe', 'precio', 'valor'])),
+      estado: usada,
+      usada: /^(s[ií]|usada|usado|canjeada|canjeado|x)$/i.test(usada.trim()),
+      fila: o._fila
+    };
+  }).filter(function (x) { return x.nombre || x.email || x.monto; });
 }
 
 /**
@@ -642,7 +773,7 @@ function calcularPlata(ed) {
    5. ALERTAS — solo lo que necesita que alguien haga algo
    ====================================================================== */
 
-function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas) {
+function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, esperaGlobal) {
   var alertas = [];
   // Una edición que ya pasó no se arregla: alertar sobre ella es solo ruido.
   var ediciones = todasLasEdiciones.filter(function (e) { return e.vigente; });
@@ -772,6 +903,18 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas) {
         texto: p.nombre + ': venta de Tikzet sin monto cargado',
         detalle: 'Fila ' + p.fila + ' de ' + p.hoja + '. Las ventas de Tikzet se cargan a mano, cruzá contra el panel de Tikzet.'
       });
+    });
+  });
+
+  // g-bis) Está lleno y hay gente esperando: si alguien larga, hay a quién llamar.
+  (esperaGlobal || []).forEach(function (x) {
+    if (!x.edicion) return;
+    var ed = ediciones.filter(function (e) { return e.edicion === x.edicion; })[0];
+    if (!ed || ed.quedan > 0) return;
+    alertas.push({
+      nivel: 'info', tipo: 'espera', edicion: ed.edicion,
+      texto: x.nombre + ' está esperando lugar en ' + ed.edicion,
+      detalle: 'Esa edición está llena. Si alguien larga, hay a quién llamar.'
     });
   });
 

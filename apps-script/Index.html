@@ -151,6 +151,12 @@
     border: 1px solid var(--linea); background: var(--papel); color: var(--texto);
     font: inherit; font-size: 13px; cursor: pointer;
   }
+  .veces {
+    display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px;
+    background: var(--crema); color: var(--dorado); font-size: 11px; font-weight: 700;
+    vertical-align: middle;
+  }
+  .espera-chip { background: var(--crema); color: var(--tenue); }
   .viejo {
     background: var(--ambar-fondo); color: var(--ambar); border-radius: 10px;
     padding: 9px 12px; font-size: 13px; margin-bottom: 10px;
@@ -386,6 +392,15 @@
     return '<div class="contacto">' + partes.join('') + '</div>';
   }
 
+  /** Una persona de la lista de espera, con su contacto a un toque. */
+  function enEspera(x, clave) {
+    return '<div class="persona" data-quien="' + esc(clave) + '"><div class="quien">' +
+      '<div class="nom">' + esc(x.nombre || '(sin nombre)') + '</div>' +
+      '<div class="sub">' + esc(x.quiere || 'sin edición anotada') + '</div></div>' +
+      '<span class="chip espera-chip">Espera</span></div>' +
+      (CONTACTOS[clave] ? contacto(x) : '');
+  }
+
   var ETIQUETAS = {
     completo: 'Pagó', parcial: 'Debe', cubierto: 'Cubierto',
     sin_pago: 'Sin pago', revisar: 'Revisar'
@@ -489,6 +504,7 @@
 
   function tarjeta(e) {
     var cuando = cuandoEs(e.fecha);
+    var esperan = (DATOS.espera || []).filter(function (x) { return x.edicion === e.edicion; });
     var pct = Math.round(e.ocupacion * 100);
     var clase = pct >= 100 ? 'full' : (pct >= 70 ? 'alta' : '');
     var abierta = ABIERTAS[e.id];
@@ -507,7 +523,12 @@
           '</span>' +
         '</div>' +
         '<div class="barra"><i class="' + clase + '" style="width:' + Math.min(pct, 100) + '%"></i></div>' +
-        '<div class="pie"><span>Cobrado <b>' + plata(e.recaudado) + '</b></span>' +
+        '<div class="pie">' +
+          (esperan.length
+            ? '<span style="color:var(--dorado);font-weight:600">' + esperan.length +
+              (esperan.length === 1 ? ' esperando lugar' : ' esperando lugar') + '</span>'
+            : '') +
+          '<span>Cobrado <b>' + plata(e.recaudado) + '</b></span>' +
           (e.saldo ? '<span>Falta <b>' + plata(e.saldo) + '</b></span>' : '') +
           (e.pendientes.length ? '<span><b>' + e.pendientes.length + '</b> con el pago pendiente</span>' : '') +
           '<span style="margin-left:auto">' + (abierta ? 'ocultar ▴' : 'ver la gente ▾') + '</span>' +
@@ -516,7 +537,12 @@
       (abierta ? '<div class="detalle">' + (e.personas.length
         ? e.personas.map(function (p) { return persona(p); }).join('') +
           '<button class="copiar" data-copiar="' + e.id + '">Copiar la lista de anotados</button>'
-        : '<div class="vacio">Todavía no se anotó nadie.</div>') + '</div>' : '') +
+        : '<div class="vacio">Todavía no se anotó nadie.</div>') +
+        (esperan.length
+          ? '<div class="seccion">Esperando lugar</div>' +
+            esperan.map(function (x, i) { return enEspera(x, e.id + '-esp' + i); }).join('')
+          : '') +
+        '</div>' : '') +
     '</div>';
   }
 
@@ -527,7 +553,9 @@
     var sub = [p.horario, p.medioPago, p.monto ? plata(p.monto) : ''].filter(Boolean).join(' · ');
     var clave = id || (p.hoja + '#' + p.fila);
     return '<div class="persona" data-quien="' + esc(clave) + '"><div class="quien">' +
-      '<div class="nom">' + esc(p.nombre || '(sin nombre)') + '</div>' +
+      '<div class="nom">' + esc(p.nombre || '(sin nombre)') +
+        (p.veces > 1 ? '<span class="veces" title="Ya vino ' + p.veces + ' veces">' + p.veces + 'ª vez</span>' : '') +
+      '</div>' +
       '<div class="sub">' + esc(sub) + '</div></div>' +
       '<span class="chip ' + p.estadoPago + '">' + esc(etiqueta) + '</span></div>' +
       (CONTACTOS[clave] ? contacto(p) : '');
@@ -571,6 +599,27 @@
               ETIQUETAS[x.p.estadoPago] + (x.p.saldo ? ' ' + plata(x.p.saldo) : '') + '</span></div>';
         }).join('')
       : '<div class="vacio">Está todo cobrado.</div>';
+
+    // Gift cards: las vendidas sin usar son plata ya cobrada y un lugar futuro.
+    var gc = DATOS.giftCards || [];
+    var sinUsar = gc.filter(function (g) { return !g.usada; });
+    if (gc.length) {
+      html += '<div class="seccion">Gift cards</div>' +
+        '<div class="tarjeta"><div style="padding:14px">' +
+          '<div class="cifra"><span class="grande">' + sinUsar.length + '</span>' +
+          '<span class="de">sin usar</span>' +
+          '<span class="quedan"><b>' + plata(sinUsar.reduce(function (a, g) { return a + (g.monto || 0); }, 0)) +
+          '</b>cobrado por adelantado</span></div>' +
+          '<div class="pie"><span>' + gc.length + ' vendidas en total</span>' +
+          '<span>Cada una sin usar es un lugar que alguien va a ocupar.</span></div>' +
+        '</div></div>' +
+        sinUsar.map(function (g) {
+          return '<div class="persona"><div class="quien">' +
+            '<div class="nom">' + esc(g.nombre || '(sin nombre)') + '</div>' +
+            '<div class="sub">' + esc([g.deQuien ? 'de ' + g.deQuien : '', g.estado].filter(Boolean).join(' · ')) + '</div></div>' +
+            '<span style="font-weight:600">' + (g.monto ? plata(g.monto) : '') + '</span></div>';
+        }).join('');
+    }
 
     html += '<div class="seccion">Tikzet</div>' +
       '<div class="tarjeta"><div style="padding:14px">' +
