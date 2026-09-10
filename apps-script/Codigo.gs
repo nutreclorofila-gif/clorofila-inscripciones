@@ -930,6 +930,76 @@ function calcularPlata(ed) {
    5. ALERTAS — solo lo que necesita que alguien haga algo
    ====================================================================== */
 
+/**
+ * El precio del curso es el único número escrito a mano en toda la app
+ * (PRECIOS). Si algún día cambia y nadie toca el código, los saldos quedan mal
+ * en silencio: la app diría que falta plata que ya está paga, o al revés.
+ *
+ * Esto no adivina el precio nuevo ni lo usa para calcular: mira lo que está
+ * pagando la gente y avisa si ya no se parece a lo que dice el código.
+ */
+function revisarPrecioDelCurso(ediciones) {
+  var montos = [];
+  ediciones.forEach(function (ed) {
+    if (!ed.esCurso || !ed.vigente) return;
+    ed.personas.forEach(function (p) { if (p.monto) montos.push(p.monto); });
+  });
+  if (montos.length < 3) return null;   // con dos pagos no hay nada que concluir
+
+  var frecuente = masFrecuente(montos);
+  if (!frecuente || frecuente.veces < 3) return null;
+  if (frecuente.valor === PRECIOS.cursoTotal || frecuente.valor === PRECIOS.cursoCuota) return null;
+
+  return {
+    nivel: 'alta', tipo: 'precio_viejo', edicion: '',
+    texto: 'El precio del curso que usa la app quedó viejo',
+    detalle: 'La mayoría está pagando ' + plata(frecuente.valor) + ' (' + frecuente.veces + ' de ' +
+             montos.length + ' pagos), pero la app calcula las deudas contra ' + plata(PRECIOS.cursoTotal) +
+             '. Mientras siga así, lo que falta cobrar está mal. Hay que actualizar PRECIOS en el código.'
+  };
+}
+
+/**
+ * Un monto muchísimo más chico que el resto de su taller. No se puede saber el
+ * precio de un taller (varía por edición, y hay quien paga por dos o por
+ * cuatro), así que no se calcula deuda: solo se avisa de lo que no puede ser
+ * un pago de verdad, como $433 en un taller donde todos pagan miles.
+ */
+function detectarMontosRaros(ediciones) {
+  var alertas = [];
+  ediciones.forEach(function (ed) {
+    if (ed.esCurso || !ed.vigente) return;
+    var montos = ed.personas.map(function (p) { return p.monto; }).filter(function (m) { return m; });
+    if (montos.length < 4) return;      // sin varios pagos no hay con qué comparar
+    var corte = mediana(montos) / 3;
+    ed.personas.forEach(function (p) {
+      if (!p.monto || p.monto >= corte) return;
+      alertas.push({
+        nivel: 'media', tipo: 'monto_raro', edicion: ed.edicion,
+        texto: p.nombre + ': ' + plata(p.monto) + ' es muy poco para este taller',
+        detalle: 'El resto de "' + ed.edicion + '" paga alrededor de ' + plata(mediana(montos)) +
+                 '. Está en ' + p.hoja + ', fila ' + p.fila + '. Suma al cobrado como si fuera un pago entero.'
+      });
+    });
+  });
+  return alertas;
+}
+
+function masFrecuente(nums) {
+  var cuenta = {}, mejor = null;
+  nums.forEach(function (n) {
+    cuenta[n] = (cuenta[n] || 0) + 1;
+    if (!mejor || cuenta[n] > mejor.veces) mejor = { valor: Number(n), veces: cuenta[n] };
+  });
+  return mejor;
+}
+
+function mediana(nums) {
+  var o = nums.slice().sort(function (a, b) { return a - b; });
+  var m = Math.floor(o.length / 2);
+  return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2;
+}
+
 function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, esperaGlobal) {
   var alertas = [];
   // Una edición que ya pasó no se arregla: alertar sobre ella es solo ruido.
@@ -1051,6 +1121,14 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
       });
     });
   });
+
+  // f-bis) El precio del curso que usa la app dejó de coincidir con lo que paga
+  //        la gente, y los saldos calculados están mal.
+  var precio = revisarPrecioDelCurso(todasLasEdiciones);
+  if (precio) alertas.push(precio);
+
+  // f-ter) Montos que no pueden ser un pago de verdad.
+  detectarMontosRaros(ediciones).forEach(function (a) { alertas.push(a); });
 
   // g) Tikzet sin monto: es carga manual, es donde más se rompe.
   ediciones.forEach(function (ed) {
