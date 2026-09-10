@@ -25,6 +25,14 @@ var PRECIOS = {
   cursoCuota: 4800
 };
 
+/**
+ * Hasta qué fila del Panel se lee. La app está pensada para usarse siempre, y
+ * cada taller o curso nuevo suma una fila: con un tope corto, en algún momento
+ * las ediciones nuevas dejarían de aparecer sin que nadie se entere. Leer de más
+ * no cuesta nada — la API no devuelve las filas vacías.
+ */
+var FILAS_PANEL = 500;
+
 /** Pestañas que NO son ediciones y no cuentan en ningún cupo. */
 var HOJAS_IGNORADAS = ['Lista de espera', 'Gift Cards', 'Panel'];
 
@@ -173,8 +181,8 @@ function leerPlanilla() {
   var meta = Sheets.Spreadsheets.get(ID_PLANILLA, { fields: 'sheets.properties.title' });
   var titulos = (meta.sheets || []).map(function (h) { return h.properties.title; });
 
-  var valores = leerRango('Panel!A1:F60', 'FORMATTED_VALUE');
-  var formulas = leerRango('Panel!A1:F60', 'FORMULA');
+  var valores = leerRango('Panel!A1:F' + FILAS_PANEL, 'FORMATTED_VALUE');
+  var formulas = leerRango('Panel!A1:F' + FILAS_PANEL, 'FORMULA');
 
   // Qué pestañas hay que leer: las que empiezan con "Inscriptos", más cualquier
   // otra que las fórmulas del Panel nombren. Así, si mañana una edición apunta a
@@ -203,6 +211,7 @@ function leerPlanilla() {
   }
 
   return {
+    panelLleno: valores.length >= FILAS_PANEL,
     panelValores: valores,
     panelFormulas: formulas,
     hojas: hojas,
@@ -393,6 +402,7 @@ function parsearRegla(formula, edicion) {
 function construirEstado(crudo, ahora) {
   var hoy = ahora || new Date();
   var filas = aplanarInscriptos(crudo.hojas);
+  filas.panelLleno = !!crudo.panelLleno;
   var ediciones = leerEdicionesDelPanel(crudo.panelValores, crudo.panelFormulas, hoy);
 
   // Cada fila entra en UNA sola edición. Si dos filas del Panel comparten la misma
@@ -650,6 +660,17 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas) {
                'en la primera. Dos filas del Panel están usando la misma regla — revisá la columna Anotados.'
     });
   });
+
+  // a-ter) El Panel llegó al tope que se lee: de acá en más, una edición nueva
+  // no aparecería y nadie se enteraría. Mejor avisar antes de que pase.
+  if (filas.panelLleno) {
+    alertas.push({
+      nivel: 'alta', tipo: 'panel_lleno', edicion: '',
+      texto: 'El Panel llegó a la fila ' + FILAS_PANEL,
+      detalle: 'La app lee hasta ahí. Si agregás más ediciones, no las va a mostrar. ' +
+               'Hay que subir FILAS_PANEL en el código.'
+    });
+  }
 
   // b) Sobrecupo.
   ediciones.forEach(function (ed) {
