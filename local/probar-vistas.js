@@ -118,7 +118,11 @@ function probarEstado(titulo, estado) {
       detalle:'La mayoría paga $ 13.500 pero la app calcula contra $ 12.200.' },
     { nivel:'alta', tipo:'formula', edicion:'Y', conPlata:false,
       texto:'No se pudo leer cómo cuenta "Y"',
-      detalle:'La fórmula cuenta lo que dice B2, pero esta es la fila 5.' }
+      detalle:'La fórmula cuenta lo que dice B2, pero esta es la fila 5.' },
+    // Sin la marca: es lo que manda el Apps Script que todavía está desplegado.
+    { nivel:'alta', tipo:'sin_verificar', edicion:'Z',
+      texto:'Zutano: hay un pago sin verificar',
+      detalle:'Esos $ 5.400 están sumando al cobrado.' }
   ];
   const ui2 = cargarUI(conAlertas);
   const cupos2 = ui2.vistaCupos();
