@@ -834,7 +834,12 @@
    * En Cupos no se muestran montos — el detalle completo está en Alertas.
    */
   function avisoSinPlata(a) {
-    if (!a.conPlata) return aviso(a);
+    // El servidor marca cada alerta con conPlata, pero la página y el Apps
+    // Script se despliegan por separado: si el servidor todavía es más viejo,
+    // esa marca no viene y hay que sacarla acá. Sin esto, una alerta con
+    // montos se colaría en la portada justo mientras falta desplegar.
+    var habla = ('conPlata' in a) ? a.conPlata : /\$/.test((a.texto || '') + ' ' + (a.detalle || ''));
+    if (!habla) return aviso(a);
     return '<div class="aviso ' + a.nivel + '"><div class="q">' + esc(a.texto) + '</div>' +
       '<div class="p">Los números están en Alertas.</div></div>';
   }
