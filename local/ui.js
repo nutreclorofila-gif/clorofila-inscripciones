@@ -29,7 +29,7 @@ function cargarUI(datos, novedades) {
 
   const api = new Function('document', 'localStorage', 'window', 'navigator', 'setTimeout', 'fetch',
     js + '\nDATOS = arguments[6]; NOVEDADES = arguments[7] || null;' +
-    '\nreturn {vistaCupos,vistaPlata,vistaGente,vistaAlertas,pintarTotales,avisoDeNovedades,contacto,persona,enEspera,plata,esc};')
+    '\nreturn {vistaCupos,vistaPlata,vistaGente,vistaAlertas,pintarTotales,avisoDeNovedades,contacto,persona,enEspera,coincideBusqueda,sinAcentos,plata,esc};')
     (document, localStorage, window, { clipboard: null }, () => {},
      () => Promise.reject(new Error('sin red')), datos, novedades);
   api.verEscrito = (id) => escrito[id] || '';
