@@ -70,6 +70,26 @@ function probarEstado(titulo, estado) {
                                  ' dio ' + r + ' y esperaba ' + esperado); }
   });
 
+  // Esa lista se pega en el grupo o se le manda a la cocina.
+  corridos++;
+  const edCopia = {
+    titulo: 'Taller de tapeo', subtitulo: '18/09/2026', anotados: 3, cupo: 12,
+    personas: [
+      { nombre: 'Ana', estadoPago: 'completo', saldo: 0 },
+      { nombre: 'Beto', estadoPago: 'parcial', saldo: 9200 },
+      { nombre: '', estadoPago: 'sin_pago', saldo: 0 }
+    ]
+  };
+  ui.copiarLista(edCopia, { textContent: '' });
+  const copiado = ui.verCopiado() || '';
+  const problemas = [];
+  if (!/Ana/.test(copiado) || !/Beto/.test(copiado)) problemas.push('faltan nombres');
+  if (/\$/.test(copiado) || /Debe|Pagó|Sin pago/.test(copiado)) problemas.push('lleva el estado de pago');
+  if (!/Taller de tapeo/.test(copiado) || !/3 de 12/.test(copiado)) problemas.push('falta el encabezado');
+  if (!/\(sin nombre\)/.test(copiado)) problemas.push('se pierde el que no tiene nombre cargado');
+  if (!problemas.length) console.log('  ok    la lista que se copia lleva nombres y no plata');
+  else { fallas++; console.log('  FALLA copiar la lista: ' + problemas.join(', ') + '\n        quedó: ' + JSON.stringify(copiado)); }
+
   // La plata no puede aparecer en lo primero que se ve. La app se abre en el
   // local y en la calle, con gente al lado.
   corridos++;
