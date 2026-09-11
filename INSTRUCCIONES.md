@@ -187,6 +187,10 @@ en la calle, con gente al lado.
 Lo cobrado vive entero en la solapa **Plata**, a un toque: el total, lo que falta cobrar,
 el desglose por edición, quién debe y las gift cards.
 
+El botón **"Copiar la lista de anotados"** copia **solo los nombres**, con el título y el
+cupo. Esa lista se pega en el grupo o se le manda a la cocina: antes copiaba también el
+estado de pago (*"Mengano — Debe $ 9.200"*), o sea que contaba quién debe y cuánto.
+
 Hay una prueba que lo garantiza (`local/probar-vistas.js`): si algún día un monto vuelve a
 la portada, la verificación falla. Comprobado devolviéndolo a propósito.
 

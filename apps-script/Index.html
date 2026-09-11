@@ -868,13 +868,17 @@
     pintarPanel();
   });
 
-  /** Para pasar la lista al grupo o a la cocina. */
+  /**
+   * Para pasar la lista al grupo o a la cocina: SOLO los nombres.
+   * Antes copiaba también el estado de pago ("Mengano — Debe $ 9.200"), así que
+   * pegar eso en un grupo contaba quién debe y cuánto. Eso se mira adentro de
+   * la app, no se reparte.
+   */
   function copiarLista(ed, boton) {
     var texto = (ed.titulo + ' — ' + (ed.subtitulo || '') + '\n' +
       ed.anotados + ' de ' + ed.cupo + '\n\n' +
       ed.personas.map(function (p, i) {
-        var estado = ETIQUETAS[p.estadoPago] + (p.estadoPago === 'parcial' ? ' ' + plata(p.saldo) : '');
-        return (i + 1) + '. ' + (p.nombre || '(sin nombre)') + ' — ' + estado;
+        return (i + 1) + '. ' + (p.nombre || '(sin nombre)');
       }).join('\n')).trim();
 
     var listo = function () {
