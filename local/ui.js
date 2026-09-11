@@ -27,12 +27,17 @@ function cargarUI(datos, novedades) {
   const localStorage = { getItem: () => null, setItem() {}, removeItem() {} };
   const window = { google: null, addEventListener() {}, confirm: () => false, location: { href: '' } };
 
+  // Portapapeles de mentira, para poder ver qué se copia.
+  const copiado = { texto: null };
+  const navigator = { clipboard: { writeText: (t) => { copiado.texto = t; return Promise.resolve(); } } };
+
   const api = new Function('document', 'localStorage', 'window', 'navigator', 'setTimeout', 'fetch',
     js + '\nDATOS = arguments[6]; NOVEDADES = arguments[7] || null;' +
-    '\nreturn {vistaCupos,vistaPlata,vistaGente,vistaAlertas,pintarTotales,avisoDeNovedades,contacto,persona,enEspera,coincideBusqueda,sinAcentos,plata,esc};')
-    (document, localStorage, window, { clipboard: null }, () => {},
+    '\nreturn {vistaCupos,vistaPlata,vistaGente,vistaAlertas,pintarTotales,avisoDeNovedades,contacto,persona,enEspera,coincideBusqueda,sinAcentos,copiarLista,plata,esc};')
+    (document, localStorage, window, navigator, () => {},
      () => Promise.reject(new Error('sin red')), datos, novedades);
   api.verEscrito = (id) => escrito[id] || '';
+  api.verCopiado = () => copiado.texto;
   return api;
 }
 
