@@ -38,6 +38,8 @@ const MUTACIONES = [
   ['vuelve la plata a la portada', INDEX,
    "caja(r.pendientes, r.pendientes === 1 ? 'pago pendiente' : 'pagos pendientes');",
    "caja(plata(r.recaudado), 'cobrado', true);"],
+  ['el buscador deja de ignorar los acentos', INDEX,
+   ".replace(/[áàäâã]/g, 'a')", ''],
   ['el aviso de novedades compara por fila y no por persona', INDEX,
    "var quien = String(p.email || p.nombre || '').trim().toLowerCase();",
    "var quien = String(p.hoja + '#' + p.fila);"]

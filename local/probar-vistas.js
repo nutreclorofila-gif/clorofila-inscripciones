@@ -45,6 +45,31 @@ function probarEstado(titulo, estado) {
                 cuantos(nada) + ' buscando algo que no existe');
   }
 
+  // El buscador tiene que aguantar cómo escribe la gente de verdad.
+  const buscar = [
+    ['sin acento encuentra con acento', 'Sofía Gómez', '099817677', 'sofia', true],
+    ['el apellido solo', 'Sofía Gómez', '099817677', 'gomez', true],
+    ['las palabras en cualquier orden', 'Sofía Gómez', '099817677', 'gomez sofia', true],
+    ['la ñ', 'Ana Núñez', '091234567', 'nunez', true],
+    ['la á, que es la más común acá', 'Tomás Rodríguez', '091234567', 'tomas', true],
+    ['la Á con mayúscula', 'Álvaro Ángel', '091234567', 'alvaro angel', true],
+    ['la é y la ó juntas', 'José Colón', '091234567', 'jose colon', true],
+    ['el celular con espacios', 'Sofía Gómez', '099817677', '099 817 677', true],
+    ['el celular como viene de WhatsApp', 'Sofía Gómez', '099817677', '+598 99 817 677', true],
+    ['solo los últimos dígitos', 'Sofía Gómez', '099817677', '817677', true],
+    ['un celular cargado con el país', 'Sofía Gómez', '59896470922', '096 470 922', true],
+    ['otro celular NO coincide', 'Sofía Gómez', '099817677', '091111111', false],
+    ['otro nombre NO coincide', 'Sofía Gómez', '099817677', 'pedro', false],
+    ['quien no tiene celular no aparece por número', 'Sin Celular', '', '099817677', false]
+  ];
+  buscar.forEach(([nombre, quien, cel, q, esperado]) => {
+    corridos++;
+    const r = ui.coincideBusqueda(quien + ' x@y.com ' + cel, cel, q);
+    if (r === esperado) console.log('  ok    buscador: ' + nombre);
+    else { fallas++; console.log('  FALLA buscador: ' + nombre + ' — buscando ' + JSON.stringify(q) +
+                                 ' dio ' + r + ' y esperaba ' + esperado); }
+  });
+
   // La plata no puede aparecer en lo primero que se ve. La app se abre en el
   // local y en la calle, con gente al lado.
   corridos++;

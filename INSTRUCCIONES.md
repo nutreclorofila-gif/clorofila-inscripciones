@@ -168,6 +168,16 @@ pruebas. Una prueba que nunca falla no prueba nada, y eso no se ve leyéndola.
 | `local/probar-vistas.js` | Las cuatro solapas con datos nuevos, con un backend viejo y con la planilla vacía. |
 | `local/probar-xss.js` | Datos hostiles del Tally público: el escape al incrustar, y que al pintarlos no quede ninguna etiqueta ni ningún manejador vivo — incluidos los enlaces de contacto, que es donde el dato entra dentro de un `href`. |
 
+## Buscar gente
+
+El buscador de la solapa **Gente** ignora los acentos y la ñ: "sofia" encuentra a
+*Sofía*, "tomas" a *Tomás*, "nunez" a *Núñez*. Las palabras van en cualquier orden
+("gomez sofia" encuentra a *Sofía Gómez*).
+
+Si lo que escribís son números, busca por celular en cualquier formato: `099817677`,
+`099 817 677`, `+598 99 817 677` o solo los últimos dígitos. Sirve para pegar directo lo
+que copiaste de WhatsApp.
+
 ## La plata no se ve en la portada
 
 Lo primero que aparece al abrir la app son **anotados, lugares libres y pagos pendientes**.

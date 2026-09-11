@@ -427,6 +427,50 @@
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
   }
+  /**
+   * Texto comparable para buscar: sin acentos y en minúsculas. Acá los nombres
+   * llevan tildes y ñ, y nadie las escribe al buscar en el celular: sin esto,
+   * "sofia" no encuentra a "Sofía" y "nunez" no encuentra a "Núñez".
+   */
+  function sinAcentos(t) {
+    return String(t === null || t === undefined ? '' : t).toLowerCase()
+      .replace(/[áàäâã]/g, 'a').replace(/[éèëê]/g, 'e').replace(/[íìïî]/g, 'i')
+      .replace(/[óòöôõ]/g, 'o').replace(/[úùüû]/g, 'u').replace(/ñ/g, 'n').replace(/ç/g, 'c');
+  }
+
+  /**
+   * ¿Esta persona coincide con lo que se escribió? Cada palabra por separado,
+   * así "gomez sofia" encuentra a "Sofía Gómez" igual que "sofia gomez".
+   * Si lo buscado son solo números, se compara también contra el celular sin
+   * espacios ni guiones, que es como se copia y pega de WhatsApp.
+   */
+  function coincideBusqueda(texto, celular, q) {
+    var busqueda = String(q || '').trim();
+    var digitos = String(celular || '').replace(/\D/g, '');
+
+    // Si lo buscado son puros números, es un celular: se compara entero y sin
+    // el país, que es como viene cuando se copia y pega de WhatsApp
+    // ("+598 99 817 677" tiene que encontrar al que está cargado "099817677").
+    if (/^[\d\s+().-]+$/.test(busqueda) && /\d/.test(busqueda)) {
+      var a = nucleoTelefono(busqueda), b = nucleoTelefono(digitos);
+      return !!a && !!b && (b.indexOf(a) !== -1 || a.indexOf(b) !== -1);
+    }
+
+    var pajar = sinAcentos(texto);
+    return sinAcentos(busqueda).split(/\s+/).filter(Boolean).every(function (palabra) {
+      if (pajar.indexOf(palabra) !== -1) return true;
+      var soloNumeros = palabra.replace(/\D/g, '');
+      return soloNumeros.length >= 3 && digitos.indexOf(soloNumeros) !== -1;
+    });
+  }
+
+  /** Un celular uruguayo sin el país ni el cero de adelante: "598099..." -> "99...". */
+  function nucleoTelefono(texto) {
+    var d = String(texto || '').replace(/\D/g, '');
+    if (d.indexOf('598') === 0 && d.length > 8) d = d.slice(3);
+    return d.replace(/^0+/, '');
+  }
+
   function plata(n) {
     var v = Math.round(Number(n) || 0);
     return (v < 0 ? '-' : '') + '$ ' + String(Math.abs(v)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -755,10 +799,11 @@
       return (a.p.nombre || '').localeCompare(b.p.nombre || '', 'es');
     });
 
-    var q = (filtro || '').trim().toLowerCase();
+    var q = (filtro || '').trim();
     var lista = q ? todas.filter(function (x) {
-      return ((x.p.nombre || '') + ' ' + (x.p.email || '') + ' ' + (x.p.celular || '') + ' ' + x.e.edicion)
-        .toLowerCase().indexOf(q) !== -1;
+      return coincideBusqueda(
+        (x.p.nombre || '') + ' ' + (x.p.email || '') + ' ' + (x.p.celular || '') + ' ' + x.e.edicion,
+        x.p.celular, q);
     }) : todas;
 
     return '<div class="seccion">' + lista.length + ' de ' + todas.length + '</div>' +
