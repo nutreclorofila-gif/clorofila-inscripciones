@@ -79,5 +79,19 @@ const trampa = G.leerGiftCards([['Nombre', 'Fecha de compra', 'Monto', 'Estado']
 caso('"Fecha de compra" no se lee como "de quién"', '', trampa.deQuien);
 caso('el monto igual se lee',                       3500, trampa.monto);
 
+// Esto es lo que tiene la planilla de verdad: el encabezado del mail dice
+// "compró", y antes se lo llevaban DOS campos — el mail salía también como
+// "de quién". Una columna alimenta un campo y nada más.
+const real = G.leerGiftCards([['nombre', 'mail de quien compró', 'estado'], ['Fulana', 'x@y.com', 'Libre']]);
+caso('una columna no alimenta dos campos', '', real[0].deQuien);
+caso('el mail sí se lee',                   'x@y.com', real[0].email);
+caso('sin columna de importe, el monto es null', null, real[0].monto);
+caso('y la app se da cuenta de que le falta', true, real.faltaElMonto);
+caso('y puede decir qué columnas vio', ['nombre', 'mail de quien compró', 'estado'], real.columnas);
+
+const completa = G.leerGiftCards([['nombre', 'de', 'email', 'monto', 'usada'], ['Fulana', 'Mengana', 'a@b.com', '3500', 'No']]);
+caso('con la planilla completa lee todo bien', ['Mengana', 'a@b.com', 3500], [completa[0].deQuien, completa[0].email, completa[0].monto]);
+caso('y ahí no falta nada',                    false, completa.faltaElMonto);
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);
