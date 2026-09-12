@@ -819,12 +819,23 @@ function leerGiftCards(filas) {
     var tomadas = {};
     var marcar = function (r) { if (r.clave) tomadas[r.clave] = true; return r.valor; };
 
-    var quien   = marcar(campoConClave(o, ['nombre', 'para', 'destinatario'], tomadas));
-    var correo  = marcar(campoConClave(o, ['email', 'mail', 'correo'], tomadas));
+    // Las columnas de canje van PRIMERO y por separado: "Usada por (nombre en
+    // Inscriptos)" contiene la palabra "usada", así que si la agarraba el campo
+    // del estado, una gift card canjeada mostraba el nombre de quien la usó
+    // como si fuera su estado — y seguía contando como sin usar.
+    var usadaPor = marcar(campoConClave(o, ['usada por', 'usado por', 'canjeada por', 'canjeado por'], tomadas));
+    var fechaUso = marcar(campoConClave(o, ['fecha de uso', 'fecha uso', 'fecha de canje'], tomadas));
+    var estado   = marcar(campoConClave(o, ['estado', 'situación', 'situacion', 'usada', 'usado', 'canjeada'], tomadas));
+
+    var quien   = marcar(campoConClave(o, ['destinatario', 'nombre', 'para'], tomadas));
+    var correo  = marcar(campoConClave(o, ['email', 'mail', 'correo', 'contacto'], tomadas));
     var importe = campoConClave(o, ['monto', 'importe', 'precio', 'valor', 'total', 'abonado', 'pagado'], tomadas);
     marcar(importe);
-    var estado  = marcar(campoConClave(o, ['usada', 'usado', 'canjeada', 'estado'], tomadas));
-    var deQuien = marcar(campoConClave(o, ['regala', 'compró', 'compro', 'comprador', 'de'], tomadas));
+    var actividad = marcar(campoConClave(o, ['actividad', 'taller', 'curso'], tomadas));
+    // Ojo con los términos cortos: "compra" a secas engancha "Fecha de compra" y
+    // la app mostraba la fecha como si fuera quién regaló. Van completos.
+    var deQuien = marcar(campoConClave(o,
+      ['comprada por', 'comprado por', 'comprada', 'comprado', 'comprador', 'regala', 'de'], tomadas));
 
     var monto = parsearMonto(importe.valor);
     if (monto === null) sinMonto = true;
@@ -833,9 +844,13 @@ function leerGiftCards(filas) {
       nombre: quien,
       deQuien: deQuien,
       email: correo,
+      actividad: actividad,
       monto: monto,
       estado: estado,
-      usada: estaUsada(estado),
+      usadaPor: usadaPor,
+      // Canjeada si lo dice el estado, o si hay alguien anotado como que la usó,
+      // o si tiene fecha de uso. Cualquiera de las tres alcanza.
+      usada: estaUsada(estado) || !!usadaPor || !!fechaUso,
       fila: o._fila
     };
   }).filter(function (x) { return x.nombre || x.email || x.monto; });
