@@ -89,6 +89,32 @@ caso('sin columna de importe, el monto es null', null, real[0].monto);
 caso('y la app se da cuenta de que le falta', true, real.faltaElMonto);
 caso('y puede decir qué columnas vio', ['nombre', 'mail de quien compró', 'estado'], real.columnas);
 
+// Los encabezados REALES de la pestaña Gift Cards, que la propia app reportó.
+const HGC = ['Código', 'Actividad', 'Comprada por', 'Email comprador', 'Fecha de compra',
+             'Destinatario', 'Contacto destinatario', 'Estado', 'Usada por (nombre en Inscriptos)', 'Fecha de uso'];
+const gcReal = G.leerGiftCards([HGC,
+  ['GC-001', 'Taller de tapeo', 'Fulana', 'f@x.com', '14/07/2026', 'Mengana', '099111222', 'Libre', '', ''],
+  ['GC-002', 'Taller de tapeo', 'Zutana', 'z@x.com', '01/06/2026', 'Perengano', '099333444', 'Libre', 'Perengano', '20/08/2026']]);
+caso('"Destinatario" es de quién es la gift card', 'Mengana', gcReal[0].nombre);
+caso('"Comprada por" es quién la regaló',          'Fulana',  gcReal[0].deQuien);
+caso('lee para qué actividad es',                  'Taller de tapeo', gcReal[0].actividad);
+caso('una sin canjear figura sin usar',            false, gcReal[0].usada);
+// Este es el que importa: "Usada por (nombre en Inscriptos)" contiene la palabra
+// "usada". Si se la lleva el campo del estado, una gift card canjeada sigue
+// contando como disponible para siempre.
+caso('una canjeada figura usada aunque Estado diga "Libre"', true, gcReal[1].usada);
+caso('y se sabe quién la usó',                     'Perengano', gcReal[1].usadaPor);
+
+// Sin columna "Estado", el campo del estado probaría con "usada" y engancharía
+// "Usada por (nombre...)", mostrando el nombre de una persona como si fuera el
+// estado de la gift card. Una columna la agarra UN campo y nadie más.
+const sinEstado = G.leerGiftCards([
+  ['Actividad', 'Comprada por', 'Destinatario', 'Usada por (nombre en Inscriptos)'],
+  ['Taller de tapeo', 'Fulana', 'Mengana', 'Perengano']])[0];
+caso('sin columna Estado, el estado queda vacío y no muestra un nombre', '', sinEstado.estado);
+caso('pero igual se sabe que está usada',                               true, sinEstado.usada);
+caso('y quién la usó sigue en su campo',                                'Perengano', sinEstado.usadaPor);
+
 const completa = G.leerGiftCards([['nombre', 'de', 'email', 'monto', 'usada'], ['Fulana', 'Mengana', 'a@b.com', '3500', 'No']]);
 caso('con la planilla completa lee todo bien', ['Mengana', 'a@b.com', 3500], [completa[0].deQuien, completa[0].email, completa[0].monto]);
 caso('y ahí no falta nada',                    false, completa.faltaElMonto);
