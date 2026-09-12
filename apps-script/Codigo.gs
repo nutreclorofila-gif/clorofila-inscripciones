@@ -336,24 +336,47 @@ function buscarHoja(titulos, nombre) {
   return null;
 }
 
-/** Devuelve el primer campo que exista, probando varios nombres posibles. */
-function campo(obj, nombres) {
+/**
+ * Busca una columna probando varios nombres, y dice CUÁL usó.
+ *
+ * `usadas` son las columnas que ya se llevó otro campo: una columna alimenta un
+ * campo y nada más. Sin eso, un encabezado como "mail de quien compró" lo
+ * agarraba el campo del mail Y el de "quién regala", y la app mostraba el mail
+ * en los dos lados.
+ */
+function campoConClave(obj, nombres, usadas) {
+  usadas = usadas || {};
+  var libre = function (k) { return !usadas[k] && obj[k]; };
+
   for (var i = 0; i < nombres.length; i++) {
     var k = nombres[i].toLowerCase();
-    if (obj[k]) return obj[k];
+    if (libre(k)) return { valor: obj[k], clave: k };
   }
-  // Último intento: cualquier clave que CONTENGA el texto buscado, para tolerar
-  // encabezados tipo "monto abonado". Solo con palabras de 4 letras o más: con
-  // "de" o "id" cualquier encabezado engancha ("fecha DE compra" se leería como
-  // el nombre de quien regala).
+  // Último intento: cualquier columna que CONTENGA el texto buscado, para
+  // tolerar encabezados tipo "monto abonado". Solo con palabras de 4 letras o
+  // más: con "de" o "id" engancha cualquier encabezado.
   var claves = Object.keys(obj);
   for (var n = 0; n < nombres.length; n++) {
     if (nombres[n].length < 4) continue;
     for (var c = 0; c < claves.length; c++) {
-      if (claves[c].indexOf(nombres[n].toLowerCase()) !== -1 && obj[claves[c]]) return obj[claves[c]];
+      if (claves[c].indexOf(nombres[n].toLowerCase()) !== -1 && libre(claves[c])) {
+        return { valor: obj[claves[c]], clave: claves[c] };
+      }
     }
   }
-  return '';
+  return { valor: '', clave: null };
+}
+
+/** Igual que campoConClave pero devuelve solo el valor. */
+function campo(obj, nombres, usadas) {
+  return campoConClave(obj, nombres, usadas).valor;
+}
+
+/** Las columnas que tiene una pestaña, para poder decirlo en una alerta. */
+function columnasDe(filas) {
+  if (!filas || !filas.length) return [];
+  return (filas[0] || []).map(function (c) { return String(c || '').trim(); })
+    .filter(function (c) { return c; });
 }
 
 function leerRango(rango, render) {
@@ -691,7 +714,7 @@ function construirEstado(crudo, ahora) {
   marcarRepetidores(ediciones);
   var espera = leerEspera((crudo.extras || {})[HOJA_ESPERA], ediciones);
   var gift = leerGiftCards((crudo.extras || {})[HOJA_GIFT]);
-  var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas, espera);
+  var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas, espera, gift);
 
   return {
     generadoEn: crudo.generadoEn,
@@ -713,6 +736,9 @@ function construirEstado(crudo, ahora) {
       pendientes: vigentes.reduce(function (a, e) { return a + e.pendientes.length; }, 0),
       enEspera: espera.length,
       giftSinUsar: gift.filter(function (g) { return !g.usada; }).length,
+      // Va en el resumen y no colgado del array: las propiedades de un array no
+      // sobreviven a JSON.stringify y nunca llegarían al navegador.
+      giftSinMonto: !!gift.faltaElMonto,
       alertasAltas: alertas.filter(function (a) { return a.nivel === 'alta'; }).length,
       alertasTotal: alertas.length
     }
@@ -784,18 +810,41 @@ function ligarAEdicion(texto, ediciones) {
 
 /** Gift cards: una vendida sin usar es plata cobrada y un lugar que se va a ocupar. */
 function leerGiftCards(filas) {
-  return porEncabezado(filas).map(function (o) {
-    var usada = campo(o, ['usada', 'usado', 'canjeada', 'estado']);
+  var columnas = columnasDe(filas);
+  var sinMonto = false;
+
+  var lista = porEncabezado(filas).map(function (o) {
+    // El orden importa: cada columna se la lleva UN solo campo. Primero los que
+    // tienen nombres inequívocos, y al final "de quién", que es el más vago.
+    var tomadas = {};
+    var marcar = function (r) { if (r.clave) tomadas[r.clave] = true; return r.valor; };
+
+    var quien   = marcar(campoConClave(o, ['nombre', 'para', 'destinatario'], tomadas));
+    var correo  = marcar(campoConClave(o, ['email', 'mail', 'correo'], tomadas));
+    var importe = campoConClave(o, ['monto', 'importe', 'precio', 'valor', 'total', 'abonado', 'pagado'], tomadas);
+    marcar(importe);
+    var estado  = marcar(campoConClave(o, ['usada', 'usado', 'canjeada', 'estado'], tomadas));
+    var deQuien = marcar(campoConClave(o, ['regala', 'compró', 'compro', 'comprador', 'de'], tomadas));
+
+    var monto = parsearMonto(importe.valor);
+    if (monto === null) sinMonto = true;
+
     return {
-      nombre: campo(o, ['nombre', 'para', 'destinatario', 'quien']),
-      deQuien: campo(o, ['de', 'regala', 'compró', 'compro', 'comprador']),
-      email: campo(o, ['email', 'mail', 'correo']),
-      monto: parsearMonto(campo(o, ['monto', 'importe', 'precio', 'valor'])),
-      estado: usada,
-      usada: estaUsada(usada),
+      nombre: quien,
+      deQuien: deQuien,
+      email: correo,
+      monto: monto,
+      estado: estado,
+      usada: estaUsada(estado),
       fila: o._fila
     };
   }).filter(function (x) { return x.nombre || x.email || x.monto; });
+
+  // Sin monto no se puede decir cuánto hay cobrado por adelantado, y mostrar $0
+  // como si fuera un dato medido es peor que no mostrar nada.
+  lista.columnas = columnas;
+  lista.faltaElMonto = lista.length > 0 && lista.every(function (g) { return g.monto === null; });
+  return lista;
 }
 
 /**
@@ -1098,7 +1147,7 @@ function mediana(nums) {
   return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2;
 }
 
-function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, esperaGlobal) {
+function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, esperaGlobal, giftGlobal) {
   var alertas = [];
   // Una edición que ya pasó no se arregla: alertar sobre ella es solo ruido.
   var ediciones = todasLasEdiciones.filter(function (e) { return e.vigente; });
@@ -1243,6 +1292,18 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
       });
     });
   });
+
+  // f-quinquies) En Gift Cards no se encontró la columna del monto. La app no
+  //              puede inventar el dato, pero sí decir qué columnas vio.
+  if (giftGlobal && giftGlobal.faltaElMonto) {
+    alertas.push({
+      nivel: 'media', tipo: 'gift_sin_monto', edicion: '',
+      texto: 'No sé cuánto valen las ' + giftGlobal.length + ' gift cards',
+      detalle: 'En la pestaña "' + HOJA_GIFT + '" no encontré una columna con el importe. ' +
+               'Las columnas que hay son: ' + (giftGlobal.columnas || []).join(', ') + '. ' +
+               'Mientras tanto no se cuentan como plata cobrada por adelantado.'
+    });
+  }
 
   // g) Tikzet sin monto: es carga manual, es donde más se rompe.
   ediciones.forEach(function (ed) {

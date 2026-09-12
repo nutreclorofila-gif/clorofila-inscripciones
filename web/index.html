@@ -750,10 +750,17 @@
         '<div class="tarjeta"><div style="padding:14px">' +
           '<div class="cifra"><span class="grande">' + sinUsar.length + '</span>' +
           '<span class="de">sin usar</span>' +
-          '<span class="quedan"><b>' + plata(sinUsar.reduce(function (a, g) { return a + (g.monto || 0); }, 0)) +
-          '</b>cobrado por adelantado</span></div>' +
+          // Si en la planilla no hay columna de importe, no se inventa un $0:
+          // mostrar cero como si fuera un dato medido es peor que no mostrarlo.
+          (r.giftSinMonto ? ''
+            : '<span class="quedan"><b>' +
+              plata(sinUsar.reduce(function (a, g) { return a + (g.monto || 0); }, 0)) +
+              '</b>cobrado por adelantado</span>') +
+          '</div>' +
           '<div class="pie"><span>' + gc.length + ' vendidas en total</span>' +
-          '<span>Cada una sin usar es un lugar que alguien va a ocupar.</span></div>' +
+          '<span>' + (r.giftSinMonto
+            ? 'Sin importe cargado en la planilla.'
+            : 'Cada una sin usar es un lugar que alguien va a ocupar.') + '</span></div>' +
         '</div></div>' +
         sinUsar.map(function (g) {
           return '<div class="persona"><div class="quien">' +

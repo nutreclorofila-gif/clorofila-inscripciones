@@ -23,8 +23,13 @@ chequear('parsea como JavaScript', (() => {
   try { new Function(src); return true; } catch (e) { return 'no parsea: ' + e.message; }
 })() === true, 'un error de sintaxis rompe la app entera al desplegar');
 
+// Las de arriba de todo (las que se pueden llamar desde cualquier lado).
 const declaradas = new Set((src.match(/^function\s+([A-Za-z_$][\w$]*)/gm) || []).map(l => l.replace(/^function\s+/, '')));
 const constantes = new Set((src.match(/^var\s+([A-Za-z_$][\w$]*)/gm) || []).map(l => l.replace(/^var\s+/, '')));
+// Y las de adentro de una función: "var marcar = function (...)", indentadas.
+// Sin esto el control marcaba como inexistentes a funciones que sí existen.
+const locales = new Set((soloCodigo.match(/(?:^|[\s;{(])(?:var|let|const)\s+([A-Za-z_$][\w$]*)\s*=/gm) || [])
+  .map(l => l.replace(/^[\s;{(]*(?:var|let|const)\s+/, '').replace(/\s*=$/, '')));
 
 const conocidas = new Set(['function','if','for','while','switch','catch','return','typeof','new','var','else','do',
   'String','Number','Boolean','Array','Object','Math','Date','JSON','RegExp','Error','isFinite','isNaN',
@@ -46,7 +51,8 @@ const re = /(?<![\w$.])([a-z][A-Za-z0-9_$]*)\s*\(/g;
 let m;
 while ((m = re.exec(soloCodigo)) !== null) llamadas.add(m[1]);
 
-const faltan = [...llamadas].filter(n => !declaradas.has(n) && !constantes.has(n) && !conocidas.has(n) && !metodos.has(n));
+const faltan = [...llamadas].filter(n => !declaradas.has(n) && !constantes.has(n) && !locales.has(n)
+                                        && !conocidas.has(n) && !metodos.has(n));
 chequear('todas las funciones que se llaman existen',
   faltan.length === 0, 'se llaman y no están declaradas: ' + faltan.join(', '));
 
