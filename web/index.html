@@ -765,7 +765,8 @@
         sinUsar.map(function (g) {
           return '<div class="persona"><div class="quien">' +
             '<div class="nom">' + esc(g.nombre || '(sin nombre)') + '</div>' +
-            '<div class="sub">' + esc([g.deQuien ? 'de ' + g.deQuien : '', g.estado].filter(Boolean).join(' · ')) + '</div></div>' +
+            '<div class="sub">' + esc([g.actividad || '', g.deQuien ? 'la compró ' + g.deQuien : '', g.estado]
+              .filter(Boolean).join(' · ')) + '</div></div>' +
             '<span style="font-weight:600">' + (g.monto ? plata(g.monto) : '') + '</span></div>';
         }).join('');
     }
