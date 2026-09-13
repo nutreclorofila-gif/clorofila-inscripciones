@@ -202,7 +202,7 @@ function configurarPin() {
  */
 function paraIncrustarEnScript(valor) {
   return JSON.stringify(valor)
-    .replace(/</g, '\\u003c')
+    
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029');
 }
@@ -370,6 +370,19 @@ function campoConClave(obj, nombres, usadas) {
 /** Igual que campoConClave pero devuelve solo el valor. */
 function campo(obj, nombres, usadas) {
   return campoConClave(obj, nombres, usadas).valor;
+}
+
+/**
+ * Marca como ya tomadas las columnas de fecha. Se usa ANTES de buscar campos de
+ * texto libre como "qué actividad quiere" o "quién la compró": un encabezado
+ * como "Fecha del taller" o "Fecha de compra" engancha por la palabra suelta y
+ * la app termina mostrando una fecha donde va un nombre.
+ */
+function apartarFechas(obj, tomadas) {
+  Object.keys(obj).forEach(function (k) {
+    if (k.indexOf('fecha') === 0 || k.indexOf('día') === 0 || k.indexOf('dia ') === 0) tomadas[k] = true;
+  });
+  return tomadas;
 }
 
 /** Las columnas que tiene una pestaña, para poder decirlo en una alerta. */
@@ -739,6 +752,7 @@ function construirEstado(crudo, ahora) {
       // Va en el resumen y no colgado del array: las propiedades de un array no
       // sobreviven a JSON.stringify y nunca llegarían al navegador.
       giftSinMonto: !!gift.faltaElMonto,
+      esperaIlegible: !!espera.noSeSupoLeer,
       alertasAltas: alertas.filter(function (a) { return a.nivel === 'alta'; }).length,
       alertasTotal: alertas.length
     }
@@ -773,19 +787,39 @@ function marcarRepetidores(ediciones) {
  * a mano; si no se puede ligar, igual se muestra en la lista general.
  */
 function leerEspera(filas, ediciones) {
-  return porEncabezado(filas).map(function (o) {
-    var texto = campo(o, ['edición', 'edicion', 'actividad', 'taller', 'curso']);
-    var ligada = ligarAEdicion(texto, ediciones);
+  var crudas = porEncabezado(filas);
+
+  var lista = crudas.map(function (o) {
+    // Una columna la agarra UN campo y nadie más, igual que en las gift cards:
+    // sin esto, un encabezado como "Fecha del taller" se leía como la edición
+    // que la persona quiere, y la alerta terminaba nombrando una fecha.
+    var tomadas = {};
+    var marcar = function (r) { if (r.clave) tomadas[r.clave] = true; return r.valor; };
+
+    var quien   = marcar(campoConClave(o, ['nombre', 'quien espera', 'quien'], tomadas));
+    var correo  = marcar(campoConClave(o, ['email', 'mail', 'correo'], tomadas));
+    var celular = marcar(campoConClave(o, ['celular', 'whatsapp', 'teléfono', 'telefono', 'contacto'], tomadas));
+    apartarFechas(o, tomadas);
+    var texto   = marcar(campoConClave(o, ['edición', 'edicion', 'quiere', 'actividad', 'taller', 'curso'], tomadas));
+
     return {
-      nombre: campo(o, ['nombre', 'quien']),
-      email: campo(o, ['email', 'mail', 'correo']),
-      celular: campo(o, ['celular', 'teléfono', 'telefono', 'whatsapp']),
-      whatsapp: paraWhatsapp(campo(o, ['celular', 'teléfono', 'telefono', 'whatsapp'])),
+      nombre: quien,
+      email: correo,
+      celular: celular,
+      whatsapp: paraWhatsapp(celular),
       quiere: texto,
-      edicion: ligada,
+      edicion: ligarAEdicion(texto, ediciones),
       fila: o._fila
     };
   }).filter(function (x) { return x.nombre || x.email; });
+
+  // Sin esto, una lista vacía y una pestaña que no se supo leer se ven igual
+  // desde afuera: las dos dan cero.
+  lista.columnas = columnasDe(filas);
+  lista.filasEnLaPestana = crudas.length;
+  lista.noSeSupoLeer = crudas.length > 0 && lista.length === 0;
+  lista.sinColumnaEdicion = lista.length > 0 && lista.every(function (x) { return !x.quiere; });
+  return lista;
 }
 
 /**
@@ -831,6 +865,7 @@ function leerGiftCards(filas) {
     var correo  = marcar(campoConClave(o, ['email', 'mail', 'correo', 'contacto'], tomadas));
     var importe = campoConClave(o, ['monto', 'importe', 'precio', 'valor', 'total', 'abonado', 'pagado'], tomadas);
     marcar(importe);
+    apartarFechas(o, tomadas);
     var actividad = marcar(campoConClave(o, ['actividad', 'taller', 'curso'], tomadas));
     // Ojo con los términos cortos: "compra" a secas engancha "Fecha de compra" y
     // la app mostraba la fecha como si fuera quién regaló. Van completos.
@@ -1317,6 +1352,27 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
       detalle: 'En la pestaña "' + HOJA_GIFT + '" no encontré una columna con el importe. ' +
                'Las columnas que hay son: ' + (giftGlobal.columnas || []).join(', ') + '. ' +
                'Mientras tanto no se cuentan como plata cobrada por adelantado.'
+    });
+  }
+
+  // f-sexies) Hay gente en la lista de espera pero la app no pudo leerla. Una
+  //           lista vacía y una pestaña ilegible dan cero las dos: hay que
+  //           poder distinguirlas.
+  if (esperaGlobal && esperaGlobal.noSeSupoLeer) {
+    alertas.push({
+      nivel: 'alta', tipo: 'espera_ilegible', edicion: '',
+      texto: 'Hay ' + esperaGlobal.filasEnLaPestana + ' en la lista de espera y no pude leer ninguna',
+      detalle: 'En la pestaña "' + HOJA_ESPERA + '" no encontré ni nombre ni mail. ' +
+               'Las columnas que hay son: ' + (esperaGlobal.columnas || []).join(', ') + '.'
+    });
+  }
+  if (esperaGlobal && esperaGlobal.sinColumnaEdicion) {
+    alertas.push({
+      nivel: 'media', tipo: 'espera_sin_edicion', edicion: '',
+      texto: 'No sé qué está esperando la gente de la lista de espera',
+      detalle: 'En la pestaña "' + HOJA_ESPERA + '" no encontré una columna que diga qué taller o curso ' +
+               'quiere cada uno. Las columnas que hay son: ' + (esperaGlobal.columnas || []).join(', ') + '. ' +
+               'Se muestran igual en la lista general, pero no se pueden ligar a su edición.'
     });
   }
 
