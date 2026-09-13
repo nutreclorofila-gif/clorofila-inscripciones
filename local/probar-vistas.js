@@ -90,6 +90,21 @@ function probarEstado(titulo, estado) {
   if (!problemas.length) console.log('  ok    la lista que se copia lleva nombres y no plata');
   else { fallas++; console.log('  FALLA copiar la lista: ' + problemas.join(', ') + '\n        quedó: ' + JSON.stringify(copiado)); }
 
+  // El "en 8 días" de cada tarjeta: es lo que dice qué hay que mirar hoy.
+  const comoElServidor = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).toISOString();
+  const enDias = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return comoElServidor(d); };
+  [[-30, 'ya pasó', 'ya'], [-1, 'ya pasó', 'ya'], [0, 'ES HOY', 'ya'], [1, 'es mañana', 'pronto'],
+   [2, 'en 2 días', 'pronto'], [7, 'en 7 días', 'pronto'], [8, 'en 8 días', '']].forEach(([n, texto, clase]) => {
+    corridos++;
+    const r = ui.cuandoEs(enDias(n));
+    if (r && r.texto === texto && r.clase === clase) console.log('  ok    cuándo es: ' + n + ' días -> "' + texto + '"');
+    else { fallas++; console.log('  FALLA cuándo es: ' + n + ' días dio ' + JSON.stringify(r) + ', esperaba "' + texto + '"'); }
+  });
+  corridos++;
+  if (ui.cuandoEs(null) === null && ui.cuandoEs('cualquier cosa') === null && ui.hora('no es fecha') === '') {
+    console.log('  ok    sin fecha o con basura no rompe nada');
+  } else { fallas++; console.log('  FALLA una fecha inválida no se maneja bien'); }
+
   // La plata no puede aparecer en lo primero que se ve. La app se abre en el
   // local y en la calle, con gente al lado.
   corridos++;

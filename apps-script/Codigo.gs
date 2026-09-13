@@ -510,7 +510,14 @@ var MESES = {
 function fechaDeEdicion(texto) {
   var s = String(texto || '');
   var dma = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (dma) return new Date(Number(dma[3]), Number(dma[2]) - 1, Number(dma[1]));
+  if (dma) {
+    var dia = Number(dma[1]), mes = Number(dma[2]), anio = Number(dma[3]);
+    var f = new Date(anio, mes - 1, dia);
+    // Una fecha que no existe (31/02) la corre sola al mes siguiente y la app
+    // diría que el taller es otro día, sin avisar. Mejor decir que no se entiende.
+    if (f.getDate() !== dia || f.getMonth() !== mes - 1 || f.getFullYear() !== anio) return null;
+    return f;
+  }
 
   var mes = s.toLowerCase().match(/(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\s+(\d{4})/);
   if (mes) return new Date(Number(mes[2]), MESES[mes[1]] + 1, 0);
@@ -1375,6 +1382,19 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
                'Se muestran igual en la lista general, pero no se pueden ligar a su edición.'
     });
   }
+
+  // f-septies) La edición trae algo con forma de fecha que no se entiende.
+  todasLasEdiciones.forEach(function (ed) {
+    if (ed.fecha) return;
+    if (!/\d{1,2}\/\d{1,2}\/\d{2,4}/.test(ed.edicion)) return;
+    alertas.push({
+      nivel: 'media', tipo: 'fecha_rara', edicion: ed.edicion,
+      texto: 'No entiendo la fecha de "' + ed.edicion + '"',
+      detalle: 'Fila ' + ed.filaPanel + ' del Panel. La fecha tiene que ir como 18/09/2026, con el ' +
+               'año de cuatro cifras y un día que exista. Sin fecha, la edición solo aparece mientras ' +
+               'esté marcada Abierto, y no muestra cuánto falta.'
+    });
+  });
 
   // g) Tikzet sin monto: es carga manual, es donde más se rompe.
   ediciones.forEach(function (ed) {
