@@ -155,5 +155,30 @@ const gcFecha = G.leerGiftCards([['Código', 'Fecha de compra', 'Comprada por', 
 caso('en gift cards, "Fecha de compra" tampoco es la actividad', '', gcFecha.actividad);
 caso('y quién la compró se lee bien',                            'Fulana', gcFecha.deQuien);
 
+console.log('\n--- Fechas de las ediciones ---');
+// Importa porque de acá sale el "en 8 días" de cada tarjeta y qué edición se
+// considera vigente. Una fecha mal leída cambia las dos cosas.
+const fe = (t) => { const d = G.fechaDeEdicion(t); return d ? d.toISOString().slice(0, 10) : null; };
+caso('fecha normal',                '2026-09-18', fe('Taller de tapeo — 18/09/2026'));
+caso('día y mes de una cifra',      '2026-02-01', fe('Taller — 1/2/2026'));
+caso('un mes toma su último día',   '2026-10-31', fe('Curso de cocina — Octubre 2026'));
+caso('"setiembre" como se escribe acá', '2026-09-30', fe('Curso — Setiembre 2026'));
+caso('cambio de año',               '2027-01-31', fe('Curso — Enero 2027'));
+caso('año bisiesto',                '2028-02-29', fe('Curso — Febrero 2028'));
+// Sin esto, "31/02" se convertía sola en el 3 de marzo y la app mostraba otro día.
+caso('31 de febrero no existe',     null, fe('Taller — 31/02/2026'));
+caso('29 de febrero de un año no bisiesto', null, fe('Taller — 29/02/2027'));
+caso('día 32',                      null, fe('Taller — 32/01/2026'));
+caso('mes 13',                      null, fe('Taller — 18/13/2026'));
+caso('una edición sin fecha',       null, fe('Curso de cocina — Martes 19-21h'));
+
+const HOY13 = new Date(2026, 8, 13);
+caso('un taller HOY sigue vigente',      true,  G.estaVigente('Taller — 13/09/2026', false, HOY13));
+caso('el de ayer ya pasó',               false, G.estaVigente('Taller — 12/09/2026', false, HOY13));
+caso('el de mañana está vigente',        true,  G.estaVigente('Taller — 14/09/2026', false, HOY13));
+caso('un curso del mes en curso vigente', true,  G.estaVigente('Curso — Septiembre 2026', false, HOY13));
+caso('sin fecha, vale lo que diga Abierto', true,  G.estaVigente('Curso — Martes 19-21h', true, HOY13));
+caso('sin fecha y cerrada, ya pasó',        false, G.estaVigente('Curso — Martes 19-21h', false, HOY13));
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);
