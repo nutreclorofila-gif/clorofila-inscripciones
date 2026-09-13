@@ -119,5 +119,41 @@ const completa = G.leerGiftCards([['nombre', 'de', 'email', 'monto', 'usada'], [
 caso('con la planilla completa lee todo bien', ['Mengana', 'a@b.com', 3500], [completa[0].deQuien, completa[0].email, completa[0].monto]);
 caso('y ahí no falta nada',                    false, completa.faltaElMonto);
 
+console.log('\n--- Lista de espera: distinguir "no hay nadie" de "no la supe leer" ---');
+// Importa porque las dos cosas dan cero desde afuera, y una es normal y la otra
+// es que la app está ciega justo cuando un taller se llena.
+const EDS = [{ edicion: 'Taller de tapeo — 18/09/2026' }];
+const espera = (filas) => G.leerEspera(filas, EDS);
+
+const bien = espera([['nombre', 'email', 'celular', 'qué quiere'],
+                     ['Fulana', 'f@x.com', '099111222', 'Taller de tapeo — 18/09/2026']]);
+caso('lee a quien espera',            'Fulana', bien[0].nombre);
+caso('y le arma el WhatsApp',         '59899111222', bien[0].whatsapp);
+caso('y lo liga a su edición',        'Taller de tapeo — 18/09/2026', bien[0].edicion);
+caso('no dice que no supo leer',      false, bien.noSeSupoLeer);
+
+const vacia = espera([['nombre', 'email', 'qué quiere']]);
+caso('una pestaña vacía NO es un error', false, vacia.noSeSupoLeer);
+caso('y da cero',                        0, vacia.length);
+
+const ilegible = espera([['persona', 'datos'], ['Fulana', '099111222'], ['Mengano', '099333444']]);
+caso('si hay filas y no se leyó ninguna, lo dice', true, ilegible.noSeSupoLeer);
+caso('y cuenta cuántas filas había',                2, ilegible.filasEnLaPestana);
+caso('y dice qué columnas vio', ['persona', 'datos'], ilegible.columnas);
+
+// La trampa de siempre: una columna de fecha que contiene la palabra "taller".
+const conFecha = espera([['nombre', 'email', 'fecha del taller'], ['Fulana', 'f@x.com', '14/07/2026']]);
+caso('una columna de fecha no se lee como la edición', '', conFecha[0].quiere);
+caso('y avisa que falta esa columna',                  true, conFecha.sinColumnaEdicion);
+
+const conAmbas = espera([['nombre', 'email', 'fecha de anotación', 'taller que quiere'],
+                         ['Fulana', 'f@x.com', '01/09/2026', 'Taller de tapeo — 18/09/2026']]);
+caso('con la columna buena, la fecha no molesta', 'Taller de tapeo — 18/09/2026', conAmbas[0].quiere);
+
+const gcFecha = G.leerGiftCards([['Código', 'Fecha de compra', 'Comprada por', 'Destinatario', 'Estado'],
+                                 ['GC-1', '14/07/2026', 'Fulana', 'Mengana', 'Libre']])[0];
+caso('en gift cards, "Fecha de compra" tampoco es la actividad', '', gcFecha.actividad);
+caso('y quién la compró se lee bien',                            'Fulana', gcFecha.deQuien);
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);
