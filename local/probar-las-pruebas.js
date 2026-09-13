@@ -11,6 +11,23 @@
 //   node local/probar-las-pruebas.js
 const fs = require('fs'), path = require('path'), { execFileSync } = require('child_process');
 const base = path.join(__dirname, '..');
+
+// ⛔ NO correr esto en segundo plano ni hacer git mientras corre.
+// Durante la corrida los archivos del proyecto están ROTOS a propósito. Si en
+// ese rato se hace "git add -A && git commit", el commit se lleva el código
+// mutado. Pasó el 13/9/2026: quedó commiteado y pusheado un Codigo.gs sin el
+// escape del XSS. Por eso el script se planta si hay cambios sin commitear.
+try {
+  const sucio = execFileSync('git', ['status', '--porcelain'], { cwd: base }).toString().trim();
+  if (sucio) {
+    console.error('No corras esto con cambios sin commitear: mientras corre, los archivos');
+    console.error('quedan rotos a propósito y un commit se llevaría el código mutado.');
+    console.error('\nSin commitear:\n' + sucio);
+    process.exit(1);
+  }
+} catch (e) {
+  if (e.status === 1) throw e;   // el plantón de arriba
+}
 const CODIGO = path.join(base, 'apps-script', 'Codigo.gs');
 const INDEX = path.join(base, 'apps-script', 'Index.html');
 
