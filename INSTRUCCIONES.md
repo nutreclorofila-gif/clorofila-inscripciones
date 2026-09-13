@@ -151,6 +151,12 @@ node local/generar-preview.js   # arma local/preview.html para mirarla en el nav
 node local/probar-las-pruebas.js  # rompe el código a propósito y controla que la suite se dé cuenta
 ```
 
+⛔ **`probar-las-pruebas.js` no se corre en segundo plano ni con cambios sin commitear.**
+Mientras corre, los archivos del proyecto están **rotos a propósito**. Si en ese rato se hace
+`git add -A && git commit`, el commit se lleva el código mutado — pasó el 13/9/2026 y quedó
+pusheado un `Codigo.gs` sin el escape del XSS. El script ahora se planta solo si el árbol
+está sucio.
+
 ⚠️ **`probar-las-pruebas.js` es el control más importante y no está en `verificar.sh`** (tarda
 unos minutos: corre la suite entera una vez por mutación). Correlo cada vez que se toquen las
 pruebas. Una prueba que nunca falla no prueba nada, y eso no se ve leyéndola.
