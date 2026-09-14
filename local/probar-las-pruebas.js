@@ -68,6 +68,8 @@ const MUTACIONES = [
    "if (dias === 1) return { texto: 'ES HOY', clase: 'ya', dias: 0 };"],
   ['una columna de fecha vuelve a leerse como la actividad', CODIGO,
    "if (k.indexOf('fecha') === 0 || k.indexOf('día') === 0 || k.indexOf('dia ') === 0) tomadas[k] = true;", ''],
+  ['vuelve a tomar la fila 1 como encabezados a ciegas', CODIGO,
+   'var inicio = filaDeEncabezados(filas);', 'var inicio = 0;'],
   ['la lista de espera ilegible deja de avisarse', CODIGO,
    "lista.noSeSupoLeer = crudas.length > 0 && lista.length === 0;", 'lista.noSeSupoLeer = false;'],
   ['una gift card canjeada vuelve a figurar sin usar', CODIGO,
