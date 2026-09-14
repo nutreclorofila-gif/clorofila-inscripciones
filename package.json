@@ -3,6 +3,6 @@
   "private": true,
   "description": "App de inscripciones de Clorofila. Las pruebas se corren con ./verificar.sh",
   "devDependencies": {
-    "@google/clasp": "^2.4.2"
+    "@google/clasp": "^3.4.1"
   }
 }

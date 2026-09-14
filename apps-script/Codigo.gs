@@ -294,15 +294,36 @@ function leerPlanilla() {
 }
 
 /**
+ * En qué fila están los encabezados de verdad.
+ *
+ * "Lista de espera" arranca con un renglón de título que explica qué es la
+ * pestaña. Tomando la fila 1 a ciegas, esa frase quedaba como nombre de columna
+ * y no se leía ni una persona — y desde afuera parecía que no había nadie
+ * esperando. Los encabezados son la primera fila con varias celdas cortas.
+ */
+function filaDeEncabezados(filas) {
+  for (var i = 0; i < Math.min(filas.length, 10); i++) {
+    var celdas = (filas[i] || []).map(function (c) { return String(c || '').trim(); })
+      .filter(function (c) { return c; });
+    if (celdas.length < 2) continue;                                  // un título suelto
+    var todasCortas = celdas.every(function (c) { return c.length <= 40; });
+    if (todasCortas) return i;
+  }
+  return -1;
+}
+
+/**
  * Convierte una hoja en objetos usando la fila 1 como nombres de columna.
  * Se busca por nombre y no por posición porque estas pestañas las arma Leo a
  * mano y el orden de las columnas puede cambiar sin aviso.
  */
 function porEncabezado(filas) {
   if (!filas || filas.length < 2) return [];
-  var claves = filas[0].map(function (c) { return String(c || '').trim().toLowerCase(); });
+  var inicio = filaDeEncabezados(filas);
+  if (inicio === -1) return [];
+  var claves = filas[inicio].map(function (c) { return String(c || '').trim().toLowerCase(); });
   var salida = [];
-  for (var i = 1; i < filas.length; i++) {
+  for (var i = inicio + 1; i < filas.length; i++) {
     var o = { _fila: i + 1 }, vacia = true;
     for (var j = 0; j < claves.length; j++) {
       if (!claves[j]) continue;
@@ -388,7 +409,8 @@ function apartarFechas(obj, tomadas) {
 /** Las columnas que tiene una pestaña, para poder decirlo en una alerta. */
 function columnasDe(filas) {
   if (!filas || !filas.length) return [];
-  return (filas[0] || []).map(function (c) { return String(c || '').trim(); })
+  var i = filaDeEncabezados(filas);
+  return (filas[i === -1 ? 0 : i] || []).map(function (c) { return String(c || '').trim(); })
     .filter(function (c) { return c; });
 }
 
@@ -810,7 +832,8 @@ function leerEspera(filas, ediciones) {
     var correo  = marcar(campoConClave(o, ['email', 'mail', 'correo'], tomadas));
     var celular = marcar(campoConClave(o, ['celular', 'whatsapp', 'teléfono', 'telefono', 'contacto'], tomadas));
     apartarFechas(o, tomadas);
-    var texto   = marcar(campoConClave(o, ['edición', 'edicion', 'quiere', 'actividad', 'taller', 'curso'], tomadas));
+    var texto   = marcar(campoConClave(o,
+      ['espera para', 'edición', 'edicion', 'quiere', 'espera', 'actividad', 'taller', 'curso'], tomadas));
 
     return {
       nombre: quien,

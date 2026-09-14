@@ -142,6 +142,21 @@ caso('y cuenta cuántas filas había',                2, ilegible.filasEnLaPesta
 caso('y dice qué columnas vio', ['persona', 'datos'], ilegible.columnas);
 
 // La trampa de siempre: una columna de fecha que contiene la palabra "taller".
+// Así es la pestaña de verdad: un renglón de título arriba explicando qué es,
+// y los encabezados recién abajo. Con la fila 1 a ciegas no se leía NADIE, y
+// desde afuera parecía que no había nadie esperando.
+const conTitulo = espera([
+  ['LISTA DE ESPERA: personas que quedaron sin lugar en su fecha original. Se llena sola.'],
+  ['nombre', 'email', 'celular', 'Espera para'],
+  ['Fulana', 'f@x.com', '099111222', 'Taller de tapeo — 18/09/2026']]);
+caso('encuentra los encabezados debajo del título', 1, conTitulo.length);
+caso('y lee a la persona',                          'Fulana', conTitulo[0].nombre);
+caso('la columna "Espera para" es la edición',      'Taller de tapeo — 18/09/2026', conTitulo[0].quiere);
+caso('y queda ligada a su edición',                 'Taller de tapeo — 18/09/2026', conTitulo[0].edicion);
+caso('ya no dice que no supo leer',                 false, conTitulo.noSeSupoLeer);
+caso('y reporta las columnas de verdad, no el título',
+     ['nombre', 'email', 'celular', 'Espera para'], conTitulo.columnas);
+
 const conFecha = espera([['nombre', 'email', 'fecha del taller'], ['Fulana', 'f@x.com', '14/07/2026']]);
 caso('una columna de fecha no se lee como la edición', '', conFecha[0].quiere);
 caso('y avisa que falta esa columna',                  true, conFecha.sinColumnaEdicion);
