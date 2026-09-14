@@ -244,13 +244,13 @@ function leerPlanilla() {
   // una pestaña con otro nombre, la app la sigue en vez de dar un descuadre falso.
   var nombradas = {};
   formulas.forEach(function (f) {
-    hojasDeFormula(f[3]).forEach(function (n) { nombradas[n] = true; });
+    hojasDeFormula(f[3]).forEach(function (n) { nombradas[normalizarNombre(n)] = true; });
   });
 
   var ignoradas = HOJAS_IGNORADAS.map(normalizarNombre);
   var aLeer = titulos.filter(function (n) {
     if (ignoradas.indexOf(normalizarNombre(n)) !== -1) return false;
-    return /^inscriptos /i.test(String(n).trim()) || nombradas[n];
+    return /^inscriptos /i.test(String(n).trim()) || nombradas[normalizarNombre(n)];
   });
 
   // Van aparte de las de inscriptos: no cuentan en ningún cupo. Se buscan sin
@@ -585,7 +585,7 @@ function analizarFormula(formula, edicion, filaPanel) {
   for (var i = 0; i < args.length; i += 2) {
     var rango = parsearRango(args[i]);
     if (!rango) return { motivo: 'no se entiende el rango ' + args[i].trim() + '.' };
-    if (regla.hoja && regla.hoja !== rango.hoja) {
+    if (regla.hoja && normalizarNombre(regla.hoja) !== normalizarNombre(rango.hoja)) {
       return { motivo: 'la fórmula cuenta en dos pestañas a la vez (' + regla.hoja + ' y ' + rango.hoja + ').' };
     }
     regla.hoja = rango.hoja;
@@ -717,7 +717,10 @@ function construirEstado(crudo, ahora) {
   ediciones.forEach(function (ed) {
     ed.personas = filas.filter(function (f) {
       if (!ed.regla) return false;
-      if (f.hoja !== ed.regla.hoja) return false;
+      // Normalizado: en Sheets los nombres de pestaña no distinguen mayúsculas, así
+      // que la fórmula puede decir "inscriptos diciembre" y la pestaña llamarse
+      // "Inscriptos Diciembre". Comparando literal, la edición quedaba sin gente.
+      if (normalizarNombre(f.hoja) !== normalizarNombre(ed.regla.hoja)) return false;
       if (!coincideCriterio(f.edicion, ed.regla.criterioK)) return false;
       if (ed.regla.criterioE && !coincideCriterio(f.horario, ed.regla.criterioE)) return false;
       if (usadas[f.clave]) {
@@ -1268,13 +1271,13 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
   var gruposPorK = {};
   ediciones.forEach(function (ed) {
     if (!ed.regla || !ed.regla.criterioE) return;
-    var k = ed.regla.hoja + '||' + ed.regla.criterioK;
+    var k = normalizarNombre(ed.regla.hoja) + '||' + ed.regla.criterioK;
     (gruposPorK[k] = gruposPorK[k] || []).push(ed.regla.criterioE);
   });
   Object.keys(gruposPorK).forEach(function (k) {
     var partes = k.split('||');
     filas.forEach(function (f) {
-      if (f.hoja !== partes[0]) return;
+      if (normalizarNombre(f.hoja) !== normalizarNombre(partes[0])) return;
       if (!coincideCriterio(f.edicion, partes[1])) return;
       var entra = gruposPorK[k].some(function (c) { return coincideCriterio(f.horario, c); });
       if (!entra) {

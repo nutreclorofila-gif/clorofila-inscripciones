@@ -155,6 +155,31 @@ const gcFecha = G.leerGiftCards([['Código', 'Fecha de compra', 'Comprada por', 
 caso('en gift cards, "Fecha de compra" tampoco es la actividad', '', gcFecha.actividad);
 caso('y quién la compró se lee bien',                            'Fulana', gcFecha.deQuien);
 
+console.log('--- La fórmula nombra la pestaña con otras mayúsculas ---');
+// Importa porque en Sheets los nombres de pestaña NO distinguen mayúsculas: el
+// Panel cuenta bien y la app contaba cero, con tres alertas falsas encima.
+const HI = ['nombre', 'email', 'celular', 'actividad', 'horario', 'medio', 'comprobante', 'monto', 'verif', 'fecha', 'Edición'];
+const EDI = 'Taller de risotto — 03/12/2026';
+function conPestana(nombreEnLaFormula) {
+  const e = G.construirEstado({
+    panelValores: [['Actividad', 'Edición', 'Cupo', 'Anotados', 'Quedan', 'Estado'],
+                   ['Taller de risotto', EDI, '10', '2', '8', 'Abierto']],
+    panelFormulas: [['', '', '', '', '', ''],
+                    ['', '', '', "=COUNTIF('" + nombreEnLaFormula + "'!K:K;B2)", '', '']],
+    hojas: { 'Inscriptos Diciembre 2026': [HI,
+      ['Ana', 'a@x.com', '', '', '', '', '', '2600', '', '', EDI],
+      ['Beto', 'b@x.com', '', '', '', '', '', '2600', '', '', EDI]] },
+    extras: {}
+  }, new Date(2026, 10, 1));
+  return { gente: e.ediciones[0].personas.length, alertas: (e.alertas || []).length };
+}
+caso('igual que la pestaña',        { gente: 2, alertas: 0 }, conPestana('Inscriptos Diciembre 2026'));
+caso('todo en minúscula',           { gente: 2, alertas: 0 }, conPestana('inscriptos diciembre 2026'));
+caso('todo en mayúscula',           { gente: 2, alertas: 0 }, conPestana('INSCRIPTOS DICIEMBRE 2026'));
+caso('con un espacio de más',       { gente: 2, alertas: 0 }, conPestana('Inscriptos  Diciembre 2026'));
+// Y una pestaña que de verdad no existe tiene que seguir avisando.
+caso('una pestaña que no existe sí avisa', 0, conPestana('Otra Pestaña').gente);
+
 console.log('\n--- Fechas de las ediciones ---');
 // Importa porque de acá sale el "en 8 días" de cada tarjeta y qué edición se
 // considera vigente. Una fecha mal leída cambia las dos cosas.
