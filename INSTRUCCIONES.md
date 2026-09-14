@@ -126,6 +126,30 @@ esa persona no la cuenta nadie y desaparece del cupo. La app lo levanta como ale
 
 ## Desplegar cambios
 
+### Lo rápido: `./desplegar.sh`
+
+```bash
+./desplegar.sh "qué trae esta versión"
+```
+
+Verifica, sube el código y actualiza **la implementación que ya existe** — la URL no cambia.
+Al final consulta la app de verdad y muestra los números, así se ve enseguida si algo se rompió.
+Si la verificación no pasa, **no sube nada**. Y si no encuentra la implementación que usa la
+página publicada, tampoco: crear una nueva cambiaría la URL.
+
+**Dos cosas, una sola vez**, antes del primer uso:
+
+1. Activar la API en <https://script.google.com/home/usersettings> → *API de Apps Script*: **Activada**
+2. Autorizar: `./node_modules/.bin/clasp login` (abre el navegador; entrar con nutreclorofila@gmail.com)
+
+Esto existe porque **el editor de Apps Script se cuelga cuando falta memoria en el Mac**: con
+menos de ~150 MB libres el diálogo de despliegue deja de responder. Por la terminal no hay
+navegador y el problema desaparece.
+
+`.clasp.json` y `~/.clasprc.json` NO van al repo: el segundo tiene las credenciales.
+
+### A mano (si clasp no está disponible)
+
 **La página** (`web/index.html`, que se genera desde `apps-script/Index.html`):
 ```bash
 npx -y @netlify/mcp@latest --site-id 4f9b1156-1240-41af-ae84-38dc0a83f5bb

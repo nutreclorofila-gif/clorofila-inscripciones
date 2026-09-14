@@ -6,3 +6,6 @@ local/pin.txt
 local/Codigo-con-pin.gs
 .netlify/
 .claude/
+node_modules/
+.clasp.json
+.clasprc.json
