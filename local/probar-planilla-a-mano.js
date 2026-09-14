@@ -67,6 +67,12 @@ caso('una palabra que alcanza liga',   'Taller de tapeo — 18/09/2026', G.ligar
 caso('"taller" a secas NO liga',       null,                            G.ligarAEdicion('taller', eds));
 caso('texto que no es de nadie',       null,                            G.ligarAEdicion('cualquier cosa', eds));
 caso('vacío',                          null,                            G.ligarAEdicion('', eds));
+// Así se escribe de verdad en la planilla: sin la raya que sí tiene el Panel.
+// Ninguno contiene al otro, pero la fecha es la misma y eso no da lugar a dudas.
+caso('liga por la fecha cuando el texto no calza',
+     'Taller de tapeo — 18/09/2026', G.ligarAEdicion('Lista de espera — Taller de tapeo 18/09/2026', eds));
+caso('una fecha que no está en el Panel no liga',
+     null, G.ligarAEdicion('Taller de tapeo 01/01/2030', eds));
 
 console.log('\n--- Gift cards ---');
 // Importa porque: darla por usada la saca de la plata cobrada que falta cubrir.
