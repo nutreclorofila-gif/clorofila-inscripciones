@@ -872,7 +872,17 @@ function ligarAEdicion(texto, ediciones) {
     var n = e.edicion.toLowerCase();
     return n.indexOf(t) !== -1 || t.indexOf(n) !== -1;
   });
-  return parecidas.length === 1 ? parecidas[0].edicion : null;
+  if (parecidas.length === 1) return parecidas[0].edicion;
+
+  // Último intento: por la fecha. En la planilla se escribe "Taller de tapeo
+  // 07/08/2026" y en el Panel "Taller de tapeo — 07/08/2026": ninguno contiene
+  // al otro por la raya, pero la fecha es la misma y eso no se presta a dudas.
+  var fecha = (t.match(/\d{1,2}\/\d{1,2}\/\d{4}/) || [])[0];
+  if (!fecha) return null;
+  var porFecha = (ediciones || []).filter(function (e) {
+    return e.edicion.indexOf(fecha) !== -1;
+  });
+  return porFecha.length === 1 ? porFecha[0].edicion : null;
 }
 
 /** Gift cards: una vendida sin usar es plata cobrada y un lugar que se va a ocupar. */
