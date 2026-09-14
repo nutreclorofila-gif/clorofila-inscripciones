@@ -191,5 +191,67 @@ caso(
   }
 );
 
+console.log('\n--- Tikzet ---');
+// Las ventas de Tikzet se cargan a mano: es donde más se rompe.
+function conTikzet(gente, estado) {
+  const e = armar('Taller de tapeo — 12/11/2026', 20, gente, null, estado);
+  return e.tikzet;
+}
+const T = (nombre, monto) => ({ nombre: nombre, monto: monto, medio: 'Tikzet' });
+
+caso(
+  'suma las entradas y la plata de la edición que viene',
+  'es lo que Leo cruza contra el panel de Tikzet',
+  () => {
+    const t = conTikzet([T('A', '2600'), T('B', '2600'), { nombre: 'C', monto: '2600', medio: 'transferencia' }]);
+    return (t.entradas === 2 && t.recaudado === 5200) || 'dio ' + t.entradas + ' entradas / ' + t.recaudado;
+  }
+);
+caso(
+  'cuenta las que no tienen el monto cargado',
+  'una venta sin monto hace que el cobrado quede corto y no se note',
+  () => {
+    const t = conTikzet([T('A', '2600'), T('B', '')]);
+    return (t.sinMonto === 1 && t.recaudado === 2600) || 'sinMonto=' + t.sinMonto + ', recaudado=' + t.recaudado;
+  }
+);
+caso(
+  'una entrada cubierta por otro pago no cuenta como faltante',
+  'es un caso normal, no un error de carga: alertarlo sería ruido',
+  () => {
+    const t = conTikzet([T('A', '2600'), { nombre: 'B', monto: '', medio: 'Tikzet', comprobante: 'mismo pago que A' }]);
+    return t.sinMonto === 0 || 'contó ' + t.sinMonto + ' como faltante';
+  }
+);
+// Ojo: un taller CERRADO pero con fecha futura sigue siendo vigente, y está
+// bien que así sea. Para que cuente como pasada hace falta una fecha pasada.
+caso(
+  'un taller cerrado pero que todavía no pasó sigue en "lo que viene"',
+  'cerrar la venta no lo convierte en pasado: el taller igual va a suceder',
+  () => {
+    const e = armar('Taller de tapeo — 12/11/2026', 20, [T('A', '2600')], null, 'Cerrado');
+    return (e.tikzet.entradas === 1 && e.tikzet.historico.entradas === 0)
+      || 'vigentes=' + e.tikzet.entradas + ', histórico=' + e.tikzet.historico.entradas;
+  }
+);
+caso(
+  'lo de ediciones que YA PASARON va aparte',
+  'si se mezclara, el número de "lo que viene" estaría inflado con plata vieja',
+  () => {
+    const e = armar('Taller de tapeo — 12/09/2026', 20, [T('A', '2600')], null, 'Cerrado');
+    return (e.tikzet.entradas === 0 && e.tikzet.historico.entradas === 1)
+      || 'vigentes=' + e.tikzet.entradas + ', histórico=' + e.tikzet.historico.entradas;
+  }
+);
+caso(
+  'el histórico también avisa si le falta plata',
+  'mostrar un total al que le faltan ventas se lee como si fuera todo lo que Tikzet trajo',
+  () => {
+    const e = armar('Taller de tapeo — 12/09/2026', 20, [T('A', '2600'), T('B', '')], null, 'Cerrado');
+    const h = e.tikzet.historico;
+    return (h.entradas === 2 && h.recaudado === 2600 && h.sinMonto === 1) || JSON.stringify(h);
+  }
+);
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);

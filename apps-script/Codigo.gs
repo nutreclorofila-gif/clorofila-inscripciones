@@ -1453,7 +1453,7 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
 function resumirTikzet(ediciones) {
   var porEdicion = [];
   var vig = { entradas: 0, recaudado: 0, sinMonto: 0 };
-  var hist = { entradas: 0, recaudado: 0 };
+  var hist = { entradas: 0, recaudado: 0, sinMonto: 0 };
 
   ediciones.forEach(function (ed) {
     var suyas = ed.personas.filter(function (p) { return p.esTikzet; });
@@ -1468,7 +1468,9 @@ function resumirTikzet(ediciones) {
         entradas: suyas.length, recaudado: monto, sinMonto: faltantes
       });
     } else {
-      hist.entradas += suyas.length; hist.recaudado += monto;
+      // El histórico también cuenta las que no tienen monto: sin eso, el total
+      // sale incompleto y se muestra como si fuera lo que Tikzet realmente trajo.
+      hist.entradas += suyas.length; hist.recaudado += monto; hist.sinMonto += faltantes;
     }
   });
 

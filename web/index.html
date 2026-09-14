@@ -791,7 +791,13 @@
       (t.historico.entradas
         ? '<div class="sub" style="font-size:13px;color:var(--tenue);padding:10px 0">' +
           'En ediciones que ya pasaron: ' + t.historico.entradas + ' entradas más, ' +
-          plata(t.historico.recaudado) + '.</div>'
+          plata(t.historico.recaudado) +
+          // Sin esta aclaración, un total al que le faltan ventas se lee como si
+          // fuera todo lo que Tikzet trajo.
+          (t.historico.sinMonto
+            ? ' — y ' + t.historico.sinMonto + (t.historico.sinMonto === 1 ? ' sin su monto cargado' : ' sin su monto cargado') +
+              ', así que falta plata en esa cuenta.'
+            : '.') + '</div>'
         : '');
     return html;
   }
