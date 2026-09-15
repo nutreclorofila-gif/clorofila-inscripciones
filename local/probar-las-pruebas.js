@@ -71,6 +71,8 @@ const MUTACIONES = [
   ['la lista de espera deja de ligarse por la fecha', CODIGO,
    "var fecha = (t.match(/\\d{1,2}\\/\\d{1,2}\\/\\d{4}/) || [])[0];\n  if (!fecha) return null;",
    'return null;'],
+  ['deja de avisar de quien espera algo que ya pasó', CODIGO,
+   'if (!ed || ed.vigente) return;', 'if (!ed) return;'],
   ['vuelve a tomar la fila 1 como encabezados a ciegas', CODIGO,
    'var inicio = filaDeEncabezados(filas);', 'var inicio = 0;'],
   ['la lista de espera ilegible deja de avisarse', CODIGO,
