@@ -1457,6 +1457,31 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
     });
   });
 
+  // g-ter) Alguien quedó esperando un taller que YA PASÓ. Sin esto no aparece en
+  //        ningún lado: la alerta de arriba solo mira ediciones vigentes, así que
+  //        esa persona se queda esperando para siempre y nadie la llama.
+  (esperaGlobal || []).forEach(function (x) {
+    if (!x.edicion) return;
+    var ed = todasLasEdiciones.filter(function (e) { return e.edicion === x.edicion; })[0];
+    if (!ed || ed.vigente) return;
+
+    // Si hay otra fecha de lo mismo con lugar, se la puede ofrecer.
+    var proxima = ediciones
+      .filter(function (e) {
+        return normalizarNombre(e.titulo) === normalizarNombre(ed.titulo) && e.quedan > 0;
+      })
+      .sort(function (a, b) { return String(a.fecha || '') < String(b.fecha || '') ? -1 : 1; })[0];
+
+    alertas.push({
+      nivel: 'media', tipo: 'espera_vieja', edicion: ed.edicion,
+      texto: (x.nombre || 'Alguien') + ' quedó esperando un taller que ya pasó',
+      detalle: 'Esperaba "' + ed.edicion + '". ' + (proxima
+        ? 'Hay otra fecha con lugar: "' + proxima.edicion + '", ' + proxima.quedan +
+          (proxima.quedan === 1 ? ' lugar libre.' : ' lugares libres.')
+        : 'No hay otra fecha de eso todavía.')
+    });
+  });
+
   // h) Casi lleno (buena noticia, pero hay que actuar).
   abiertas.forEach(function (ed) {
     if (ed.cupo > 0 && ed.quedan > 0 && ed.ocupacion >= 0.7) {
