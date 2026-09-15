@@ -153,6 +153,43 @@ chequear('detecta a los que vinieron más de una vez',
   cuantos > 0, 'no encontró ninguno, y en la planilla hay gente repetida');
 console.log('        ' + cuantos + ' personas repiten; la que más vino estuvo ' + maximo + ' veces');
 
+console.log('\n--- Quien espera un taller que ya pasó ---');
+// Importa porque la alerta de "está lleno y hay alguien esperando" solo mira
+// ediciones vigentes: sin esto, esa persona no aparece en ningún lado y se
+// queda esperando para siempre. Pasa de verdad: hay 2 así en la planilla.
+{
+  const HH = ['nombre','email','celular','actividad','horario','medio','comprobante','monto','verif','fecha','Edición'];
+  const VIEJO = 'Taller de tapeo — 07/08/2026', NUEVO = 'Taller de tapeo — 18/12/2026';
+  const f = (n, ed) => [n, n.toLowerCase() + '@x.com', '', '', '', '', '', '2600', '', '', ed];
+  const armar = (conOtraFecha) => api.construirEstado({
+    panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
+      ['Taller de tapeo', VIEJO, '12', '1', '11', 'Cerrado']].concat(
+      conOtraFecha ? [['Taller de tapeo', NUEVO, '12', '1', '11', 'Abierto']] : []),
+    panelFormulas: [['','','','','',''],
+      ['','','',"=COUNTIF('Inscriptos'!K:K;B2)",'','']].concat(
+      conOtraFecha ? [['','','',"=COUNTIF('Inscriptos'!K:K;B3)",'','']] : []),
+    hojas: { 'Inscriptos': [HH, f('Ana', VIEJO)].concat(conOtraFecha ? [f('Beto', NUEVO)] : []) },
+    extras: { 'Lista de espera': [
+      ['LISTA DE ESPERA: se llena sola.'],
+      ['nombre','email','celular','Espera para'],
+      ['Fulana','f@x.com','099111222','Taller de tapeo 07/08/2026']] }
+  }, new Date(2026, 10, 1));
+
+  const conProxima = armar(true);
+  const a1 = (conProxima.alertas || []).filter(x => x.tipo === 'espera_vieja');
+  chequear('avisa que quedó esperando algo que ya pasó',
+    a1.length === 1 && /Fulana/.test(a1[0].texto), JSON.stringify(a1));
+  chequear('y le ofrece la próxima fecha con lugar',
+    a1.length === 1 && /18\/12\/2026/.test(a1[0].detalle) && /11 lugares/.test(a1[0].detalle),
+    a1.length ? a1[0].detalle : '(sin alerta)');
+
+  const sinProxima = armar(false);
+  const a2 = (sinProxima.alertas || []).filter(x => x.tipo === 'espera_vieja');
+  chequear('si no hay otra fecha, lo dice igual',
+    a2.length === 1 && /No hay otra fecha/.test(a2[0].detalle),
+    a2.length ? a2[0].detalle : '(sin alerta)');
+}
+
 console.log('\n--- Si las pestañas se llaman con otras mayúsculas ---');
 // Importa porque: con comparación exacta, "Lista de Espera" hacía que esa vista
 // quedara vacía para siempre y la app no decía nada.
