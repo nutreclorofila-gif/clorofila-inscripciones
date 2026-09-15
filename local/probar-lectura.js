@@ -183,6 +183,31 @@ console.log('\n--- Quien espera un taller que ya pasó ---');
     a1.length === 1 && /18\/12\/2026/.test(a1[0].detalle) && /11 lugares/.test(a1[0].detalle),
     a1.length ? a1[0].detalle : '(sin alerta)');
 
+  // El caso real: la próxima fecha existe pero está LLENA. Decir "no hay otra
+  // fecha" ahí es lo contrario de la verdad, y encima esa persona es
+  // justamente a quien hay que llamar si alguien larga.
+  const llena = api.construirEstado({
+    panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
+      ['Taller de tapeo', VIEJO, '12', '1', '11', 'Cerrado'],
+      ['Taller de tapeo', NUEVO, '12', '12', '0', 'Abierto']],
+    panelFormulas: [['','','','','',''],
+      ['','','',"=COUNTIF('Inscriptos'!K:K;B2)",'',''],
+      ['','','',"=COUNTIF('Inscriptos'!K:K;B3)",'','']],
+    hojas: { 'Inscriptos': [HH, f('Ana', VIEJO)].concat(
+      Array.from({ length: 12 }, (_, i) => f('P' + i, NUEVO))) },
+    extras: { 'Lista de espera': [
+      ['LISTA DE ESPERA: se llena sola.'],
+      ['nombre','email','celular','Espera para'],
+      ['Fulana','f@x.com','099111222','Taller de tapeo 07/08/2026']] }
+  }, new Date(2026, 10, 1));
+  const a3 = (llena.alertas || []).filter(x => x.tipo === 'espera_vieja');
+  chequear('si la próxima está llena, lo dice en vez de decir que no hay',
+    a3.length === 1 && /está llena/.test(a3[0].detalle) && !/No hay otra fecha/.test(a3[0].detalle),
+    a3.length ? a3[0].detalle : '(sin alerta)');
+  chequear('y dice que es a quien llamar si alguien larga',
+    a3.length === 1 && /a quien llamar/.test(a3[0].detalle),
+    a3.length ? a3[0].detalle : '(sin alerta)');
+
   const sinProxima = armar(false);
   const a2 = (sinProxima.alertas || []).filter(x => x.tipo === 'espera_vieja');
   chequear('si no hay otra fecha, lo dice igual',

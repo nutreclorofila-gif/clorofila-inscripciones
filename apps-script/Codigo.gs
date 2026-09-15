@@ -1465,20 +1465,30 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
     var ed = todasLasEdiciones.filter(function (e) { return e.edicion === x.edicion; })[0];
     if (!ed || ed.vigente) return;
 
-    // Si hay otra fecha de lo mismo con lugar, se la puede ofrecer.
+    // La próxima fecha de lo mismo, HAYA O NO lugar. Decir "no hay otra fecha"
+    // cuando en realidad la hay pero está llena es peor que no decir nada: esa
+    // persona es justamente a quien llamar si alguien larga.
     var proxima = ediciones
-      .filter(function (e) {
-        return normalizarNombre(e.titulo) === normalizarNombre(ed.titulo) && e.quedan > 0;
-      })
-      .sort(function (a, b) { return String(a.fecha || '') < String(b.fecha || '') ? -1 : 1; })[0];
+      .filter(function (e) { return normalizarNombre(e.titulo) === normalizarNombre(ed.titulo); })
+      .sort(function (a, b) {
+        return String(a.fecha || '9999') < String(b.fecha || '9999') ? -1 : 1;
+      })[0];
+
+    var queHacer;
+    if (!proxima) {
+      queHacer = 'No hay otra fecha de eso todavía.';
+    } else if (proxima.quedan > 0) {
+      queHacer = 'Hay otra fecha con lugar: "' + proxima.edicion + '", ' + proxima.quedan +
+                 (proxima.quedan === 1 ? ' lugar libre.' : ' lugares libres.');
+    } else {
+      queHacer = 'La próxima es "' + proxima.edicion + '", pero está llena. ' +
+                 'Si alguien larga, esta persona es a quien llamar.';
+    }
 
     alertas.push({
       nivel: 'media', tipo: 'espera_vieja', edicion: ed.edicion,
       texto: (x.nombre || 'Alguien') + ' quedó esperando un taller que ya pasó',
-      detalle: 'Esperaba "' + ed.edicion + '". ' + (proxima
-        ? 'Hay otra fecha con lugar: "' + proxima.edicion + '", ' + proxima.quedan +
-          (proxima.quedan === 1 ? ' lugar libre.' : ' lugares libres.')
-        : 'No hay otra fecha de eso todavía.')
+      detalle: 'Esperaba "' + ed.edicion + '". ' + queHacer
     });
   });
 
