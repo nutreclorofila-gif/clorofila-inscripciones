@@ -396,6 +396,14 @@ console.log('\n--- Escribirle a la gente desde donde aparece ---');
   const llena = cargarUI(armar(12)).vistaCupos();
   chequeo('llena, dice solo que espera',
     /1 esperando lugar/.test(pie(llena)) && !/hay lugar/.test(pie(llena)), 'el pie quedó: ' + pie(llena));
+  // En una edición cerrada o que ya pasó no hay a quién escribirle por ese lugar.
+  const variante = (cambio) => { const d = JSON.parse(JSON.stringify(armar(2))); d.ediciones.forEach(cambio); return cargarUI(d).vistaCupos(); };
+  const cerrada = variante(e => { e.abierta = false; });
+  chequeo('cerrada con lugar, NO dice que hay lugar',
+    /1 esperando lugar/.test(pie(cerrada)) && !/hay lugar/.test(pie(cerrada)), 'el pie quedó: ' + pie(cerrada));
+  const pasada = variante(e => { e.vigente = false; });
+  chequeo('ya pasada con lugar, NO dice que hay lugar',
+    !/hay lugar/.test(pie(pasada)), 'el pie quedó: ' + pie(pasada));
   // Carla se anotó y su fila de la lista de espera quedó: no es alguien más a
   // quien escribirle, y "2 esperando, y hay lugar" lo mandaba a buscarla.
   const conCarla = cargarUI(armar(2, [['Carla', '', '094000123', ED]])).vistaCupos();

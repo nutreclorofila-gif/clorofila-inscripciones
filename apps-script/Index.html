@@ -933,9 +933,11 @@
         '<div class="barra"><i class="' + clase + '" style="width:' + Math.min(pct, 100) + '%"></i></div>' +
         '<div class="pie">' +
           // Con lugar libre no puede decir lo mismo que llena: es el momento de
-          // escribirles, y la alerta de "hay lugar" está en Alertas.
+          // escribirles, y la alerta de "hay lugar" está en Alertas. Pero solo si
+          // la edición sigue abierta y no pasó: en un taller cerrado o de agosto,
+          // "hay lugar" en verde mandaba a Leo a escribirle a alguien por nada.
           (esperan.length
-            ? (e.quedan > 0
+            ? (e.quedan > 0 && e.abierta && e.vigente
               ? '<span style="color:var(--verde);font-weight:700">' + esperan.length + ' esperando, y hay lugar</span>'
               : '<span style="color:var(--dorado);font-weight:600">' + esperan.length + ' esperando lugar</span>')
             : '') +
