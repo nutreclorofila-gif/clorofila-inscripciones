@@ -34,17 +34,24 @@ var ID_PLANILLA = '1C3UfC__jr3F0x_XWp5lRvL47MLjQqOwTa9wURKuXZBQ';
  * gana, pierde o cambia un campo que la página lee. verificar.sh controla que
  * los dos números sean iguales.
  */
-var FORMA_ESTADO = 1;
+var FORMA_ESTADO = 2;
 
 /**
  * Precios de referencia. Solo se usan para calcular SALDO del curso de cocina,
  * que es donde hay un precio fijo conocido. Los talleres tienen precio variable
  * (Tikzet cobra distinto según la edición), así que ahí no se calcula deuda:
  * se muestra si hay pago cargado o no.
+ *
+ * El curso dura 3 meses y se paga de dos formas (texto oficial del curso):
+ * $4.800 por mes, o $12.200 todo junto, que es el pago bonificado. Pagando por
+ * mes son 3 x $4.800 = $14.400. Hasta el 23/9 la app calculaba todas las deudas
+ * contra $12.200: a quien pagaba la primera cuota le decía que faltaban $7.400,
+ * cuando faltan dos cuotas ($9.600).
  */
 var PRECIOS = {
   cursoTotal: 12200,
   cursoCuota: 4800,
+  cursoMeses: 3,
   // Por debajo de esto no es un pago del curso sino un monto mal leído: "2
   // entradas 10400" se lee como 2, y la app decía "Seña, le falta $ 12.198". La
   // seña real más chica que hubo fue de $ 2.000, así que el piso no toca a nadie.
@@ -60,7 +67,7 @@ var PRECIOS = {
 var FILAS_PANEL = 500;
 
 /** Pestañas que NO son ediciones y no cuentan en ningún cupo. */
-var HOJAS_IGNORADAS = ['Lista de espera', 'Gift Cards', 'Panel'];
+var HOJAS_IGNORADAS = ['Lista de espera', 'Gift Cards', 'Pagos en cuotas', 'Panel'];
 
 /** De acá salen todas las ediciones: sin esta pestaña la app no tiene nada que mostrar. */
 var HOJA_PANEL = 'Panel';
@@ -72,6 +79,7 @@ var HOJA_PANEL = 'Panel';
  */
 var HOJA_ESPERA = 'Lista de espera';
 var HOJA_GIFT = 'Gift Cards';
+var HOJA_CUOTAS = 'Pagos en cuotas';
 
 /** Prefijos de la columna K que son intencionales, no errores de carga. */
 var PREFIJOS_INTENCIONALES = ['Reubicado', 'Lista de espera', 'Cancelado', 'Anulado', 'Gift card'];
@@ -253,12 +261,12 @@ function leerPlanilla() {
   // exigir mayúsculas exactas: "Gift cards" tiene que valer igual que "Gift Cards".
   var extrasALeer = [];
   var nombreReal = {};
-  [[HOJA_ESPERA, 'espera'], [HOJA_GIFT, 'gift']].forEach(function (par) {
+  [[HOJA_ESPERA, 'espera'], [HOJA_GIFT, 'gift'], [HOJA_CUOTAS, 'cuotas']].forEach(function (par) {
     var real = buscarHoja(titulos, par[0]);
     if (real) { extrasALeer.push(real); nombreReal[real] = par[0]; }
   });
 
-  // Todo en UNA sola llamada: las de inscriptos (hasta la columna K) y las dos
+  // Todo en UNA sola llamada: las de inscriptos (hasta la columna K) y las
   // pestañas extra (hasta la N, que tienen más columnas).
   var hojas = {};
   var extras = {};
@@ -785,6 +793,7 @@ function construirEstado(crudo, ahora) {
   // persona: eso inflaría los anotados y el recaudado sin que se note.
   var usadas = {};
   var duplicadas = [];
+  var cuotas = leerCuotas((crudo.extras || {})[HOJA_CUOTAS]);
   ediciones.forEach(function (ed) {
     if (ed.regla && !leidas[normalizarNombre(ed.regla.hoja)]) ed.pestanaInexistente = true;
     ed.personas = filas.filter(function (f) {
@@ -810,15 +819,20 @@ function construirEstado(crudo, ahora) {
       ed.ocupacion = ed.cupo > 0 ? Math.min(ed.anotados / ed.cupo, 1) : 0;
     }
 
+    aplicarCuotas(ed, cuotas);
     calcularPlata(ed);
   });
 
   var vigentes = ediciones.filter(function (e) { return e.vigente; });
+  // Lo que falta cobrar incluye el curso que ya empezó y sigue pagándose en
+  // cuotas, aunque ya no sea "vigente" (cerró la inscripción y el nombre no dice
+  // fecha). Lo cobrado, no: esa tarjeta habla de lo que viene.
+  var cobrando = ediciones.filter(function (e) { return e.vigente || e.cobrando; });
   marcarRepetidores(ediciones);
   var espera = leerEspera((crudo.extras || {})[HOJA_ESPERA], ediciones);
   marcarQuienYaSeAnoto(espera, ediciones);
   var gift = leerGiftCards((crudo.extras || {})[HOJA_GIFT]);
-  var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas, espera, gift);
+  var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas, espera, gift, cuotas);
 
   return {
     forma: FORMA_ESTADO,
@@ -837,8 +851,8 @@ function construirEstado(crudo, ahora) {
       cupo: sumar(vigentes, 'cupo'),
       libres: sumar(vigentes, 'quedan'),
       recaudado: sumar(vigentes, 'recaudado'),
-      saldo: sumar(vigentes, 'saldo'),
-      pendientes: vigentes.reduce(function (a, e) { return a + e.pendientes.length; }, 0),
+      saldo: sumar(cobrando, 'saldo'),
+      pendientes: cobrando.reduce(function (a, e) { return a + e.pendientes.length; }, 0),
       enEspera: espera.length,
       giftSinUsar: gift.filter(function (g) { return !g.usada; }).length,
       // Va en el resumen y no colgado del array: las propiedades de un array no
@@ -868,7 +882,7 @@ function construirEstado(crudo, ahora) {
  * hoja y fila se quedan: son la clave con la que la página encuentra a alguien.
  */
 var NO_VAN_AL_TELEFONO = {
-  persona:     ['comprobante', 'idPago', 'verificado', 'esTikzet', 'fecha', 'montoTexto'],
+  persona:     ['comprobante', 'idPago', 'verificado', 'esTikzet', 'fecha', 'montoTexto', 'primerPago'],
   giftCard:    ['email', 'usadaPor'],
   fueraDeCupo: ['email', 'montoTexto', 'monto']
 };
@@ -1317,6 +1331,9 @@ function evaluarPago(f, ed) {
 
   var monto = parsearMonto(f.montoTexto);
   p.monto = monto;
+  // Lo que dice la pestaña de inscriptos. p.monto puede crecer después con las
+  // cuotas; el aviso de precio viejo tiene que mirar este, el de la inscripción.
+  p.primerPago = monto;
   p.saldo = 0;
 
   if (monto === null || monto === 0) {
@@ -1343,15 +1360,7 @@ function evaluarPago(f, ed) {
   }
 
   if (ed.esCurso) {
-    if (monto >= PRECIOS.cursoTotal) {
-      p.estadoPago = 'completo';
-    } else {
-      p.estadoPago = 'parcial';
-      p.saldo = PRECIOS.cursoTotal - monto;
-      p.nota = monto >= PRECIOS.cursoCuota
-        ? 'Pagó por cuotas, le falta ' + plata(p.saldo)
-        : 'Seña, le falta ' + plata(p.saldo);
-    }
+    cuentaDelCurso(p, monto, 0);
   } else {
     // Talleres: el precio varía por edición (Tikzet cobra distinto), así que
     // no se calcula deuda. Si hay plata cargada, se da por pago.
@@ -1367,6 +1376,134 @@ function evaluarPago(f, ed) {
     p.nota = 'Marcado "' + f.verificado + '" en la columna pago verificado';
   }
   return p;
+}
+
+/**
+ * Cuánto le falta a alguien del curso, según lo que ya pagó en total.
+ *
+ *  - $12.200 o más: pagó el curso entero (el pago bonificado, o las cuotas).
+ *  - Un plan acordado en "Pagos en cuotas" (cuotas pendientes con su monto
+ *    escrito): le falta lo que dice el plan. Pasa cuando se arregla distinto,
+ *    como una seña y dos cuotas de otro monto.
+ *  - Múltiplo exacto de la cuota: paga por mes, le faltan las cuotas que quedan.
+ *  - Cualquier otro monto es una seña: le falta hasta el pago bonificado.
+ */
+function cuentaDelCurso(p, cobrado, porVenir) {
+  p.saldo = 0;
+  if (cobrado >= PRECIOS.cursoTotal) {
+    p.estadoPago = 'completo';
+    delete p.nota;
+    return;
+  }
+  p.estadoPago = 'parcial';
+  if (porVenir > 0) {
+    p.saldo = porVenir;
+    p.nota = 'Paga con un plan acordado, le falta ' + plata(p.saldo);
+  } else if (cobrado % PRECIOS.cursoCuota === 0) {
+    var hechas = cobrado / PRECIOS.cursoCuota;
+    p.saldo = PRECIOS.cursoCuota * (PRECIOS.cursoMeses - hechas);
+    p.nota = 'Pagó ' + hechas + ' de ' + PRECIOS.cursoMeses + ' cuotas, le falta ' + plata(p.saldo);
+  } else {
+    p.saldo = PRECIOS.cursoTotal - cobrado;
+    p.nota = 'Seña, le falta ' + plata(p.saldo);
+  }
+}
+
+/**
+ * Pestaña "Pagos en cuotas": una fila por cuota de cada alumna del curso. En la
+ * pestaña de inscriptos queda solo el primer pago; las cuotas siguientes se
+ * anotan acá. Hasta el 23/9 la app no la leía, y a quien ya había pagado la
+ * segunda cuota le seguía marcando la deuda como si no.
+ *
+ * Se toma solo lo que hace falta para la cuenta. Comprobante, medio y
+ * observaciones traen números de cuenta y de operación, y no salen de acá. De
+ * Observaciones se saca únicamente la fecha de vencimiento ("VENCE EL 29/09/2026").
+ */
+function leerCuotas(filas) {
+  return porEncabezado(filas).map(function (o) {
+    var tomadas = {};
+    var marcar = function (r) { if (r.clave) tomadas[r.clave] = true; return r.valor; };
+    var nombre = marcar(campoConClave(o, ['alumno', 'alumna', 'nombre'], tomadas));
+    var correo = marcar(campoConClave(o, ['email', 'mail', 'correo'], tomadas));
+    var numero = marcar(campoConClave(o, ['cuota'], tomadas));
+    var monto  = marcar(campoConClave(o, ['monto', 'importe'], tomadas));
+    var estado = marcar(campoConClave(o, ['estado'], tomadas));
+    var obs    = marcar(campoConClave(o, ['observaciones', 'notas', 'nota'], tomadas));
+    var vence  = String(obs || '').match(/vence\S*\s+(?:el\s+)?(\d{1,2}\/\d{1,2}\/\d{4})/i);
+    return {
+      nombre: nombre,
+      email: String(correo || '').trim().toLowerCase(),
+      numero: parsearMonto(numero),
+      monto: parsearMonto(monto),
+      pagada: /^pagad[ao]/i.test(String(estado || '').trim()),
+      pendiente: /^pendiente/i.test(String(estado || '').trim()),
+      vence: vence ? fechaDeInscripcion(vence[1]) : null,
+      fila: o._fila,
+      ligada: false
+    };
+  }).filter(function (c) { return c.nombre || c.email; });
+}
+
+/**
+ * Suma a cada persona del curso las cuotas que tiene en "Pagos en cuotas".
+ * Se liga por mail, que es lo que no cambia; por nombre solo si a alguna de las
+ * dos filas le falta el mail. Una cuota pagada sin el monto escrito se cuenta
+ * como una cuota común, y la nota lo dice.
+ *
+ * Deja p.monto como el total cobrado (es lo que suma a lo cobrado de la
+ * edición) y, si hay una cuota por venir con fecha, p.proximaCuota.
+ */
+function aplicarCuotas(ed, cuotas) {
+  if (!ed.esCurso || !cuotas || !cuotas.length) return;
+  ed.personas.forEach(function (p) {
+    var mail = String(p.email || '').trim().toLowerCase();
+    var suyas = cuotas.filter(function (c) {
+      if (c.email && mail) return c.email === mail;
+      return !!c.nombre && normalizarNombre(c.nombre) === normalizarNombre(p.nombre);
+    });
+    if (!suyas.length) return;
+    suyas.forEach(function (c) { c.ligada = true; });
+
+    // Él mismo la marcó como no verificada: eso manda sobre cualquier cuenta.
+    if (p.enDuda) return;
+
+    var pagadas = suyas.filter(function (c) { return c.pagada; });
+    var porVenir = suyas.filter(function (c) { return c.pendiente; });
+    var sinMonto = pagadas.filter(function (c) { return !c.monto; }).length;
+    var cobrado = pagadas.length
+      ? pagadas.reduce(function (a, c) { return a + (c.monto || PRECIOS.cursoCuota); }, 0)
+      : (p.monto || 0);   // todavía ninguna cuota pagada anotada: vale la inscripción
+
+    p.monto = cobrado;
+    p.cuotasPagadas = pagadas.length;
+    cuentaDelCurso(p, cobrado, porVenir.reduce(function (a, c) { return a + (c.monto || 0); }, 0));
+    if (sinMonto && p.nota) {
+      p.nota += ' (' + sinMonto + (sinMonto === 1 ? ' cuota pagada sin el monto escrito, se cuenta' :
+        ' cuotas pagadas sin el monto escrito, se cuentan') + ' de ' + plata(PRECIOS.cursoCuota) + ')';
+    }
+
+    var proxima = porVenir.filter(function (c) { return c.vence; })
+      .sort(function (a, b) { return fechaOrdenable(a.vence) < fechaOrdenable(b.vence) ? -1 : 1; })[0];
+    if (proxima && p.estadoPago === 'parcial') {
+      p.proximaCuota = { numero: proxima.numero, monto: proxima.monto, vence: proxima.vence };
+      p.nota += ' · la próxima vence el ' + proxima.vence.slice(0, 5);
+    }
+  });
+
+  // El curso ya empezó y cerró la inscripción, pero se siguen cobrando cuotas:
+  // tiene que seguir apareciendo en lo que falta cobrar. Solo cuenta a quien
+  // figura en "Pagos en cuotas": del resto de una edición vieja no se sabe si
+  // pagó por otro lado, y listarlos a todos como deudores sería ruido.
+  if (!ed.vigente) {
+    var enCuotas = ed.personas.filter(function (p) { return p.cuotasPagadas !== undefined && p.saldo > 0; });
+    if (enCuotas.length) ed.cobrando = true;
+  }
+}
+
+/** "29/09/2026" -> "2026-09-29", para poder comparar fechas como texto. */
+function fechaOrdenable(dma) {
+  var m = String(dma || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? m[3] + '-' + m[2] + '-' + m[1] : '9999';
 }
 
 /**
@@ -1396,6 +1533,13 @@ function calcularPlata(ed) {
   ed.pendientes = ed.personas.filter(function (p) {
     return p.estadoPago === 'parcial' || p.estadoPago === 'sin_pago' || p.estadoPago === 'revisar';
   });
+
+  // Edición del curso que ya empezó: lo que falta cobrar es solo lo de quien
+  // figura en "Pagos en cuotas" (ver aplicarCuotas).
+  if (ed.cobrando) {
+    ed.pendientes = ed.pendientes.filter(function (p) { return p.cuotasPagadas !== undefined && p.saldo > 0; });
+    ed.saldo = ed.pendientes.reduce(function (acc, p) { return acc + (p.saldo || 0); }, 0);
+  }
 }
 
 
@@ -1415,7 +1559,9 @@ function revisarPrecioDelCurso(ediciones) {
   var montos = [];
   ediciones.forEach(function (ed) {
     if (!ed.esCurso || !ed.vigente) return;
-    ed.personas.forEach(function (p) { if (p.monto) montos.push(p.monto); });
+    // El pago de la inscripción, no el total: con las cuotas sumadas, tres
+    // personas que van por la segunda cuota ($9.600) parecían un precio nuevo.
+    ed.personas.forEach(function (p) { if (p.primerPago) montos.push(p.primerPago); });
   });
   if (montos.length < 3) return null;   // con dos pagos no hay nada que concluir
 
@@ -1473,7 +1619,7 @@ function mediana(nums) {
   return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2;
 }
 
-function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, esperaGlobal, giftGlobal) {
+function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, esperaGlobal, giftGlobal, cuotas) {
   var alertas = [];
   // Una edición que ya pasó no se arregla: alertar sobre ella es solo ruido.
   var ediciones = todasLasEdiciones.filter(function (e) { return e.vigente; });
@@ -1844,6 +1990,42 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
         detalle: 'Está al ' + Math.round(ed.ocupacion * 100) + '% del cupo.'
       });
     }
+  });
+
+  // i) Cuotas del curso: una que venció sin figurar pagada, y una fila de
+  //    "Pagos en cuotas" que no es de nadie anotado (mail mal escrito, o una
+  //    alumna que falta en la pestaña de inscriptos): esa plata no se ve en
+  //    ningún lado.
+  var corte = hoy.getFullYear() + '-' + ('0' + (hoy.getMonth() + 1)).slice(-2) + '-' + ('0' + hoy.getDate()).slice(-2);
+  todasLasEdiciones.forEach(function (ed) {
+    if (!ed.esCurso || !(ed.vigente || ed.cobrando)) return;
+    ed.personas.forEach(function (p) {
+      var c = p.proximaCuota;
+      if (!c || fechaOrdenable(c.vence) >= corte) return;
+      alertas.push({
+        nivel: 'alta', tipo: 'cuota_vencida', edicion: ed.edicion,
+        texto: (p.nombre || 'Alguien') + ': cuota vencida',
+        detalle: 'La cuota ' + (c.numero || '') + (c.monto ? ' de ' + plata(c.monto) : '') + ' venció el ' +
+                 c.vence + ' y en "Pagos en cuotas" no figura pagada. En total le falta ' + plata(p.saldo) + '.'
+      });
+    });
+  });
+  var sueltas = {};
+  (cuotas || []).forEach(function (c) {
+    if (c.ligada) return;
+    var k = c.email || normalizarNombre(c.nombre);
+    (sueltas[k] = sueltas[k] || []).push(c);
+  });
+  Object.keys(sueltas).forEach(function (k) {
+    var cs = sueltas[k];
+    alertas.push({
+      nivel: 'media', tipo: 'cuota_sin_inscripta', edicion: '',
+      texto: (cs[0].nombre || cs[0].email) + ' tiene cuotas pero no la encuentro anotada',
+      detalle: 'En "Pagos en cuotas" (fila' + (cs.length === 1 ? ' ' : 's ') +
+               cs.map(function (c) { return c.fila; }).join(', ') + ') hay cuotas suyas, pero ninguna persona ' +
+               'del curso tiene ese mail' + (cs[0].email ? '' : ' ni ese nombre') + '. Mientras tanto, esa plata ' +
+               'no se suma en ningún lado. Revisá que el mail sea el mismo que en la pestaña de inscriptos.'
+    });
   });
 
   // Se marca sola: la portada no muestra el detalle de las que hablan de plata.

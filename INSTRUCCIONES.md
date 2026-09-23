@@ -101,7 +101,7 @@ una alerta alta en vez de dejar de mostrar ediciones en silencio.
 | Solapa | Qué hay |
 |---|---|
 | **Cupos** | Una tarjeta por edición vigente con `anotados / cupo` en número grande, barra de ocupación, cobrado y cuántos deben. Se toca la tarjeta y se despliega la gente. Si hay gente esperando, el pie lo dice, y en verde *"esperando, y hay lugar"* cuando hay lugar libre. Quien está en la lista de espera pero ya se anotó en esa misma edición (mismo mail o mismo celular) no cuenta como que espera, ni acá ni en Alertas. Abajo, las ediciones que ya pasaron, colapsadas, y la gente de la lista de espera que no se pudo atar a una fecha, con lo que escribió que quiere. |
-| **Plata** | Cobrado total de lo que viene, desglose por edición, lista de quién debe y cuánto, y el bloque de Tikzet. |
+| **Plata** | Cobrado total de lo que viene, desglose por edición, lista de quién debe y cuánto, y el bloque de Tikzet. Incluye el curso que ya empezó y se sigue pagando en cuotas, aunque haya cerrado la inscripción: ahí figura solo quien está en la pestaña "Pagos en cuotas". |
 | **Gente** | Todos los inscriptos con buscador por nombre, mail o celular, y su estado de pago. |
 | **Alertas** | Solo lo que necesita que alguien haga algo: descuadres, sobrecupo, pagos incompletos, Tikzet sin cargar, y *"Hay 2 lugares en … y Fulana está esperando"* cuando se libera lugar en una edición abierta con gente en la lista de espera (un aviso por edición). Si no hay nada, no hay nada. |
 
@@ -165,7 +165,27 @@ esa persona no la cuenta nadie y desaparece del cupo. La app lo levanta como ale
   fue un pago o tres. En la planilla hay casos de las dos formas.
 - **No calcula deuda en los talleres**, porque el precio varía por edición (Tikzet cobra
   distinto). Solo dice si hay pago cargado o no. El saldo se calcula únicamente en el curso,
-  donde el precio es fijo: $12.200 el total, $4.800 la cuota (en `PRECIOS`, arriba de todo).
+  donde el precio es fijo (en `PRECIOS`, arriba de todo): $12.200 pagando todo junto (el pago
+  bonificado), o $4.800 por mes durante 3 meses ($14.400). Quien pagó un múltiplo exacto de
+  $4.800 paga por mes y le faltan las cuotas que quedan; cualquier otro monto es una seña y le
+  falta hasta $12.200.
+
+## Pagos en cuotas
+
+En la pestaña de inscriptos queda solo el primer pago. Las cuotas siguientes se anotan en
+**"Pagos en cuotas"**, una fila por cuota (Alumno, Email, Grupo, Cuota, Monto, Estado…), y la app
+las suma a cada persona del curso:
+
+- Se liga **por mail**, igual al de la pestaña de inscriptos (sin importar mayúsculas). Si una
+  cuota no se puede ligar a nadie, sale una alerta: esa plata no se estaría sumando.
+- Cuenta lo que tiene Estado **Pagada**. Una pagada **sin el monto escrito** se cuenta como una
+  cuota de $4.800, y la nota de esa persona lo dice.
+- Las **Pendiente con monto escrito** son un plan acordado distinto (una seña y dos cuotas de
+  otro valor): lo que le falta es la suma de esas cuotas.
+- Si en Observaciones dice **"VENCE EL dd/mm/aaaa"**, la nota muestra la próxima fecha, y si pasa
+  sin que la cuota figure pagada, sale una alerta alta.
+- De esa pestaña **no sale nada al teléfono** más que la cuenta: comprobante, medio y
+  observaciones tienen números de cuenta y de operación.
 - **No escribe nada en la planilla.** El único scope que pide es `spreadsheets.readonly`.
 
 ## Desplegar cambios

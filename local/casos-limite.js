@@ -169,12 +169,22 @@ caso(
 
 console.log('\n--- 8. Curso pagado en cuotas ---');
 caso(
-  'una cuota de $4.800 es pago parcial con saldo $7.400, no "pagó"',
-  'es el caso normal del curso; darlo por completo perdería $7.400 por persona',
+  'una cuota de $4.800 es pago parcial y faltan las otras dos ($9.600), no "pagó"',
+  'es el caso normal del curso: son 3 meses de $4.800. Darlo por completo perdería $9.600 por persona, ' +
+  'y calcularlo contra los $12.200 del pago bonificado decía $7.400',
   () => {
     const p = G.evaluarPago({ nombre:'X', montoTexto:'4800', comprobante:'123456789', medioPago:'transferencia' }, { esCurso: true });
-    return p.estadoPago === 'parcial' && p.saldo === 7400
-      ? true : 'estado ' + p.estadoPago + ', saldo ' + p.saldo;
+    return p.estadoPago === 'parcial' && p.saldo === 9600 && /1 de 3 cuotas/.test(p.nota)
+      ? true : 'estado ' + p.estadoPago + ', saldo ' + p.saldo + ', nota ' + p.nota;
+  }
+);
+caso(
+  'una seña que no es una cuota se cuenta contra el pago bonificado',
+  'quien seña $3.000 no eligió pagar por mes: le falta hasta $12.200, no hasta $14.400',
+  () => {
+    const p = G.evaluarPago({ nombre:'X', montoTexto:'3000' }, { esCurso: true });
+    return p.estadoPago === 'parcial' && p.saldo === 9200 && /Seña/.test(p.nota)
+      ? true : 'estado ' + p.estadoPago + ', saldo ' + p.saldo + ', nota ' + p.nota;
   }
 );
 
