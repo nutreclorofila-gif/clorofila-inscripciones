@@ -61,7 +61,7 @@
   .botonesCabecera { display: flex; align-items: center; gap: 16px; flex: 0 0 auto; }
   /* Salir se usa una vez cada tanto: que no le pelee el lugar a Actualizar. */
   .salir {
-    border: none; background: none; color: var(--apagado); font: inherit; font-size: 13px;
+    border: none; background: none; color: var(--tenue); font: inherit; font-size: 13px;
     padding: 10px 4px; min-width: 44px; cursor: pointer;
     text-decoration: underline; text-underline-offset: 3px;
   }
@@ -197,7 +197,7 @@
     <div class="tituloFila">
       <h1>Inscripciones</h1>
       <div class="botonesCabecera">
-        <button class="refrescar" id="btnRefrescar" type="button">Actualizar</button>
+        <button class="refrescar oculto" id="btnRefrescar" type="button">Actualizar</button>
         <button class="salir oculto" id="btnSalir" type="button">Salir</button>
       </div>
     </div>
@@ -221,6 +221,17 @@
   var DESDE_CACHE = false;
   var PIN_ACTUAL = '';
   var NOVEDADES = null;
+  /** Hay un pedido al servidor en camino: Actualizar no lanza otro encima. */
+  var CARGANDO = false;
+  /** Por qué se está mostrando lo guardado en vez de lo nuevo, en palabras de Leo. */
+  var MOTIVO_CACHE = '';
+
+  /**
+   * La versión de la forma de los datos que esta página sabe leer. Tiene que ser
+   * igual a FORMA_ESTADO de Codigo.gs (verificar.sh lo controla) y se suben
+   * juntas. Si el servidor manda otra, avisoDeVersion() lo dice en pantalla.
+   */
+  var FORMA_ESPERADA = 1;
 
   /** Después de esto, lo guardado no se muestra más y hay que buscar de nuevo. */
   var VIDA_CACHE = 3 * 24 * 60 * 60 * 1000;   // 3 días
@@ -281,14 +292,53 @@
     return aparecidos.length ? aparecidos : null;
   }
 
+  /**
+   * El día en que se anotó alguien, como Date, o null. Se lee a mano: new Date()
+   * toma "4/09/2026" como 9 de abril y "16/09/2026" no lo entiende. El servidor
+   * ya lo manda limpio ("16/09/2026"), pero en la columna J hay de todo, y las
+   * ventas de Tikzet dicen "(ver Tikzet)".
+   */
+  function fechaInscripcion(texto) {
+    var m = String(texto || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (!m) return null;
+    var dia = Number(m[1]), mes = Number(m[2]), anio = Number(m[3]);
+    var f = new Date(anio, mes - 1, dia);
+    if (f.getDate() !== dia || f.getMonth() !== mes - 1) return null;
+    return f;
+  }
+
+  /**
+   * Sin nada guardado con qué comparar (la primera vez, después de Salir, o
+   * después de tres días sin abrirla) no se decía nada, justo cuando más sirve
+   * saber qué entró. Ahí se usa la fecha de la planilla: quién se anotó en los
+   * últimos 7 días. Se cuenta también a quién le falta la fecha, para que la
+   * lista no parezca completa cuando no lo es.
+   */
+  function novedadesPorFecha(estado) {
+    var hoy = new Date();
+    var corte = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 6);
+    var gente = [], sinFecha = 0;
+    ((estado && estado.ediciones) || []).forEach(function (e) {
+      if (!e.vigente) return;
+      (e.personas || []).forEach(function (p) {
+        var f = fechaInscripcion(p.anotadoEl);
+        if (!f) { sinFecha++; return; }
+        if (f >= corte && f <= hoy) gente.push({ nombre: p.nombre, edicion: e.edicion });
+      });
+    });
+    return gente.length ? { gente: gente, desde: null, porFecha: true, sinFecha: sinFecha } : null;
+  }
+
   /** Un estado recién traído del servidor: compara, guarda y pinta. */
   function recibirEstado(estado, pin) {
     var antes = leerCache(pin);
-    NOVEDADES = antes ? { gente: compararEstados(antes.estado, estado), desde: antes.cuando } : null;
+    NOVEDADES = antes ? { gente: compararEstados(antes.estado, estado), desde: antes.cuando }
+                      : novedadesPorFecha(estado);
     if (NOVEDADES && !NOVEDADES.gente) NOVEDADES = null;
     guardarCache(estado, pin);
     DATOS = estado;
     DESDE_CACHE = false;
+    MOTIVO_CACHE = '';
   }
 
   function pinGuardado() {
@@ -309,7 +359,31 @@
     borrarCache();
     DATOS = null;
     DESDE_CACHE = false;
+    MOTIVO_CACHE = '';
     NOVEDADES = null;
+  }
+
+  /**
+   * Solo "PIN incorrecto" prueba que el PIN está mal: es el único texto con que
+   * el servidor lo rechaza (verificarPin en Codigo.gs). "Demasiados intentos" y
+   * "Falta configurar el PIN" cortan ANTES de comparar, y un error de Google ni
+   * llega a mirarlo. Antes se buscaba "PIN" en el texto, y al abrir la app
+   * directamente cualquier falla borraba el PIN: el 23/9/2026 un 403 de Google
+   * le dijo a Leo "Volvé a escribir el PIN" y él buscó el problema en su clave.
+   */
+  function pinRechazado(mensaje) {
+    return /PIN incorrecto/i.test(String(mensaje || ''));
+  }
+
+  /**
+   * El PIN guardado dejó de servir: casi seguro se cambió, y lo típico es
+   * cambiarlo porque se perdió el teléfono. Se va todo, no solo el PIN: antes
+   * quedaban los nombres, mails y celulares guardados, y como sin PIN guardado
+   * la app nunca vuelve a leer lo guardado, tampoco vencían nunca.
+   */
+  function pinGuardadoNoSirve() {
+    olvidarTodo();
+    mostrarPuerta('El PIN guardado en este teléfono ya no es el correcto. Escribí el nuevo.');
   }
 
   /**
@@ -323,16 +397,84 @@
    */
   var API = (typeof URL_API !== 'undefined') ? URL_API : null;
 
-  function pedirDatos(pin, alLograrlo, alFallar) {
-    fetch(API + '?formato=json&pin=' + encodeURIComponent(pin), { credentials: 'omit' })
-      .then(function (r) { return r.json(); })
+  /**
+   * Cuánto se espera. Con poca señal un pedido puede quedar colgado, y el
+   * navegador tarda minutos en abandonarlo: Leo miraba "Buscando los números…"
+   * sin saber nada. A los 8 segundos se le avisa que sigue esperando; a los 30
+   * se corta. Las cifras no están medidas contra el servidor: si alguna vez se
+   * cortan lecturas buenas, se sube ESPERA_MAXIMA.
+   */
+  var ESPERA_AVISO = 8 * 1000;
+  var ESPERA_MAXIMA = 30 * 1000;
+
+  /**
+   * Cada falla dice lo que se sabe de ella, en castellano. Antes todo lo que no
+   * era una respuesta del servidor salía como "Sin conexión con la planilla." +
+   * el error del navegador en inglés ("Unexpected token '<'…"), también cuando
+   * Google contestaba con su página de error y el teléfono tenía señal de sobra.
+   */
+  function pedirDatos(pin, alLograrlo, alFallar, alTardar) {
+    var terminado = false;
+    var ctl = window.AbortController ? new window.AbortController() : null;
+    function terminar(fn, x) {
+      if (terminado) return;
+      terminado = true;
+      clearTimeout(aviso);
+      clearTimeout(corte);
+      fn(x);
+    }
+    var aviso = setTimeout(function () { if (!terminado && alTardar) alTardar(); }, ESPERA_AVISO);
+    var corte = setTimeout(function () {
+      terminar(alFallar, new Error('La planilla no contestó a tiempo. Probá de nuevo en un rato.'));
+      if (ctl) ctl.abort();
+    }, ESPERA_MAXIMA);
+
+    // El pedido no tuvo respuesta, o se cortó a mitad. Sin señal pasa esto,
+    // pero también cuando Google contesta con un error sin los permisos del
+    // navegador: el 403 del 23/9 llegaba así, con el teléfono conectado.
+    function sinRespuesta() {
+      return { ok: false, error: navigator.onLine === false
+        ? 'El teléfono está sin señal.'
+        : 'No llegó respuesta de Google. Puede ser la señal, o que haya que volver a autorizar la app.' };
+    }
+
+    fetch(API + '?formato=json&pin=' + encodeURIComponent(pin), { credentials: 'omit', signal: ctl ? ctl.signal : undefined })
+      .then(function (r) {
+        return r.text().then(function (t) {
+          var d = null;
+          try { d = JSON.parse(t); } catch (x) {}
+          if (d && typeof d === 'object') return d;
+          // Llegó algo, pero no de la app: la página de error de Google (un 403
+          // cuando se revocó el permiso, un 500) o nada. La señal está bien.
+          return { ok: false, error: 'Google no mandó los datos' +
+            (r.status && r.status !== 200 ? ' (error ' + r.status + ')' : '') +
+            '. Puede que haya que volver a autorizar la app.' };
+        }, sinRespuesta);
+      }, sinRespuesta)
       .then(function (d) {
-        if (d && d.ok) alLograrlo(d.estado);
-        else alFallar(new Error((d && d.error) || 'No se pudo leer la planilla.'));
-      })
-      .catch(function (e) {
-        alFallar(new Error('Sin conexión con la planilla. ' + (e.message || '')));
+        if (d && d.ok) terminar(alLograrlo, d.estado);
+        else terminar(alFallar, new Error((d && d.error) || 'No se pudo leer la planilla.'));
       });
+  }
+
+  /** Hay un pedido en camino: Actualizar queda quieto y lo dice. */
+  function buscando(si) {
+    CARGANDO = si;
+    var btn = document.getElementById('btnRefrescar');
+    btn.disabled = si;
+    btn.textContent = si ? 'Buscando…' : 'Actualizar';
+  }
+
+  /**
+   * No se pudo leer y no hay nada guardado para mostrar. El PIN NO se toca: la
+   * falla no fue del PIN, y borrarlo lo mandaba a buscar el problema ahí.
+   */
+  function mostrarFalla(mensaje) {
+    document.getElementById('panel').innerHTML =
+      '<div class="vacio">No pude leer la planilla.<br>' + esc(mensaje) +
+      '<br><br>El PIN sigue guardado: no hace falta volver a escribirlo.<br><br>' +
+      '<button class="refrescar" id="reintentar" type="button">Reintentar</button></div>';
+    document.getElementById('reintentar').addEventListener('click', arrancar);
   }
 
   function mostrarPuerta(mensaje) {
@@ -367,20 +509,26 @@
         abrirApp();
       }, function (e) {
         var mensaje = (e && e.message) ? e.message : 'No se pudo entrar.';
-        // Sin señal: si el PIN es el mismo con que se guardó, se muestra lo último.
-        var c = /PIN/i.test(mensaje) ? null : leerCache(pin);
+        // No se pudo leer, pero si el PIN es el mismo con que se guardó lo
+        // último, se muestra eso, diciendo por qué no es lo nuevo.
+        var c = pinRechazado(mensaje) ? null : leerCache(pin);
         if (c) {
           guardarPin(pin);
           DATOS = c.estado;
           DESDE_CACHE = c.cuando;
+          MOTIVO_CACHE = mensaje;
           abrirApp();
           return;
         }
         boton.disabled = false;
         boton.textContent = 'Entrar';
         aviso.textContent = mensaje;
-        campo.value = '';
+        // Lo escrito se borra solo si el PIN estaba mal. Con un error de Google
+        // el campo vacío parecía decir que el problema era la clave.
+        if (pinRechazado(mensaje)) campo.value = '';
         campo.focus();
+      }, function () {
+        aviso.textContent = 'La planilla todavía no contestó; sigo esperando.';
       });
     }
 
@@ -402,16 +550,35 @@
     var pin = pinGuardado();
     if (!pin) { mostrarPuerta(''); return; }
     // Ya entró antes en este teléfono: no le pedimos el PIN de nuevo.
-    document.getElementById('panel').innerHTML = '<div class="vacio">Buscando los números…</div>';
+    // Lo guardado se muestra ya, mientras se busca lo nuevo: con poca señal el
+    // pedido puede tardar mucho, y es justo cuando lo guardado sirve. Antes
+    // recién aparecía cuando el navegador abandonaba el pedido.
+    buscando(true);
+    var c = leerCache(pin);
+    if (c) {
+      DATOS = c.estado;
+      DESDE_CACHE = c.cuando;
+      MOTIVO_CACHE = '';
+      abrirApp();
+    } else {
+      document.getElementById('panel').innerHTML = '<div class="vacio">Buscando los números…</div>';
+    }
     pedirDatos(pin, function (estado) {
+      buscando(false);
+      if (pinGuardado() !== pin) return;   // tocó Salir mientras se buscaba
       recibirEstado(estado, pin);
       abrirApp();
     }, function (e) {
-      var mensaje = (e && e.message) ? e.message : '';
-      var c = /PIN/i.test(mensaje) ? null : leerCache(pin);
-      if (c) { DATOS = c.estado; DESDE_CACHE = c.cuando; abrirApp(); return; }
-      olvidarPin();
-      mostrarPuerta('Volvé a escribir el PIN.');
+      buscando(false);
+      if (pinGuardado() !== pin) return;
+      var mensaje = (e && e.message) ? e.message : 'No se pudo leer la planilla.';
+      if (pinRechazado(mensaje)) { pinGuardadoNoSirve(); return; }
+      if (DESDE_CACHE) { MOTIVO_CACHE = mensaje; pintarPanel(); return; }
+      mostrarFalla(mensaje);
+    }, function () {
+      if (DATOS) return;
+      document.getElementById('panel').innerHTML = '<div class="vacio">Buscando los números…<br>' +
+        'La planilla todavía no contestó; sigo esperando.</div>';
     });
   }
 
@@ -475,6 +642,11 @@
     var dd = function (x) { return (x < 10 ? '0' : '') + x; };
     return dd(d.getDate()) + '/' + dd(d.getMonth() + 1) + ' ' + dd(d.getHours()) + ':' + dd(d.getMinutes());
   }
+  /** "16/09", con cero adelante aunque en la planilla diga "4/9". */
+  function diaYMes(d) {
+    var dd = function (x) { return (x < 10 ? '0' : '') + x; };
+    return dd(d.getDate()) + '/' + dd(d.getMonth() + 1);
+  }
   /** "hoy", "mañana", "en 9 días" — para saber qué es lo más urgente sin pensar. */
   function cuandoEs(iso) {
     if (!iso) return null;
@@ -489,6 +661,29 @@
     if (dias === 1) return { texto: 'es mañana', clase: 'pronto', dias: 1 };
     if (dias <= 7) return { texto: 'en ' + dias + ' días', clase: 'pronto', dias: dias };
     return { texto: 'en ' + dias + ' días', clase: '', dias: dias };
+  }
+
+  /**
+   * El curso lleva solo el mes ("Octubre 2026"), no el día en que arranca cada
+   * grupo. Contar los días hasta e.fecha, que es el último día del mes, decía
+   * "en 38 días" para un curso que empezaba en una semana, y seguía contando
+   * durante el mes con las clases ya empezadas. Se dice lo que se sabe: el mes.
+   */
+  var NOMBRES_MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+                     'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
+  function cuandoEsElMes(inicioIso, finIso) {
+    var ini = new Date(inicioIso), fin = new Date(finIso);
+    if (isNaN(ini) || isNaN(fin)) return null;
+    var hoy = new Date();
+    var dia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+    if (dia > new Date(fin.getFullYear(), fin.getMonth(), fin.getDate())) return { texto: 'ya pasó', clase: 'ya' };
+    if (dia >= new Date(ini.getFullYear(), ini.getMonth(), ini.getDate())) return { texto: 'este mes', clase: 'pronto' };
+    return { texto: 'en ' + NOMBRES_MES[ini.getMonth()], clase: '' };
+  }
+  /** Lo que dice la tarjeta. Un backend viejo no manda inicio: ahí, como antes. */
+  function cuandoEsLaEdicion(e) {
+    if (e.fechaEsMes && e.inicio) return cuandoEsElMes(e.inicio, e.fecha);
+    return cuandoEs(e.fecha);
   }
 
   /** Botones para escribirle a alguien. Sin dato, no se ofrece el botón. */
@@ -571,50 +766,112 @@
   function avisoDeNovedades() {
     if (!NOVEDADES || !NOVEDADES.gente || !NOVEDADES.gente.length) return '';
     var g = NOVEDADES.gente;
-    var min = Math.round((Date.now() - NOVEDADES.desde) / 60000);
-    var desde = min < 60 ? 'en la última hora'
-              : (min < 1440 ? ('desde hace ' + Math.round(min / 60) + ' h')
-              : ('desde hace ' + Math.round(min / 1440) + (Math.round(min / 1440) === 1 ? ' día' : ' días')));
+    var desde;
+    if (NOVEDADES.porFecha) {
+      desde = 'en los últimos 7 días (según la planilla)';
+    } else {
+      var min = Math.round((Date.now() - NOVEDADES.desde) / 60000);
+      desde = min < 60 ? 'en la última hora'
+            : (min < 1440 ? ('desde hace ' + Math.round(min / 60) + ' h')
+            : ('desde hace ' + Math.round(min / 1440) + (Math.round(min / 1440) === 1 ? ' día' : ' días')));
+    }
     var quienes = g.slice(0, 3).map(function (x) { return esc(x.nombre || 'alguien'); }).join(', ');
     if (g.length > 3) quienes += ' y ' + (g.length - 3) + ' más';
+    // Las ventas de Tikzet no traen fecha en la planilla: sin esto, la lista
+    // por fecha parece completa y le faltan justo esas. Tikzet va como ejemplo y
+    // no como la causa: también cae acá una fecha escrita de una forma que no
+    // se entiende, y antes el aviso le echaba la culpa a Tikzet igual.
+    if (NOVEDADES.porFecha && NOVEDADES.sinFecha) {
+      quienes += '. Hay ' + NOVEDADES.sinFecha + ' sin fecha en la planilla (por ejemplo, las ventas de Tikzet), ' +
+        (NOVEDADES.sinFecha === 1 ? 'y no entra' : 'y no entran') + ' en esta cuenta.';
+    }
     return '<div class="aviso info nuevo"><div class="q">' +
       (g.length === 1 ? 'Se anotó 1 persona ' : 'Se anotaron ' + g.length + ' personas ') + desde +
       '</div><div class="p">' + quienes + '</div></div>';
   }
 
+  /**
+   * Lo que se ve son datos guardados, no los de ahora. Dice por qué: antes
+   * decía siempre "Sin conexión… cuando tengas señal", también cuando el
+   * servidor había contestado otra cosa (una pestaña renombrada, el permiso de
+   * Google), y Leo esperaba una señal que ya tenía.
+   */
   function avisoDeCache() {
     if (!DESDE_CACHE) return '';
     var min = Math.round((Date.now() - DESDE_CACHE) / 60000);
+    var dias = Math.round(min / 1440);
     var hace = min < 60 ? ('hace ' + (min || 1) + ' min')
              : (min < 1440 ? ('hace ' + Math.round(min / 60) + ' h')
-             : ('hace ' + Math.round(min / 1440) + ' días'));
-    return '<div class="viejo">Sin conexión. Esto es lo último que se pudo leer, ' + hace +
-           '. Tocá Actualizar cuando tengas señal.</div>';
+             : ('hace ' + dias + (dias === 1 ? ' día' : ' días')));
+    if (CARGANDO) {
+      return '<div class="viejo">Actualizando… Mientras tanto, esto es lo último que se leyó, ' + hace + '.</div>';
+    }
+    return '<div class="viejo">No pude actualizar. ' + esc(MOTIVO_CACHE || 'No hubo respuesta.') +
+           ' Esto es lo último que se pudo leer, ' + hace + '. Tocá Actualizar para probar de nuevo.</div>';
+  }
+
+  /**
+   * La página y el servidor se publican por separado, y el teléfono puede tener
+   * guardada una página vieja (en la pantalla de inicio) o datos de hasta tres
+   * días de un servidor anterior. Antes se dibujaba igual y en silencio, con
+   * campos que faltaban. Sin montos: se ve en la portada.
+   */
+  function avisoDeVersion() {
+    var f = DATOS && DATOS.forma;
+    if (f === FORMA_ESPERADA) return '';
+    var titulo, detalle;
+    if (typeof f === 'number' && f > FORMA_ESPERADA) {
+      titulo = 'Esta pantalla es más vieja que los datos';
+      detalle = 'Puede faltar algo nuevo. Cerrá la app y abrila de nuevo para que se actualice; ' +
+                'si el aviso sigue, hay que volver a publicar la página.';
+    } else {
+      titulo = 'Los datos vienen de una versión anterior de la app';
+      detalle = 'Puede faltar algún dato o verse algo raro. Tocá Actualizar; ' +
+                'si el aviso sigue, hay que volver a publicar la app completa.';
+    }
+    return '<div class="aviso media desfase"><div class="q">' + titulo + '</div><div class="p">' + detalle + '</div></div>';
   }
 
   function pintarPanel() {
     var p = document.getElementById('panel');
-    if (SOLAPA === 'cupos') p.innerHTML = avisoDeCache() + avisoDeNovedades() + vistaCupos();
-    else if (SOLAPA === 'plata') p.innerHTML = avisoDeCache() + vistaPlata();
+    // El cartel de datos viejos va en las cuatro solapas. Estaba solo en Cupos
+    // y Plata, y en Gente los "Debe" y en Alertas los pagos de hasta tres días
+    // atrás parecían de ahora. El de versiones distintas, por lo mismo.
+    var viejo = avisoDeCache() + avisoDeVersion();
+    if (SOLAPA === 'cupos') p.innerHTML = viejo + avisoDeNovedades() + vistaCupos();
+    else if (SOLAPA === 'plata') p.innerHTML = viejo + vistaPlata();
     else if (SOLAPA === 'gente') {
-      p.innerHTML = '<input class="buscador" id="buscador" type="search" autocomplete="off" ' +
-        'placeholder="Buscar por nombre, mail o celular"><div id="listaGente"></div>';
+      // Si Gente ya está en pantalla, el buscador NO se rehace: solo el cartel
+      // y la lista, filtrada con lo que haya escrito. Desde que lo guardado se
+      // muestra mientras se busca lo nuevo, Leo puede estar escribiendo cuando
+      // llega la respuesta (o cuando se corta), y rehacerlo le borraba lo
+      // escrito y le cerraba el teclado. Pasaba también al tocar a alguien de
+      // la lista para ver su contacto.
       var b = document.getElementById('buscador');
-      var lista = document.getElementById('listaGente');
-      lista.innerHTML = vistaGente('');
-      b.addEventListener('input', function () { lista.innerHTML = vistaGente(b.value); });
+      if (!b) {
+        p.innerHTML = '<div id="cartelGente"></div><input class="buscador" id="buscador" type="search" ' +
+          'autocomplete="off" placeholder="Buscar por nombre, mail o celular"><div id="listaGente"></div>';
+        b = document.getElementById('buscador');
+        var lista = document.getElementById('listaGente');
+        b.addEventListener('input', function () { lista.innerHTML = vistaGente(b.value); });
+      }
+      document.getElementById('cartelGente').innerHTML = viejo;
+      document.getElementById('listaGente').innerHTML = vistaGente(b.value);
     }
-    else p.innerHTML = vistaAlertas();
+    else p.innerHTML = viejo + vistaAlertas();
   }
 
   /* ---------- cupos ---------- */
   function vistaCupos() {
-    // Lo más próximo primero: es lo que hay que mirar hoy.
+    // Lo más próximo primero: es lo que hay que mirar hoy. Por cuándo EMPIEZA:
+    // el curso de octubre va antes que un taller del 16/10 aunque siga vigente
+    // hasta el 31.
     var vigentes = DATOS.ediciones.filter(function (e) { return e.vigente; })
       .sort(function (a, b) {
-        if (!a.fecha) return 1;
-        if (!b.fecha) return -1;
-        return new Date(a.fecha) - new Date(b.fecha);
+        var fa = a.inicio || a.fecha, fb = b.inicio || b.fecha;
+        if (!fa) return 1;
+        if (!fb) return -1;
+        return new Date(fa) - new Date(fb);
       });
     var pasadas = DATOS.ediciones.filter(function (e) { return !e.vigente; });
     var html = '';
@@ -636,12 +893,24 @@
             '</div><div class="sub">' + esc(f.edicion) + '</div></div></div>';
         }).join('');
     }
+    // La lista de espera que no se pudo atar a una fecha ("tapeo octubre" con
+    // dos tapeos en el mes). Se deja sin ligar a propósito, para no nombrar la
+    // edición equivocada, pero no se veía en ningún lado: solo se pintaba
+    // adentro de la tarjeta de su edición. Cada uno lleva lo que escribió.
+    var sueltos = (DATOS.espera || []).filter(function (x) { return !x.edicion; });
+    if (sueltos.length) {
+      html += '<div class="seccion">Esperan lugar, pero no sé para qué fecha (' + sueltos.length + ')</div>' +
+        sueltos.map(function (x, i) { return enEspera(x, 'esp-suelta-' + i); }).join('');
+    }
     return html;
   }
 
   function tarjeta(e) {
-    var cuando = cuandoEs(e.fecha);
-    var esperan = (DATOS.espera || []).filter(function (x) { return x.edicion === e.edicion; });
+    var cuando = cuandoEsLaEdicion(e);
+    // Quien ya se anotó en esta misma edición no espera nada: su fila de la
+    // lista de espera queda porque nadie la borra, y la tarjeta decía "2
+    // esperando, y hay lugar" mandando a Leo a escribirle a alguien que ya está.
+    var esperan = (DATOS.espera || []).filter(function (x) { return x.edicion === e.edicion && !x.yaAnotado; });
     var pct = Math.round(e.ocupacion * 100);
     var clase = pct >= 100 ? 'full' : (pct >= 70 ? 'alta' : '');
     var abierta = ABIERTAS[e.id];
@@ -653,17 +922,26 @@
         '<div class="cual">' + esc(e.subtitulo || e.edicion) + '</div>' +
         '<div class="cifra">' +
           '<span class="grande">' + e.anotados + '</span>' +
-          '<span class="de">de ' + e.cupo + '</span>' +
-          '<span class="quedan">' + (e.quedan > 0
-            ? '<b>' + e.quedan + '</b>' + (e.quedan === 1 ? 'lugar libre' : 'lugares libres')
-            : (e.quedan === 0 ? '<b>Lleno</b>' : '<b>' + Math.abs(e.quedan) + ' de más</b>')) +
-          '</span>' +
+          // Con el Cupo sin cargar en el Panel no se inventan lugares: "de null"
+          // y "0 de más" eran lo que salía. La alerta dice qué tiene la celda.
+          (e.cupo === null
+            ? '<span class="de">anotados</span><span class="quedan"><b>Cupo sin cargar</b></span>'
+            : '<span class="de">de ' + e.cupo + '</span>' +
+              '<span class="quedan">' + (e.quedan > 0
+                ? '<b>' + e.quedan + '</b>' + (e.quedan === 1 ? 'lugar libre' : 'lugares libres')
+                : (e.quedan === 0 ? '<b>Lleno</b>' : '<b>' + Math.abs(e.quedan) + ' de más</b>')) +
+              '</span>') +
         '</div>' +
         '<div class="barra"><i class="' + clase + '" style="width:' + Math.min(pct, 100) + '%"></i></div>' +
         '<div class="pie">' +
+          // Con lugar libre no puede decir lo mismo que llena: es el momento de
+          // escribirles, y la alerta de "hay lugar" está en Alertas. Pero solo si
+          // la edición sigue abierta y no pasó: en un taller cerrado o de agosto,
+          // "hay lugar" en verde mandaba a Leo a escribirle a alguien por nada.
           (esperan.length
-            ? '<span style="color:var(--dorado);font-weight:600">' + esperan.length +
-              (esperan.length === 1 ? ' esperando lugar' : ' esperando lugar') + '</span>'
+            ? (e.quedan > 0 && e.abierta && e.vigente
+              ? '<span style="color:var(--verde);font-weight:700">' + esperan.length + ' esperando, y hay lugar</span>'
+              : '<span style="color:var(--dorado);font-weight:600">' + esperan.length + ' esperando lugar</span>')
             : '') +
           // Sin montos: los importes de cada edición están en la solapa Plata.
           (e.pendientes.length ? '<span><b>' + e.pendientes.length + '</b> con el pago pendiente</span>' : '') +
@@ -686,7 +964,9 @@
 
   function persona(p, id) {
     var etiqueta = ETIQUETAS[p.estadoPago] + (p.estadoPago === 'parcial' ? ' ' + plata(p.saldo) : '');
-    var sub = [p.horario, p.medioPago, p.monto ? plata(p.monto) : ''].filter(Boolean).join(' · ');
+    var anotado = fechaInscripcion(p.anotadoEl);
+    var sub = [p.horario, p.medioPago, p.monto ? plata(p.monto) : '',
+               anotado ? 'se anotó el ' + diaYMes(anotado) : ''].filter(Boolean).join(' · ');
     var clave = id || (p.hoja + '#' + p.fila);
     return '<div class="persona" data-quien="' + esc(clave) + '"><div class="quien">' +
       '<div class="nom">' + esc(p.nombre || '(sin nombre)') +
@@ -728,11 +1008,15 @@
     html += '<div class="seccion">Falta que paguen</div>';
     html += pendientes.length
       ? pendientes.map(function (x) {
-          return '<div class="persona"><div class="quien">' +
+          // Se toca y abre su WhatsApp, con la misma clave que en Cupos: antes
+          // para cobrarle había que ir a Cupos, desplegar la edición y buscarlo.
+          var clave = x.p.hoja + '#' + x.p.fila;
+          return '<div class="persona" data-quien="' + esc(clave) + '"><div class="quien">' +
             '<div class="nom">' + esc(x.p.nombre) + '</div>' +
             '<div class="sub">' + esc(x.e.subtitulo || x.e.edicion) + ' · ' + esc(x.p.nota || '') + '</div></div>' +
             '<span class="chip ' + x.p.estadoPago + '">' +
-              ETIQUETAS[x.p.estadoPago] + (x.p.saldo ? ' ' + plata(x.p.saldo) : '') + '</span></div>';
+              ETIQUETAS[x.p.estadoPago] + (x.p.saldo ? ' ' + plata(x.p.saldo) : '') + '</span></div>' +
+            (CONTACTOS[clave] ? contacto(x.p) : '');
         }).join('')
       : '<div class="vacio">Está todo cobrado.</div>';
 
@@ -817,11 +1101,15 @@
     return '<div class="seccion">' + lista.length + ' de ' + todas.length + '</div>' +
       (lista.length ? lista.map(function (x) {
         var etiqueta = ETIQUETAS[x.p.estadoPago] + (x.p.estadoPago === 'parcial' ? ' ' + plata(x.p.saldo) : '');
-        return '<div class="persona"><div class="quien">' +
+        // Acá se busca a quien escribió por WhatsApp: de acá mismo se le
+        // contesta. No se usa persona(), que sumaría monto y medio de pago.
+        var quien = x.p.hoja + '#' + x.p.fila;
+        return '<div class="persona" data-quien="' + esc(quien) + '"><div class="quien">' +
           '<div class="nom">' + esc(x.p.nombre || '(sin nombre)') + '</div>' +
           '<div class="sub">' + esc(x.e.titulo + ' · ' + (x.e.subtitulo || x.e.edicion) +
             (x.e.vigente ? '' : ' · ya pasó')) + '</div></div>' +
-          '<span class="chip ' + x.p.estadoPago + '">' + esc(etiqueta) + '</span></div>';
+          '<span class="chip ' + x.p.estadoPago + '">' + esc(etiqueta) + '</span></div>' +
+          (CONTACTOS[quien] ? contacto(x.p) : '');
       }).join('') : '<div class="vacio">No hay nadie con eso.</div>');
   }
 
@@ -891,7 +1179,7 @@
    */
   function copiarLista(ed, boton) {
     var texto = (ed.titulo + ' — ' + (ed.subtitulo || '') + '\n' +
-      ed.anotados + ' de ' + ed.cupo + '\n\n' +
+      ed.anotados + (ed.cupo === null ? ' anotados' : ' de ' + ed.cupo) + '\n\n' +
       ed.personas.map(function (p, i) {
         return (i + 1) + '. ' + (p.nombre || '(sin nombre)');
       }).join('\n')).trim();
@@ -927,20 +1215,26 @@
   });
 
   document.getElementById('btnRefrescar').addEventListener('click', function () {
-    var btn = this;
-    btn.disabled = true;
-    btn.textContent = 'Buscando…';
+    // Mientras hay un pedido en camino no se lanza otro: el de la apertura
+    // puede estar tardando y dos a la vez solo gastan la señal que no hay.
+    if (CARGANDO) return;
+    var pin = pinGuardado();
+    buscando(true);
     document.getElementById('error').classList.add('oculto');
-    pedirDatos(pinGuardado(), function (nuevo) {
-      recibirEstado(nuevo, pinGuardado());
-      btn.disabled = false;
-      btn.textContent = 'Actualizar';
+    pedirDatos(pin, function (nuevo) {
+      buscando(false);
+      // Si tocó Salir mientras se buscaba, lo que llega no se guarda: si no,
+      // los datos volvían al teléfono justo después de borrarlos.
+      if (pinGuardado() !== pin) return;
+      recibirEstado(nuevo, pin);
       pintarTodo();
     }, function (e) {
-      btn.disabled = false;
-      btn.textContent = 'Actualizar';
+      buscando(false);
+      if (pinGuardado() !== pin) return;
       var mensaje = (e && e.message) ? e.message : String(e);
-      if (/PIN/i.test(mensaje)) { olvidarPin(); mostrarPuerta(mensaje); return; }
+      if (pinRechazado(mensaje)) { pinGuardadoNoSirve(); return; }
+      // Si lo que se ve ya es lo guardado, el motivo va en su cartel.
+      if (DESDE_CACHE) { MOTIVO_CACHE = mensaje; pintarPanel(); return; }
       var caja = document.getElementById('error');
       caja.textContent = 'No se pudo leer la planilla: ' + mensaje;
       caja.classList.remove('oculto');
