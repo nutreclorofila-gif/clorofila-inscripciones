@@ -200,7 +200,28 @@ const MUTACIONES = [
    '        }, sinRespuesta);\n      }, sinRespuesta)', '        });\n      }, sinRespuesta)'],
   ['el botón Salir vuelve a un color que no existe', INDEX,
    'border: none; background: none; color: var(--tenue); font: inherit; font-size: 13px;',
-   'border: none; background: none; color: var(--apagado); font: inherit; font-size: 13px;']
+   'border: none; background: none; color: var(--apagado); font: inherit; font-size: 13px;'],
+  ['en Plata, tocar a quien debe ya no abre su contacto', INDEX,
+   "(CONTACTOS[clave] ? contacto(x.p) : '');", "'';"],
+  ['en Gente, tocar a alguien ya no abre su contacto', INDEX,
+   "(CONTACTOS[quien] ? contacto(x.p) : '');", "'';"],
+  ['se libera un lugar con gente esperando y no avisa', CODIGO,
+   '(conLugar[ed.edicion] = conLugar[ed.edicion] || { ed: ed, gente: [] }).gente.push(x);', ''],
+  ['avisa de escribirle aunque la edición esté cerrada', CODIGO,
+   'if (!ed.abierta) return;', ''],
+  ['la tarjeta con lugar vuelve a decir lo mismo que llena', INDEX,
+   '? (e.quedan > 0', '? (false'],
+  ['la lista de espera sin fecha vuelve a no verse', INDEX,
+   'var sueltos = (DATOS.espera || []).filter(function (x) { return !x.edicion; });', 'var sueltos = [];'],
+  ['sin nada guardado, vuelve a no avisar quién se anotó', INDEX,
+   ': novedadesPorFecha(estado);', ': null;'],
+  ['el aviso por fecha deja de contar a los que no tienen fecha', INDEX,
+   'if (NOVEDADES.porFecha && NOVEDADES.sinFecha) {', 'if (false) {'],
+  ['la persona deja de mostrar cuándo se anotó', INDEX,
+   "anotado ? 'se anotó el ' + diaYMes(anotado) : ''", "''"],
+  ['la fecha de inscripción se lee mes/día', CODIGO,
+   'var dia = Number(m[1]), mes = Number(m[2]), anio = Number(m[3]);',
+   'var dia = Number(m[2]), mes = Number(m[1]), anio = Number(m[3]);']
 ];
 
 const original = {

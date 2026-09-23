@@ -33,7 +33,9 @@ function cargarUI(datos, novedades) {
 
   const api = new Function('document', 'localStorage', 'window', 'navigator', 'setTimeout', 'fetch',
     js + '\nDATOS = arguments[6]; NOVEDADES = arguments[7] || null;' +
-    '\nreturn {vistaCupos,vistaPlata,vistaGente,vistaAlertas,pintarTotales,avisoDeNovedades,contacto,persona,enEspera,coincideBusqueda,sinAcentos,copiarLista,cuandoEs,hora,plata,esc};')
+    '\nreturn {vistaCupos,vistaPlata,vistaGente,vistaAlertas,pintarTotales,avisoDeNovedades,contacto,persona,enEspera,coincideBusqueda,sinAcentos,copiarLista,cuandoEs,hora,plata,esc,' +
+    // Lo mismo que tocar a una persona: abre sus botones de contacto.
+    'abrirContacto:function(k){CONTACTOS[k]=true;}};')
     (document, localStorage, window, navigator, () => {},
      () => Promise.reject(new Error('sin red')), datos, novedades);
   api.verEscrito = (id) => escrito[id] || '';

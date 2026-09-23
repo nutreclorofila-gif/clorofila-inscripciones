@@ -540,6 +540,24 @@ function fechaDeEdicion(texto) {
 }
 
 /**
+ * El día en que se anotó alguien (columna J), como "16/09/2026", o null.
+ *
+ * La columna la llena el Tally con hora ("16/09/2026 10:00:00") o se escribe a
+ * mano ("4/9/2026"); en las ventas de Tikzet dice "(ver Tikzet)". Al teléfono va
+ * solo esto, ya entendido, y no el texto de la celda: leerlo allá con
+ * new Date() toma el día como mes, y "4/09/2026" salía 9 de abril.
+ */
+function fechaDeInscripcion(texto) {
+  var m = String(texto || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (!m) return null;
+  var dia = Number(m[1]), mes = Number(m[2]), anio = Number(m[3]);
+  var f = new Date(anio, mes - 1, dia);
+  if (f.getDate() !== dia || f.getMonth() !== mes - 1) return null;
+  var dd = function (n) { return (n < 10 ? '0' : '') + n; };
+  return dd(dia) + '/' + dd(mes) + '/' + anio;
+}
+
+/**
  * Cuándo EMPIEZA una edición, que no es lo mismo que hasta cuándo sigue
  * vigente. En el taller es el mismo día. En el curso, que lleva solo el mes, es
  * el 1.º: usando el último día del mes, la tarjeta del curso de octubre decía
@@ -870,7 +888,10 @@ function marcarRepetidores(ediciones) {
 /**
  * Lista de espera. Es la pestaña que se mira cuando algo se llena: quién quiere
  * entrar si alguien larga. Se liga a la edición por texto porque ahí se escribe
- * a mano; si no se puede ligar, igual se muestra en la lista general.
+ * a mano. Si no se puede ligar, la página la muestra igual en Cupos, abajo de
+ * las tarjetas, con lo que escribió que quiere. Hasta el 23/9 este comentario
+ * prometía esa "lista general" y la lista no existía: quien esperaba algo
+ * ambiguo ("tapeo octubre" con dos fechas en el mes) no se veía en ningún lado.
  */
 function leerEspera(filas, ediciones) {
   var crudas = porEncabezado(filas);
@@ -1241,6 +1262,7 @@ function evaluarPago(f, ed) {
     whatsapp: paraWhatsapp(f.celular),
     medioPago: f.medioPago, comprobante: f.comprobante, montoTexto: f.montoTexto,
     fecha: f.fecha, hoja: f.hoja, fila: f.fila, verificado: f.verificado,
+    anotadoEl: fechaDeInscripcion(f.fecha),
     esTikzet: /tikzet/i.test(f.medioPago + ' ' + f.comprobante),
     idPago: idDePago(f.comprobante)
   };
@@ -1643,7 +1665,7 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
       texto: 'No sé qué está esperando la gente de la lista de espera',
       detalle: 'En la pestaña "' + HOJA_ESPERA + '" no encontré una columna que diga qué taller o curso ' +
                'quiere cada uno. Las columnas que hay son: ' + (esperaGlobal.columnas || []).join(', ') + '. ' +
-               'Se muestran igual en la lista general, pero no se pueden ligar a su edición.'
+               'Se muestran igual en Cupos, abajo de todo, pero no se pueden ligar a su edición.'
     });
   }
 
@@ -1687,15 +1709,41 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
   });
 
   // g-bis) Está lleno y hay gente esperando: si alguien larga, hay a quién llamar.
+  //        Y si HAY lugar, que es cuando se puede hacer algo: alguien canceló, o
+  //        se anotó en la espera de algo que no estaba lleno. Antes este aviso
+  //        salía solo con la edición llena y se callaba justo al liberarse un
+  //        lugar; la tarjeta decía "1 esperando lugar" igual en los dos casos.
+  var conLugar = {};
   (esperaGlobal || []).forEach(function (x) {
     if (!x.edicion) return;
     var ed = ediciones.filter(function (e) { return e.edicion === x.edicion; })[0];
     // Sin cupo cargado no se sabe si está llena: decirlo sería inventarlo.
-    if (!ed || ed.quedan === null || ed.quedan > 0) return;
+    if (!ed || ed.quedan === null) return;
+    if (ed.quedan > 0) {
+      // Cerrada no se anota nadie más, haya lugar o no: no hay a quién avisar.
+      if (!ed.abierta) return;
+      (conLugar[ed.edicion] = conLugar[ed.edicion] || { ed: ed, gente: [] }).gente.push(x);
+      return;
+    }
     alertas.push({
       nivel: 'info', tipo: 'espera', edicion: ed.edicion,
       texto: x.nombre + ' está esperando lugar en ' + ed.edicion,
       detalle: 'Esa edición está llena. Si alguien larga, hay a quién llamar.'
+    });
+  });
+  // Uno por edición, no uno por persona: con tres esperando son tres avisos
+  // iguales que dicen lo mismo, y lo que hay que hacer es uno solo.
+  Object.keys(conLugar).forEach(function (k) {
+    var ed = conLugar[k].ed, gente = conLugar[k].gente;
+    var uno = gente.length === 1;
+    alertas.push({
+      nivel: 'media', tipo: 'espera_con_lugar', edicion: ed.edicion,
+      texto: 'Hay ' + ed.quedan + (ed.quedan === 1 ? ' lugar' : ' lugares') + ' en ' + ed.edicion + ' y ' +
+             (uno ? (gente[0].nombre || 'alguien') + ' está esperando' : gente.length + ' personas están esperando'),
+      detalle: (uno ? 'Es el momento de escribirle. Su contacto está' :
+                      'Es el momento de escribirles: ' +
+                      gente.map(function (x) { return x.nombre || 'sin nombre'; }).join(', ') + '. Sus contactos están') +
+               ' en Cupos, adentro de la tarjeta de esa edición.'
     });
   });
 
