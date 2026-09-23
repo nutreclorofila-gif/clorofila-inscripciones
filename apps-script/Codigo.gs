@@ -14,8 +14,8 @@
  * Ese "cualquiera" es a propósito y NO significa que los datos estén a la vista.
  * Tiene que ser así porque la app se sirve desde otra dirección (GitHub Pages) y
  * el navegador llama a este servidor sin sesión de Google; con "solo yo" esas
- * llamadas vuelven 403 y la app no carga nunca. Lo que cuida los datos es que la
- * página se sirve vacía y nada sale de acá hasta que llega el PIN correcto.
+ * llamadas vuelven 403 y la app no carga nunca. Lo que cuida los datos es que este
+ * servidor no sirve ninguna página y nada sale de acá hasta que llega el PIN correcto.
  *
  * Toda la lógica de cálculo vive en funciones puras que reciben los datos ya
  * leídos, así se puede probar sin Google (ver local/probar.js).

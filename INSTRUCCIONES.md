@@ -37,16 +37,20 @@ abrirla. Sirviendo la página desde GitHub Pages y hablando con la API por `fetc
 La API está publicada con acceso anónimo (si no, vuelve el problema de arriba), así que el
 PIN es lo único que separa la URL de los datos personales de los inscriptos:
 
-- La página se sirve **vacía**: los datos no viajan hasta que el PIN es correcto.
+- El servidor **no sirve ninguna página**: solo contesta al modo JSON, y los datos no salen
+  hasta que llega el PIN correcto. (Hasta el 23/9/2026 servía la app por HtmlService, y
+  esa página traía `google.script.run`, que dejaba leer la planilla sin el PIN.)
 - En el servidor se guarda **hasheado** (SHA-256); en el teléfono queda en claro, para no
   pedirlo cada vez (ver *Lo que queda guardado en el teléfono*). Nunca en el código ni en el repo.
 - **8 intentos cada 15 minutos.** A ese ritmo, probar los 1.000.000 de PINs llevaría años.
-- Se configura una sola vez con `?formato=json&configurar=<pin>`, que **solo funciona
-  mientras no haya ninguno guardado**: no sirve para cambiarlo ni para pisarlo.
+- **Se fija o se cambia solo desde el editor de Apps Script**: escribir el PIN en
+  `PIN_NUEVO`, adentro de `configurarPin()`, ejecutar esa función y volver a dejar
+  `'PONER_ACA'` (nunca guardar el número en el repo). Pisa al anterior sin tener que borrar
+  nada, así que nunca queda un momento sin PIN.
 
-Para cambiarlo hay que borrar la propiedad `PIN_HASH` del script
-(Configuración del proyecto → Propiedades de la secuencia de comandos) y volver a llamar a
-`?configurar=`.
+Por la URL **no se puede** fijar ni cambiar. Hasta el 23/9/2026 existía `?configurar=`, que
+aceptaba el PIN del primero que llegara si no había ninguno guardado: justo al cambiarlo
+(borrar el viejo, poner el nuevo) cualquiera con la URL podía poner el suyo.
 
 ## Agregar un taller o un curso nuevo
 
@@ -401,8 +405,9 @@ están en `.gitignore`.
 16. **Los enlaces de contacto no se pintaban en ninguna prueba.** `contacto()` solo se
     dibuja al tocar a la persona, y es el ÚNICO lugar donde un dato entra dentro de un
     atributo (`href="mailto:..."`), que es justo donde importa escapar las comillas.
-17. **`local/inyeccion.js` no lo corría nadie.** Ahora lo usa la suite de XSS para
-    comprobar que lo que `doGet` incrusta pasa por el camino escapado.
+17. **`local/inyeccion.js` no lo corría nadie.** Después lo usó la suite de XSS para
+    comprobar que lo que `doGet` incrustaba pasara por el camino escapado. Se borró el
+    23/9/2026: desde ese día el servidor no sirve ninguna página y no incrusta nada.
 18. **`verificar.sh` decía "TODO VERIFICADO" con pruebas en rojo** (faltaba `pipefail`).
 
 Cada mutación de la lista `MUTACIONES` de `local/probar-las-pruebas.js` tiene que detectarse;
