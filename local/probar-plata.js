@@ -253,5 +253,58 @@ caso(
   }
 );
 
+console.log('\n--- Lectura de montos ---');
+// La columna del monto la escribe a mano quien se inscribe. Cada forma de acá
+// abajo es plausible, y leerla mal cambia la plata sin que nada lo muestre: en
+// el curso, "12,200" leído como 12,2 dejaba a alguien que pagó todo "debiendo".
+[
+  ['433.33', 433.33, 'punto decimal: leído como 43333 suma cien veces más al cobrado'],
+  ['1.5', 1.5, 'punto decimal con una cifra'],
+  ['12.200', 12200, 'punto de miles, que es como se escribe acá'],
+  ['$ 1.234.567', 1234567, 'varios puntos de miles'],
+  ['433,33', 433.33, 'coma decimal'],
+  ['$999,99', 999.99, 'coma decimal con signo de pesos'],
+  ['1.234,5', 1234.5, 'miles con punto y decimal con coma'],
+  ['12,200', 12200, 'coma de miles: leída como decimal daba 12,2'],
+  ['4,800', 4800, 'coma de miles en la cuota'],
+  ['12 200', 12200, 'espacio de miles: daba 12'],
+  ['$ 12 200', 12200, 'espacio de miles con signo de pesos'],
+  ['10400 (4 personas)', 10400, 'el total primero y el detalle entre paréntesis'],
+  ['5200 (2 x 2600)', 5200, 'una multiplicación entre paréntesis no tapa el total'],
+  ['3000 de 12200 (seña) — saldo $9.200', 3000, 'lo abonado es el primer número'],
+  ['2 x 5200', null, 'una multiplicación sin el total: daba 2'],
+  ['USD 100', null, 'dólares sumados como si fueran pesos'],
+  ['U$S 150', null, 'dólares escritos como se escribe acá'],
+  ['no tengo / ya esta pago', null, 'texto sin número']
+].forEach(([texto, esperado, porque]) => {
+  caso('"' + texto + '" se lee ' + esperado, porque, () => {
+    const v = G.parsearMonto(texto);
+    return v === esperado || 'dio ' + v;
+  });
+});
+
+console.log('\n--- El curso: cuota, seña y montos que no pueden ser ---');
+const persona1 = (monto) => armar('Curso de cocina — Noviembre 2026', 15, [{ nombre: 'A', monto: monto }]).ediciones[0].personas[0];
+caso(
+  'una cuota dice que pagó por cuotas',
+  'la nota le dice a Leo si es una cuota o una seña: al revés, llama a quien no tiene que llamar',
+  () => { const p = persona1('6000'); return (p.estadoPago === 'parcial' && /^Pagó por cuotas/.test(p.nota)) || 'dio ' + p.estadoPago + ' / ' + p.nota; }
+);
+caso(
+  'menos que una cuota es una seña',
+  'misma razón: la seña y la cuota se cobran distinto',
+  () => { const p = persona1('2000'); return /^Seña/.test(p.nota) || 'dio ' + p.nota; }
+);
+caso(
+  '"12,200" en el curso está pago completo',
+  'antes quedaba "Seña, le falta $ 12.188" y la invitaba a cobrarle a alguien que ya pagó',
+  () => { const p = persona1('12,200'); return (p.estadoPago === 'completo' && p.saldo === 0) || 'dio ' + p.estadoPago + ' / ' + p.nota; }
+);
+caso(
+  'un monto absurdo para el curso va a revisar, no a seña',
+  '"2 entradas 10400" se lee como 2: decir que le faltan $ 12.198 es inventar una deuda',
+  () => { const p = persona1('2 entradas 10400'); return (p.estadoPago === 'revisar' && p.saldo === 0 && /2 entradas 10400/.test(p.nota)) || 'dio ' + p.estadoPago + ' / ' + p.nota; }
+);
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);

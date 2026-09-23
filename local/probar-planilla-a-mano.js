@@ -226,5 +226,108 @@ caso('un curso del mes en curso vigente', true,  G.estaVigente('Curso — Septie
 caso('sin fecha, vale lo que diga Abierto', true,  G.estaVigente('Curso — Martes 19-21h', true, HOY13));
 caso('sin fecha y cerrada, ya pasó',        false, G.estaVigente('Curso — Martes 19-21h', false, HOY13));
 
+console.log('\n--- La celda Anotados del Panel da error, o la fórmula cuenta en una pestaña que no existe ---');
+// Importa porque: un #REF! en Anotados se leía como 0. Y si la fórmula nombraba
+// mal la pestaña ("Novienbre"), la tarjeta decía "0 de 12, 12 lugares libres"
+// sin ninguna alerta en la portada, con la gente anotada en la pestaña de al lado.
+const EDN = 'Taller de ñoquis — 06/11/2026';
+function conAnotados(pestanaDeLaFormula, celdaAnotados, conIferror) {
+  const cuenta = "COUNTIF('" + pestanaDeLaFormula + "'!K:K;B2)";
+  const e = G.construirEstado({
+    panelValores: [['Actividad', 'Edición', 'Cupo', 'Anotados', 'Quedan', 'Estado'],
+                   ['Taller de ñoquis', EDN, '12', celdaAnotados, '', 'Abierto']],
+    panelFormulas: [['', '', '', '', '', ''],
+                    ['', '', '', conIferror ? '=IFERROR(' + cuenta + ';0)' : '=' + cuenta, '', '']],
+    hojas: { 'Inscriptos Noviembre 2026': [HI,
+      ['Ana', 'a@x.com', '', '', '', '', '', '2600', '', '', EDN],
+      ['Beto', 'b@x.com', '', '', '', '', '', '2600', '', '', EDN],
+      ['Caro', 'c@x.com', '', '', '', '', '', '2600', '', '', EDN]] },
+    extras: {}
+  }, new Date(2026, 9, 1));
+  const ed = e.ediciones[0];
+  return {
+    anotados: ed.anotados, quedan: ed.quedan,
+    altas: e.alertas.filter(a => a.nivel === 'alta').map(a => a.tipo),
+    detalle: (e.alertas.filter(a => a.nivel === 'alta')[0] || {}).detalle || ''
+  };
+}
+const malEscrita = conAnotados('Inscriptos Novienbre 2026', '#REF!');
+caso('pestaña mal escrita + #REF!: una sola alerta alta, la de la pestaña',
+     { anotados: 0, quedan: 12, altas: ['pestana_inexistente'] },
+     { anotados: malEscrita.anotados, quedan: malEscrita.quedan, altas: malEscrita.altas });
+caso('y la alerta nombra la pestaña como está escrita en la fórmula', true,
+     /Inscriptos Novienbre 2026/.test(malEscrita.detalle) && /fila 2 del Panel/.test(malEscrita.detalle));
+const conIferror = conAnotados('Inscriptos Novienbre 2026', '0', true);
+caso('lo mismo si la fórmula está dentro de IFERROR y la celda dice 0',
+     { anotados: 0, quedan: 12, altas: ['pestana_inexistente'] },
+     { anotados: conIferror.anotados, quedan: conIferror.quedan, altas: conIferror.altas });
+const conError = conAnotados('Inscriptos Noviembre 2026', '#ERROR!');
+caso('Anotados con error en una edición que sí se lee: muestra las filas que hay y avisa',
+     { anotados: 3, quedan: 9, altas: ['anotados_ilegible'] },
+     { anotados: conError.anotados, quedan: conError.quedan, altas: conError.altas });
+caso('y la alerta dice qué muestra la celda, no un "el Panel dice 0" que no es cierto', true,
+     /#ERROR!/.test(conError.detalle) && !/dice 0/.test(conError.detalle));
+const sano = conAnotados('Inscriptos Noviembre 2026', '3');
+caso('con la fórmula bien escrita no dice nada',
+     { anotados: 3, quedan: 9, altas: [] },
+     { anotados: sano.anotados, quedan: sano.quedan, altas: sano.altas });
+
+console.log('\n--- El Cupo del Panel vacío, con error o escrito en letras ---');
+// Importa porque: la fila entera desaparecía, con su gente y su plata, y lo único
+// que quedaba eran alertas medias diciendo que esa gente "no entra en ninguna
+// edición del Panel", cuando la edición estaba ahí.
+function conCupo(celdaCupo, estado) {
+  const OTRA = 'Taller de ñoquis — 20/11/2026';
+  const e = G.construirEstado({
+    panelValores: [['Actividad', 'Edición', 'Cupo', 'Anotados', 'Quedan', 'Estado'],
+                   ['Taller de ñoquis', EDN, celdaCupo, '3', '', estado || 'Abierto'],
+                   ['Taller de ñoquis', OTRA, '10', '1', '9', 'Abierto']],
+    panelFormulas: [['', '', '', '', '', ''],
+                    ['', '', '', "=COUNTIF('Inscriptos Noviembre 2026'!K:K;B2)", '', ''],
+                    ['', '', '', "=COUNTIF('Inscriptos Noviembre 2026'!K:K;B3)", '', '']],
+    hojas: { 'Inscriptos Noviembre 2026': [HI,
+      ['Ana', 'a@x.com', '', '', '', '', '', '2600', '', '', EDN],
+      ['Beto', 'b@x.com', '', '', '', '', '', '2600', '', '', EDN],
+      ['Caro', 'c@x.com', '', '', '', '', '', '2600', '', '', EDN],
+      ['Dani', 'd@x.com', '', '', '', '', '', '2600', '', '', OTRA]] },
+    extras: {}
+  }, new Date(2026, 9, 1));
+  const ed = e.ediciones.filter(x => x.edicion === EDN)[0];
+  return {
+    existe: !!ed, personas: ed ? ed.personas.length : 0, quedan: ed ? ed.quedan : 'no existe',
+    recaudado: e.resumen.recaudado, libres: e.resumen.libres,
+    alertas: e.alertas.map(a => a.nivel + '/' + a.tipo)
+  };
+}
+const esperadoCupo = { existe: true, personas: 3, quedan: null, recaudado: 10400, libres: 9,
+                       alertas: ['alta/cupo_ilegible'] };
+caso('Cupo vacío: la edición sigue, con su gente y su plata, y avisa', esperadoCupo, conCupo(''));
+caso('Cupo con #REF!: lo mismo',                                        esperadoCupo, conCupo('#REF!'));
+caso('Cupo escrito en letras: lo mismo',                                esperadoCupo, conCupo('doce'));
+caso('si la edición está cerrada, el aviso es medio',
+     ['media/cupo_ilegible'], conCupo('', 'Cerrado').alertas);
+caso('la alerta dice qué tiene escrito la celda', true,
+     (() => {
+       const e = G.construirEstado({
+         panelValores: [['Actividad', 'Edición', 'Cupo', 'Anotados', 'Quedan', 'Estado'],
+                        ['Taller de ñoquis', EDN, 'doce', '0', '', 'Abierto']],
+         panelFormulas: [['', '', '', '', '', ''], ['', '', '', "=COUNTIF('Inscriptos Noviembre 2026'!K:K;B2)", '', '']],
+         hojas: { 'Inscriptos Noviembre 2026': [HI] }, extras: {}
+       }, new Date(2026, 9, 1));
+       const a = e.alertas.filter(x => x.tipo === 'cupo_ilegible')[0];
+       return !!a && /"doce"/.test(a.detalle) && /fila 2 del Panel/i.test(a.detalle);
+     })());
+
+console.log('\n--- La planilla real no dispara ninguna de estas alertas nuevas ---');
+// Una alerta que salta con la planilla sana hace que se dejen de mirar todas.
+{
+  const fs = require('fs'), path = require('path');
+  const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture.json'), 'utf8'));
+  const real = G.construirEstado(fixture, new Date(2026, 8, 23));
+  const nuevas = ['pestana_inexistente', 'anotados_ilegible', 'cupo_ilegible', 'columnas', 'estado_raro', 'panel_columnas'];
+  caso('ninguna alerta de celdas con error, columnas corridas o Estado raro', [],
+       real.alertas.filter(a => nuevas.indexOf(a.tipo) !== -1).map(a => a.tipo));
+}
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);
