@@ -315,21 +315,15 @@
   /**
    * Trae los datos del servidor mandando el PIN.
    *
-   * La misma página funciona en los dos lugares donde vive:
-   *  - servida por Apps Script  -> habla por google.script.run
-   *  - servida como página suelta (GitHub Pages) -> habla por fetch contra la API
-   * La segunda existe porque abrir la app en script.google.com falla en
-   * navegadores con varias cuentas de Google: Google reescribe la URL con /u/N/
-   * y esa forma no resuelve. Desde otro dominio, con credentials:'omit', no hay
-   * cookies de sesión y el problema desaparece.
+   * La página vive en GitHub Pages y habla con el servidor solo por fetch. Ya no
+   * se sirve desde Apps Script: una página servida ahí trae google.script.run,
+   * que deja llamar a las funciones del servidor sin pasar por el PIN. Además,
+   * abrirla en script.google.com falla en navegadores con varias cuentas de
+   * Google. Desde otro dominio, con credentials:'omit', no hay cookies de sesión.
    */
   var API = (typeof URL_API !== 'undefined') ? URL_API : null;
 
   function pedirDatos(pin, alLograrlo, alFallar) {
-    if (!API && window.google && google.script && google.script.run) {
-      google.script.run.withSuccessHandler(alLograrlo).withFailureHandler(alFallar).obtenerEstado(pin);
-      return;
-    }
     fetch(API + '?formato=json&pin=' + encodeURIComponent(pin), { credentials: 'omit' })
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -430,7 +424,7 @@
   /**
    * Texto comparable para buscar: sin acentos y en minúsculas. Acá los nombres
    * llevan tildes y ñ, y nadie las escribe al buscar en el celular: sin esto,
-   * "sofia" no encuentra a "Sofía" y "nunez" no encuentra a "Núñez".
+   * "ursula" no encuentra a "Úrsula" y "nunez" no encuentra a "Núñez".
    */
   function sinAcentos(t) {
     return String(t === null || t === undefined ? '' : t).toLowerCase()
@@ -440,7 +434,7 @@
 
   /**
    * ¿Esta persona coincide con lo que se escribió? Cada palabra por separado,
-   * así "gomez sofia" encuentra a "Úrsula Méndez" igual que "sofia gomez".
+   * así "mendez ursula" encuentra a "Úrsula Méndez" igual que "ursula mendez".
    * Si lo buscado son solo números, se compara también contra el celular sin
    * espacios ni guiones, que es como se copia y pega de WhatsApp.
    */
