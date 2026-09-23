@@ -6,7 +6,13 @@
  *
  * Se despliega como "Aplicación web" (Implementar → Nueva implementación):
  *   Ejecutar como: Yo (nutreclorofila@gmail.com)
- *   Quién tiene acceso: Solo yo
+ *   Quién tiene acceso: Cualquiera
+ *
+ * Ese "cualquiera" es a propósito y NO significa que los datos estén a la vista.
+ * Tiene que ser así porque la app se sirve desde otra dirección (GitHub Pages) y
+ * el navegador llama a este servidor sin sesión de Google; con "solo yo" esas
+ * llamadas vuelven 403 y la app no carga nunca. Lo que cuida los datos es que la
+ * página se sirve vacía y nada sale de acá hasta que llega el PIN correcto.
  *
  * Toda la lógica de cálculo vive en funciones puras que reciben los datos ya
  * leídos, así se puede probar sin Google (ver local/probar.js).
