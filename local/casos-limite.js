@@ -306,6 +306,80 @@ caso(
   }
 );
 
+console.log('\n--- 13. Sobrecupo, fórmula ilegible y Panel lleno ---');
+// Estas tres alertas funcionaban, pero ninguna prueba las hacía saltar: se
+// podían apagar y todo seguía en verde. Y son la única señal de lo que avisan:
+// sin la de sobrecupo, un taller con gente de más se ve como uno lleno; sin la
+// de fórmula, una edición con gente se ve vacía y no se sabe por qué.
+const ED13 = 'Taller de prueba — 20/10/2026';
+function conSobrecupo(estado, formula, panelLleno) {
+  return G.construirEstado({
+    panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
+                   ['Taller de prueba', ED13, '1', '2', '-1', estado]],
+    panelFormulas: [['','','','','',''], ['','','', formula, '','']],
+    hojas: { 'Inscriptos Octubre 2026': [H,
+      fila({nombre:'Ana', monto:'2600', edicion:ED13}),
+      fila({nombre:'Beto', monto:'2600', edicion:ED13})
+    ]},
+    extras: {}, panelLleno: panelLleno, generadoEn: HOY.toISOString()
+  }, HOY);
+}
+const FORMULA13 = "=COUNTIF('Inscriptos Octubre 2026'!K:K;\"" + ED13 + "\")";
+const deTipo13 = (e, t) => e.alertas.filter(a => a.tipo === t);
+const lista13 = (e) => e.alertas.map(a => a.nivel + '/' + a.tipo).join(' ') || '(ninguna)';
+caso(
+  'una edición abierta con gente de más da UNA alerta alta de sobrecupo',
+  'es un lugar que se vendió dos veces: hay que llamar a alguien antes del día',
+  () => {
+    const e = conSobrecupo('Abierto', FORMULA13);
+    const a = deTipo13(e, 'sobrecupo');
+    if (a.length !== 1 || a[0].nivel !== 'alta') return 'alertas: ' + lista13(e);
+    if (!/1 persona de más/.test(a[0].texto)) return 'no dice cuántos sobran: ' + a[0].texto;
+    // El Panel y las filas dicen lo mismo (2): no hay descuadre que avisar.
+    return deTipo13(e, 'descuadre').length === 0 || 'avisó un descuadre que no hay: ' + lista13(e);
+  }
+);
+caso(
+  'cerrada pero todavía por venir, el sobrecupo es un aviso medio',
+  'ya no se anota nadie más, pero la gente de más sigue viniendo el mismo día',
+  () => {
+    const e = conSobrecupo('Cerrado', FORMULA13);
+    const a = deTipo13(e, 'sobrecupo');
+    return (a.length === 1 && a[0].nivel === 'media') || 'alertas: ' + lista13(e);
+  }
+);
+caso(
+  'con el número de Anotados escrito a mano, avisa que no puede leer la fórmula',
+  'la edición queda con 0 personas aunque tenga gente: sin la alerta, parece vacía',
+  () => {
+    const e = conSobrecupo('Abierto', '');
+    const a = deTipo13(e, 'formula');
+    if (a.length !== 1 || a[0].nivel !== 'alta') return 'alertas: ' + lista13(e);
+    if (!/escrito a mano/.test(a[0].detalle)) return 'no dice por qué: ' + a[0].detalle;
+    if (e.ediciones[0].personas.length !== 0) return 'sin regla le asignó ' + e.ediciones[0].personas.length + ' personas';
+    // La alerta de fórmula corta ahí: decir además "el Panel dice 2 y hay 0" es
+    // la misma causa contada dos veces.
+    return deTipo13(e, 'descuadre').length === 0 || 'avisó dos veces lo mismo: ' + lista13(e);
+  }
+);
+caso(
+  'con el Panel en el tope de filas que se leen, avisa',
+  'de ahí en más las ediciones nuevas no aparecen en la app y nadie se entera',
+  () => {
+    const e = conSobrecupo('Abierto', FORMULA13, true);
+    const a = deTipo13(e, 'panel_lleno');
+    return (a.length === 1 && a[0].nivel === 'alta') || 'alertas: ' + lista13(e);
+  }
+);
+caso(
+  'y si no llegó al tope, no dice nada',
+  'una alerta que salta sin motivo hace que se dejen de mirar todas',
+  () => {
+    const e = conSobrecupo('Abierto', FORMULA13);
+    return deTipo13(e, 'panel_lleno').length === 0 || 'alertas: ' + lista13(e);
+  }
+);
+
 console.log('\n' + (fallas === 0
   ? 'TODOS LOS CASOS PASAN (' + corridos + ')'
   : fallas + ' DE ' + corridos + ' CASOS FALLAN'));

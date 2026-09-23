@@ -223,16 +223,16 @@ pruebas. Una prueba que nunca falla no prueba nada, y eso no se ve leyéndola.
 | Suite | Qué prueba |
 |---|---|
 | `local/probar.js` | Los conteos contra el Panel real, edición por edición. **12 de 12 cuadran.** |
-| `local/casos-limite.js` | 11 escenarios plausibles de la planilla que podrían romperla. |
-| `local/probar-lectura.js` | `leerPlanilla()` con un Sheets falso: qué pestañas lee y cuáles no. Y que `doGet` no mande al teléfono comprobantes, mails ni montos que la pantalla no muestra. |
+| `local/casos-limite.js` | 24 escenarios plausibles de la planilla que podrían romperla, incluidas las alertas de sobrecupo, fórmula que no se entiende y Panel lleno. |
+| `local/probar-lectura.js` | `leerPlanilla()` con un Sheets falso: qué pestañas lee y cuáles no, y cuándo el Panel llegó al tope de filas que se leen. Y que `doGet` no mande al teléfono comprobantes, mails ni montos que la pantalla no muestra. |
 | `local/probar-codigo.js` | Control estático de `Codigo.gs` **antes de pegarlo**: que parsee, que no llame funciones que no existen, que no vuelva a usar `SpreadsheetApp`, que no escriba en la planilla y que la página se siga sirviendo vacía. Verificado rompiendo el archivo a propósito: detecta los cuatro casos. |
 | `local/probar-pin.js` | Que sin el PIN correcto no salga nada, y el freno a los intentos. |
-| `local/probar-plata.js` | 16 casos de la lógica de plata: señas, precio del curso, montos raros, comprobantes repetidos, columna de verificación. |
-| `local/probar-planilla-a-mano.js` | 33 casos: cómo se puede escribir la fórmula del Panel, la lista de espera y las gift cards. |
+| `local/probar-plata.js` | 52 casos de la lógica de plata: señas, precio del curso, montos raros, comprobantes repetidos, columna de verificación, y los totales de arriba ("Falta cobrar", lugares libres, pendientes), que suman solo lo que viene. |
+| `local/probar-planilla-a-mano.js` | 115 casos: cómo se puede escribir la fórmula del Panel, la lista de espera y las gift cards, y que lo que no se pudo leer termine en una alerta. |
 | `local/probar-cache.js` | 17 casos: qué queda guardado en el teléfono, cuándo vence y que "Salir" lo borre. |
-| `local/probar-vistas.js` | Las cuatro solapas con datos nuevos, con un backend viejo y con la planilla vacía. |
+| `local/probar-vistas.js` | Las cuatro solapas con datos nuevos, con un backend viejo y con la planilla vacía. También la tarjeta de Cupos abierta (el chip dice cuánto falta, no cuánto pagó) y las gift cards de Plata (lo cobrado por adelantado suma solo las sin usar). |
 | `local/probar-arranque.js` | Qué ve Leo cuando algo falla al abrir la app, en la puerta del PIN y al tocar Actualizar: que un error del servidor no borre el PIN ni se disfrace de "Sin conexión", que el PIN rechazado borre todo, el límite de espera y el cartel de datos viejos en las cuatro solapas. |
-| `local/probar-xss.js` | Datos hostiles del Tally público: el escape al incrustar, y que al pintarlos no quede ninguna etiqueta ni ningún manejador vivo — incluidos los enlaces de contacto, que es donde el dato entra dentro de un `href`. |
+| `local/probar-xss.js` | Datos hostiles del Tally público: el escape al incrustar, y que al pintarlos no quede ninguna etiqueta ni ningún manejador vivo — incluidos los enlaces de contacto, que es donde el dato entra dentro de un `href`, la gente de adentro de cada tarjeta de Cupos y las gift cards. |
 
 ## Buscar gente
 

@@ -318,6 +318,50 @@ caso('la alerta dice qué tiene escrito la celda', true,
        return !!a && /"doce"/.test(a.detalle) && /fila 2 del Panel/i.test(a.detalle);
      })());
 
+console.log('\n--- Las marcas llegan a Alertas ---');
+// Importa porque arriba se prueban las marcas (faltaElMonto, noSeSupoLeer,
+// sinColumnaEdicion, la fecha en null) a la salida de cada función, pero no que
+// terminen en una alerta. Esa alerta es lo único que separa "no hay nadie
+// esperando" de "no la pude leer", y se podía apagar sin que nada se pusiera rojo.
+const EDA = 'Taller de ñoquis — 20/11/2026';
+function conAlertas({ edicion, cupo, anotados, extras }) {
+  const ed = edicion || EDA;
+  const n = anotados || 0;
+  return G.construirEstado({
+    panelValores: [['Actividad', 'Edición', 'Cupo', 'Anotados', 'Quedan', 'Estado'],
+                   ['Taller de ñoquis', ed, String(cupo || 12), String(n), '', 'Abierto']],
+    panelFormulas: [['', '', '', '', '', ''], ['', '', '', "=COUNTIF('Inscriptos Noviembre 2026'!K:K;B2)", '', '']],
+    hojas: { 'Inscriptos Noviembre 2026': [HI].concat(Array.from({ length: n }, (_, i) =>
+      ['Persona' + i, 'p' + i + '@x.com', '', '', '', '', '', '2600', '', '', ed])) },
+    extras: extras || {}
+  }, new Date(2026, 9, 1));
+}
+const tiposDe = (e, t) => e.alertas.filter(a => a.tipo === t).map(a => a.nivel);
+
+caso('gift cards sin columna de importe: alerta media',
+     ['media'], tiposDe(conAlertas({ extras: { 'Gift Cards': [['nombre', 'mail de quien compró', 'estado'],
+                                                              ['Fulana', 'x@y.com', 'Libre']] } }), 'gift_sin_monto'));
+caso('con el importe cargado, no avisa',
+     [], tiposDe(conAlertas({ extras: { 'Gift Cards': [['nombre', 'monto', 'estado'], ['Fulana', '3500', 'Libre']] } }), 'gift_sin_monto'));
+caso('lista de espera que no se pudo leer: alerta alta',
+     ['alta'], tiposDe(conAlertas({ extras: { 'Lista de espera': [['persona', 'datos'], ['Fulana', '099111222']] } }), 'espera_ilegible'));
+caso('lista de espera vacía: no es un error y no avisa',
+     [], tiposDe(conAlertas({ extras: { 'Lista de espera': [['nombre', 'email', 'qué quiere']] } }), 'espera_ilegible'));
+caso('lista de espera sin la columna de qué espera: alerta media',
+     ['media'], tiposDe(conAlertas({ extras: { 'Lista de espera': [['nombre', 'email', 'fecha del taller'],
+                                                                   ['Fulana', 'f@x.com', '14/07/2026']] } }), 'espera_sin_edicion'));
+caso('con esa columna, no avisa',
+     [], tiposDe(conAlertas({ extras: { 'Lista de espera': [['nombre', 'email', 'Espera para'],
+                                                            ['Fulana', 'f@x.com', EDA]] } }), 'espera_sin_edicion'));
+caso('una fecha que no existe en el nombre de la edición: alerta media',
+     ['media'], tiposDe(conAlertas({ edicion: 'Taller de ñoquis — 31/02/2026' }), 'fecha_rara'));
+caso('una fecha que existe, no',
+     [], tiposDe(conAlertas({}), 'fecha_rara'));
+caso('3 de 4 lugares ocupados (75%): aviso de casi lleno',
+     ['info'], tiposDe(conAlertas({ cupo: 4, anotados: 3 }), 'casi_lleno'));
+caso('2 de 4 (50%), todavía no',
+     [], tiposDe(conAlertas({ cupo: 4, anotados: 2 }), 'casi_lleno'));
+
 console.log('\n--- La planilla real no dispara ninguna de estas alertas nuevas ---');
 // Una alerta que salta con la planilla sana hace que se dejen de mirar todas.
 {
