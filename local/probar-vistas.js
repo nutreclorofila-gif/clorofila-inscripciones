@@ -317,8 +317,8 @@ console.log('\n--- Tarjeta con el Cupo sin cargar ---');
 // Las piezas se prueban sueltas; esto comprueba que estén enchufadas.
 console.log('\n--- Que las piezas estén conectadas ---');
 const fuente = fs.readFileSync(path.join(base, 'apps-script', 'Index.html'), 'utf8');
-[['el aviso de novedades se pinta en Cupos', /SOLAPA === 'cupos'\)\s*p\.innerHTML = avisoDeCache\(\) \+ avisoDeNovedades\(\)/],
- ['y NO en Plata, que es donde están los montos', /SOLAPA === 'plata'\) p\.innerHTML = avisoDeCache\(\) \+ vistaPlata/],
+[['el aviso de novedades se pinta en Cupos', /SOLAPA === 'cupos'\)\s*p\.innerHTML = viejo \+ avisoDeNovedades\(\)/],
+ ['y NO en Plata, que es donde están los montos', /SOLAPA === 'plata'\) p\.innerHTML = viejo \+ vistaPlata/],
  ['cada estado que llega del servidor pasa por recibirEstado', /recibirEstado\(/],
  ['ya no se guarda la caché por afuera de recibirEstado', /^(?![\s\S]*guardarCache\(nuevo)/]
 ].forEach(([nombre, re]) => {

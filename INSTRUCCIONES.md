@@ -107,9 +107,26 @@ Además:
   1.º de ese mes y dice `en octubre` o `este mes`: contar hasta fin de mes daba un plazo falso.
 - **Copiar la lista de anotados** de una edición, con el estado de pago de cada uno, para
   pegarla en el grupo.
-- **Funciona sin señal**: guarda el último estado en el teléfono y lo muestra avisando de
-  cuándo es. El caché se guarda junto al PIN con que se obtuvo, así que sin el PIN correcto
-  no se muestra ni aunque alguien agarre el teléfono.
+- **Funciona sin señal**: guarda el último estado en el teléfono y lo muestra enseguida al
+  abrir, mientras busca lo nuevo, con un cartel en las cuatro solapas que dice de cuándo es y
+  por qué no es lo de ahora. Lo guardado va junto al PIN con que se obtuvo, pero como el PIN
+  también queda guardado, quien abra la app en el teléfono desbloqueado la ve: lo que protege
+  es el bloqueo del teléfono y el botón **Salir** (ver *Lo que queda guardado en el teléfono*).
+
+## Cuando algo falla
+
+La app dice qué pasó y no toca el PIN, salvo que el servidor lo rechace:
+
+| Qué pasó | Qué ve Leo |
+|---|---|
+| El servidor dice **"PIN incorrecto"** (se cambió el PIN) | La puerta del PIN. Se borran el PIN **y** los datos guardados. |
+| Cualquier otro error del servidor (pestaña renombrada, cuota de Google, demasiados intentos) | El motivo en castellano. El PIN sigue guardado y hay un botón **Reintentar**. |
+| Google contesta con su página de error (el 403 cuando se revoca el permiso) | "Google no mandó los datos (error 403). Puede que haya que volver a autorizar la app." |
+| El teléfono está sin señal | "El teléfono está sin señal." |
+| El pedido queda colgado | A los 8 segundos avisa que sigue esperando; a los 30 corta y lo dice. |
+
+Si hay datos guardados, en todos los casos menos el primero se muestran esos datos con el
+motivo en el cartel amarillo. Lo prueba `local/probar-arranque.js`.
 
 ## De dónde salen los números
 
@@ -184,7 +201,7 @@ URL y hay que actualizarla en `web/index.html`.
 ## Verificar
 
 ```bash
-./verificar.sh                  # corre las 10 suites; tiene que pasar entero antes de subir
+./verificar.sh                  # corre las 12 suites; tiene que pasar entero antes de subir
 node local/bajar-fixture.js     # refresca local/fixture.json con los datos de hoy
 node local/generar-preview.js   # arma local/preview.html para mirarla en el navegador
 node local/probar-las-pruebas.js  # rompe el código a propósito y controla que la suite se dé cuenta
@@ -211,6 +228,7 @@ pruebas. Una prueba que nunca falla no prueba nada, y eso no se ve leyéndola.
 | `local/probar-planilla-a-mano.js` | 33 casos: cómo se puede escribir la fórmula del Panel, la lista de espera y las gift cards. |
 | `local/probar-cache.js` | 17 casos: qué queda guardado en el teléfono, cuándo vence y que "Salir" lo borre. |
 | `local/probar-vistas.js` | Las cuatro solapas con datos nuevos, con un backend viejo y con la planilla vacía. |
+| `local/probar-arranque.js` | Qué ve Leo cuando algo falla al abrir la app, en la puerta del PIN y al tocar Actualizar: que un error del servidor no borre el PIN ni se disfrace de "Sin conexión", que el PIN rechazado borre todo, el límite de espera y el cartel de datos viejos en las cuatro solapas. |
 | `local/probar-xss.js` | Datos hostiles del Tally público: el escape al incrustar, y que al pintarlos no quede ninguna etiqueta ni ningún manejador vivo — incluidos los enlaces de contacto, que es donde el dato entra dentro de un `href`. |
 
 ## Buscar gente
@@ -266,6 +284,9 @@ Por eso:
 - Vence a los **3 días**. Además de por privacidad, porque mostrar la plata de la semana
   pasada como si fuera de hoy es peor que no mostrar nada.
 - Hay un botón **Salir** arriba a la derecha, que borra el PIN y los datos del teléfono.
+- Si el servidor rechaza el PIN guardado (porque se cambió, por ejemplo al perder el
+  teléfono), la app borra el PIN **y** los datos. Antes borraba solo el PIN, y lo guardado
+  quedaba para siempre: sin PIN guardado la app nunca lo volvía a leer, así que ni vencía.
 
 ## Lo que encontró la revisión (y ya está arreglado)
 
