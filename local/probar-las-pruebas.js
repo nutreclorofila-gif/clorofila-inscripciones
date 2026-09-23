@@ -30,16 +30,38 @@ try {
 }
 const CODIGO = path.join(base, 'apps-script', 'Codigo.gs');
 const INDEX = path.join(base, 'apps-script', 'Index.html');
+const PREVIEW = path.join(base, 'local', 'generar-preview.js');
+
+// La base tiene que estar en verde. Si verificar.sh ya falla sin tocar nada,
+// cada mutación "se detecta" por la falla que ya estaba y el resultado da un
+// 100% falso. Pasó: con la suite en rojo por datos nuevos, todo salía detectado.
+try {
+  execFileSync(path.join(base, 'verificar.sh'), { cwd: base, stdio: 'pipe' });
+} catch (e) {
+  console.error('verificar.sh ya falla sin mutar nada: arreglá eso primero.');
+  console.error(String(e.stdout || '').split('\n').slice(-15).join('\n'));
+  process.exit(1);
+}
 
 const MUTACIONES = [
   ['acepta cualquier PIN', CODIGO,
    "if (hashPin(String(pin === null || pin === undefined ? '' : pin)) !== guardado) {", 'if (false) {'],
-  ['no escapa el < al incrustar (el XSS que hubo)', CODIGO,
+  ['no escapa el < al incrustar (el XSS que hubo)', PREVIEW,
    ".replace(/</g, '\\\\u003c')", ''],
-  ['no escapa los saltos invisibles U+2028/2029', CODIGO,
+  ['no escapa los saltos invisibles U+2028/2029', PREVIEW,
    ".replace(/\\u2028/g, '\\\\u2028')", ''],
-  ['doGet vuelve a incrustar los datos en la página', CODIGO,
-   "t.datosIniciales = 'null';", 't.datosIniciales = JSON.stringify(construirEstado(leerPlanilla()));'],
+  ['el servidor vuelve a servir la página (lectura sin PIN)', CODIGO,
+   "  return ContentService.createTextOutput(\n    'Clorofila",
+   "  return HtmlService.createHtmlOutputFromFile('Index');\n  ContentService.createTextOutput(\n    'Clorofila"],
+  ['vuelve el ?configurar= por la URL', CODIGO,
+   '      verificarPin(p.pin);',
+   '      if (p.configurar) PropertiesService.getScriptProperties().setProperty(PROP_PIN, hashPin(String(p.configurar)));\n      verificarPin(p.pin);'],
+  ['doGet deja de pedir el PIN', CODIGO,
+   '      verificarPin(p.pin);', ''],
+  ['queda una función que no usa nadie', CODIGO,
+   'function hashPin(pin) {', 'function sobrante() { return 1; }\nfunction hashPin(pin) {'],
+  ['el cupo se lee de otra columna del Panel', CODIGO,
+   'var cupo = parsearMonto(v[2]);', 'var cupo = parsearMonto(v[4]);'],
   ['deja que una persona cuente en dos ediciones', CODIGO,
    'if (usadas[f.clave]) {', 'if (false) {'],
   ['los montos con coma decimal se leen mal', CODIGO,
@@ -92,16 +114,23 @@ const MUTACIONES = [
    "var quien = String(p.hoja + '#' + p.fila);"]
 ];
 
-const original = { [CODIGO]: fs.readFileSync(CODIGO, 'utf8'), [INDEX]: fs.readFileSync(INDEX, 'utf8') };
+const original = {
+  [CODIGO]: fs.readFileSync(CODIGO, 'utf8'),
+  [INDEX]: fs.readFileSync(INDEX, 'utf8'),
+  [PREVIEW]: fs.readFileSync(PREVIEW, 'utf8')
+};
 const restaurar = () => Object.keys(original).forEach(f => fs.writeFileSync(f, original[f]));
 process.on('exit', restaurar);
 process.on('SIGINT', () => { restaurar(); process.exit(1); });
 
-let sinDetectar = 0, aplicadas = 0;
+let sinDetectar = 0, aplicadas = 0, sinAplicar = 0;
 for (const [nombre, archivo, viejo, nuevo] of MUTACIONES) {
   const s = original[archivo];
   const veces = s.split(viejo).length - 1;
   if (veces !== 1) {
+    // Si el código cambió y la mutación ya no calza, esa parte queda sin probar:
+    // antes se salteaba en silencio y el total seguía dando "todo detectado".
+    sinAplicar++;
     console.log('  ?     ' + nombre.padEnd(48) + ' no pude aplicarla (' + veces + ' coincidencias)');
     continue;
   }
@@ -115,8 +144,8 @@ for (const [nombre, archivo, viejo, nuevo] of MUTACIONES) {
   else { sinDetectar++; console.log('  ★     ' + nombre.padEnd(48) + ' NO LA DETECTA'); }
 }
 
-console.log('\n' + (aplicadas - sinDetectar) + '/' + aplicadas + ' mutaciones detectadas');
-if (sinDetectar) {
-  console.log('Hay agujeros en las pruebas: se puede romper eso y la verificación sigue en verde.');
-  process.exit(1);
-}
+console.log('\n' + (aplicadas - sinDetectar) + '/' + aplicadas + ' mutaciones detectadas' +
+  (sinAplicar ? ' — ' + sinAplicar + ' que ya no calzan con el código' : ''));
+if (sinDetectar) console.log('Hay agujeros en las pruebas: se puede romper eso y la verificación sigue en verde.');
+if (sinAplicar) console.log('Hay mutaciones que ya no se aplican: actualizalas o esa parte queda sin probar.');
+if (sinDetectar || sinAplicar) process.exit(1);

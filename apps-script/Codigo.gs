@@ -98,24 +98,17 @@ function explicarError(err) {
 function doGet(e) {
   var p = (e && e.parameter) || {};
 
-  // Modo API: devuelve el estado como JSON. Existe porque la app también se
-  // sirve desde una página propia (GitHub Pages) — abrir la app directamente en
-  // script.google.com falla en navegadores con varias cuentas de Google, que es
-  // el caso de este equipo. ContentService sí manda las cabeceras CORS que hacen
-  // falta; HtmlService no.
+  // Único modo que devuelve algo: el estado como JSON, con el PIN. La app vive en
+  // GitHub Pages porque abrirla en script.google.com falla en navegadores con
+  // varias cuentas de Google, que es el caso de este equipo. ContentService sí
+  // manda las cabeceras CORS que hacen falta; HtmlService no.
   if (p.formato === 'json') {
     var salida;
     try {
-      // Arranque: deja fijado el PIN la primera vez. Solo funciona mientras no
-      // haya ninguno guardado, así que no sirve para cambiarlo ni para pisarlo.
-      if (p.configurar) {
-        if (PropertiesService.getScriptProperties().getProperty(PROP_PIN)) {
-          throw new Error('El PIN ya está configurado.');
-        }
-        PropertiesService.getScriptProperties().setProperty(PROP_PIN, hashPin(String(p.configurar)));
-        return ContentService.createTextOutput(JSON.stringify({ ok: true, mensaje: 'PIN configurado.' }))
-          .setMimeType(ContentService.MimeType.JSON);
-      }
+      // El PIN NO se puede fijar desde acá, solo con configurarPin() en el editor.
+      // Antes había un ?configurar= que aceptaba el primer PIN que llegara si no
+      // había ninguno guardado: justo al cambiarlo (borrar el viejo, poner el
+      // nuevo) quedaba una ventana en la que cualquiera con la URL ponía el suyo.
       verificarPin(p.pin);
       salida = { ok: true, estado: construirEstado(leerPlanilla()) };
     } catch (err) {
@@ -126,23 +119,16 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
-  var t = HtmlService.createTemplateFromFile('Index');
-  // La página se sirve VACÍA a propósito. Los datos (nombres, mails, celulares)
-  // no viajan hasta que el navegador manda el PIN correcto, así que tener la URL
-  // no alcanza para ver nada.
-  t.datosIniciales = 'null';
-  return t.evaluate()
-    .setTitle('Clorofila — Inscripciones')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover');
-}
-
-/**
- * La llama el navegador con el PIN. Es el único camino por el que salen los datos.
- * Tira excepción si el PIN no es el correcto — sin leer la planilla siquiera.
- */
-function obtenerEstado(pin) {
-  verificarPin(pin);
-  return construirEstado(leerPlanilla());
+  // Fuera del modo JSON no se sirve NINGUNA página, y eso es lo que cierra la
+  // puerta. Una página de HtmlService trae google.script.run, que deja llamar
+  // desde el navegador a cualquier función de este archivo que no termine en
+  // "_" — leerPlanilla() incluida, sin pasar por el PIN. Mientras se servía la
+  // app desde acá, cualquiera con esta URL (que es pública: está en la página de
+  // GitHub Pages) podía leer la planilla entera. La app vive en GitHub Pages y
+  // habla solo por el modo JSON de arriba, que siempre pide el PIN.
+  return ContentService.createTextOutput(
+    'Clorofila — Inscripciones. Esta dirección solo responde a la app; ' +
+    'no muestra nada por sí sola.');
 }
 
 
@@ -185,9 +171,11 @@ function hashPin(pin) {
 }
 
 /**
- * Se ejecuta UNA vez desde el editor para dejar el PIN guardado.
- * Después de correrla se puede vaciar la constante de abajo: lo que queda
- * guardado es el hash, no el número.
+ * Fija o cambia el PIN. Es el ÚNICO camino: se ejecuta desde el editor de Apps
+ * Script, con el PIN escrito en PIN_NUEVO. Pisa el que haya sin tener que
+ * borrarlo antes, así que nunca queda un momento sin PIN. Después de correrla
+ * hay que volver a dejar 'PONER_ACA' (y no guardar nunca el número en el repo):
+ * lo que queda guardado es el hash, no el número.
  */
 function configurarPin() {
   var PIN_NUEVO = 'PONER_ACA';
@@ -195,24 +183,6 @@ function configurarPin() {
   PropertiesService.getScriptProperties().setProperty(PROP_PIN, hashPin(PIN_NUEVO));
   return 'PIN configurado.';
 }
-
-/**
- * Serializa el estado para incrustarlo dentro de un <script> de la página.
- *
- * Los nombres los escribe cualquiera en el formulario público de Tally, así que
- * son texto hostil. JSON.stringify solo NO alcanza: no escapa "</script>", y un
- * nombre como `</script><script>...` cierra el bloque y ejecuta lo que quiera en
- * la sesión de Google de quien abra la app. Escapando "<" eso se vuelve imposible.
- * U+2028 y U+2029 van también porque son saltos de línea válidos en JavaScript y
- * rompen el literal.
- */
-function paraIncrustarEnScript(valor) {
-  return JSON.stringify(valor)
-    .replace(/</g, '\\u003c')
-    .replace(/\u2028/g, '\\u2028')
-    .replace(/\u2029/g, '\\u2029');
-}
-
 
 /* ======================================================================
    2. LECTURA (única parte que toca Google)
@@ -394,11 +364,6 @@ function campoConClave(obj, nombres, usadas) {
   return { valor: '', clave: null };
 }
 
-/** Igual que campoConClave pero devuelve solo el valor. */
-function campo(obj, nombres, usadas) {
-  return campoConClave(obj, nombres, usadas).valor;
-}
-
 /**
  * Marca como ya tomadas las columnas de fecha. Se usa ANTES de buscar campos de
  * texto libre como "qué actividad quiere" o "quién la compró": un encabezado
@@ -442,12 +407,6 @@ function rellenar(filas, ancho) {
     return salida;
   });
 }
-
-/** Permite partir el HTML en varios archivos si crece. */
-function include(nombre) {
-  return HtmlService.createHtmlOutputFromFile(nombre).getContent();
-}
-
 
 /* ======================================================================
    3. PARSERS (funciones puras — se prueban sin Google)
@@ -584,12 +543,7 @@ function coincideCriterio(valor, criterio) {
  *   =COUNTIF('Inscriptos Agosto 2026'!K:K;B2)
  *   =COUNTIFS('Inscriptos Octubre 2026'!K:K;"Curso de cocina — Octubre 2026";
  *             'Inscriptos Octubre 2026'!E:E;"Mañana*")
- */
-function parsearRegla(formula, edicion, filaPanel) {
-  return analizarFormula(formula, edicion, filaPanel).regla || null;
-}
-
-/**
+ *
  * Devuelve { regla } si la entendió, o { motivo } explicando por qué no.
  * El motivo se muestra en la alerta: si un día una fórmula queda rara, lo que
  * hace falta es saber QUÉ tiene de raro, no que la app diga "no se pudo leer".

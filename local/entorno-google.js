@@ -4,6 +4,7 @@ const crypto = require('crypto');
 function crear({ sheetsFalso } = {}) {
   const props = new Map();
   const cache = new Map();
+  const usosHtml = [];
   return {
     Sheets: sheetsFalso,
     PropertiesService: {
@@ -28,7 +29,24 @@ function crear({ sheetsFalso } = {}) {
         [...crypto.createHash('sha256').update(texto, 'utf8').digest()]
           .map(b => (b > 127 ? b - 256 : b))
     },
-    HtmlService: {}, SpreadsheetApp: undefined, console
+    // Salida de texto como la de Apps Script: getContent() devuelve lo que se mandó.
+    ContentService: {
+      MimeType: { JSON: 'JSON' },
+      createTextOutput: (texto) => ({
+        mime: null,
+        setMimeType(m) { this.mime = m; return this; },
+        getContent: () => String(texto)
+      })
+    },
+    // Cualquier uso de HtmlService queda anotado: el servidor no tiene que servir
+    // ninguna página (ver doGet), así que la prueba lo mira acá.
+    HtmlService: new Proxy({}, { get: (_o, k) => (...args) => {
+      usosHtml.push(String(k));
+      const pagina = { setTitle() { return this; }, addMetaTag() { return this; }, getContent: () => '<html>' };
+      return { evaluate: () => pagina, getContent: () => '<html>' };
+    } }),
+    usosHtml,
+    SpreadsheetApp: undefined, console
   };
 }
 

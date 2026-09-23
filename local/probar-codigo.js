@@ -46,17 +46,21 @@ const metodos = new Set(['filter','map','forEach','reduce','some','every','index
 // Ojo: NO consumir el carácter de antes. Con /(^|[^\w$.])nombre\(/ el paréntesis
 // de la llamada externa se consume y la llamada de adentro —construirEstado(
 // leerPlanilla())— queda sin delimitador y no se ve. Es el caso que importa.
+// Y sin contar la propia declaración: "function leerRango(" también calza con el
+// patrón de llamada, así que antes toda función figuraba como usada y el control
+// de código muerto no podía fallar nunca.
+const sinDeclaraciones = soloCodigo.replace(/\bfunction\s+[A-Za-z_$][\w$]*\s*\(/g, 'function (');
 const llamadas = new Set();
 const re = /(?<![\w$.])([a-z][A-Za-z0-9_$]*)\s*\(/g;
 let m;
-while ((m = re.exec(soloCodigo)) !== null) llamadas.add(m[1]);
+while ((m = re.exec(sinDeclaraciones)) !== null) llamadas.add(m[1]);
 
 const faltan = [...llamadas].filter(n => !declaradas.has(n) && !constantes.has(n) && !locales.has(n)
                                         && !conocidas.has(n) && !metodos.has(n));
 chequear('todas las funciones que se llaman existen',
   faltan.length === 0, 'se llaman y no están declaradas: ' + faltan.join(', '));
 
-const entradas = ['doGet','obtenerEstado','configurarPin','include'];  // las llama Google, no el código
+const entradas = ['doGet','configurarPin'];  // las llama Google o se ejecutan desde el editor
 const muertas = [...declaradas].filter(n => !llamadas.has(n) && entradas.indexOf(n) === -1);
 chequear('no hay funciones que no use nadie',
   muertas.length === 0, 'código muerto: ' + muertas.join(', '));
@@ -69,11 +73,15 @@ chequear('la app no escribe en la planilla',
   !/Values\s*\.\s*(update|append|batchUpdate|clear)/i.test(soloCodigo),
   'es una app de solo lectura: no puede tocar la planilla ni por accidente');
 
-// Los datos de la gente no pueden viajar en la propia página.
-// Se mira el archivo crudo: acá el texto 'null' es justamente lo que importa.
-chequear('la página se sirve sin datos adentro',
-  /datosIniciales\s*=\s*'null'\s*;/.test(src),
-  'si se incrusta el estado en el HTML, tener la URL alcanza para ver los nombres y los celulares');
+// El servidor no sirve ninguna página. Una página de HtmlService trae
+// google.script.run, y por ahí se puede llamar a leerPlanilla() sin el PIN.
+chequear('el servidor no sirve ninguna página (no usa HtmlService)',
+  !/HtmlService\s*\./.test(soloCodigo),
+  'con una página servida por Apps Script, cualquiera con la URL lee la planilla sin PIN');
+
+chequear('el PIN no se puede fijar desde la URL',
+  !/\.\s*configurar\b/.test(soloCodigo),
+  'si la URL pública fija el PIN, el primero que llega pone el suyo');
 
 console.log('\n' + (fallas === 0 ? 'CÓDIGO VERIFICADO — listo para pegar en Apps Script' : fallas + ' FALLAS'));
 process.exit(fallas ? 1 : 0);

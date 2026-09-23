@@ -4,8 +4,7 @@
 const fs = require('fs'), path = require('path');
 const { cargar } = require('./cargar.js');
 const { cargarUI } = require('./ui.js');
-const { armar } = require('./generar-preview.js');
-const { expresion } = require('./inyeccion.js');
+const { armar, paraIncrustarEnScript } = require('./generar-preview.js');
 const G = cargar();
 
 let fallas = 0, corridos = 0;
@@ -51,12 +50,12 @@ const VENENOS = [
 
 console.log('\n--- Escapar al incrustar en un <script> ---');
 // Importa porque: JSON.stringify NO escapa "</script>". Fue un XSS real y
-// explotable en este mismo proyecto. Hoy la página se sirve vacía, pero la
-// función tiene que seguir siendo correcta el día que se vuelva a usar.
+// explotable en este mismo proyecto. Hoy solo mete datos en un <script> la
+// vista previa local, pero esa se abre a mano y tiene que ser segura igual.
 caso('escapa el < para que no se pueda cerrar el <script>',
   'con "</script>" adentro de un nombre se cierra el bloque y se ejecuta código arbitrario',
   () => {
-    const salida = G.paraIncrustarEnScript('</script><script>malo()</script>');
+    const salida = paraIncrustarEnScript('</script><script>malo()</script>');
     if (salida.indexOf('<') !== -1) return 'quedó un "<" sin escapar: ' + salida;
     if (salida.indexOf('\\u003c') === -1) return 'no escapó a \\u003c: ' + salida;
     return true;
@@ -65,7 +64,7 @@ caso('escapa el < para que no se pueda cerrar el <script>',
 caso('escapa los saltos de línea invisibles U+2028 y U+2029',
   'JavaScript los trata como fin de línea y parten el script al medio',
   () => {
-    const salida = G.paraIncrustarEnScript('a b c');
+    const salida = paraIncrustarEnScript('a b c');
     return (salida.indexOf(' ') === -1 && salida.indexOf(' ') === -1)
       || 'quedaron sin escapar: ' + JSON.stringify(salida);
   }
@@ -74,20 +73,10 @@ caso('y lo escapado sigue siendo el mismo texto',
   'de nada sirve escapar si al leerlo del otro lado el dato quedó cambiado',
   () => {
     const original = 'Fulana </script> "comillas"   & <b>';
-    return eval('(' + G.paraIncrustarEnScript(original) + ')') === original
+    return eval('(' + paraIncrustarEnScript(original) + ')') === original
       || 'el texto no sobrevivió la ida y vuelta';
   }
 );
-caso('lo que doGet pone en la página pasa por ahí',
-  'si mañana alguien vuelve a incrustar los datos, tiene que ser por el camino escapado',
-  () => {
-    const usaEscape = /paraIncrustarEnScript/.test(expresion);
-    const sirveVacia = expresion.trim() === "'null'";
-    if (!usaEscape && !sirveVacia) return 'doGet incrusta con: ' + expresion;
-    return true;
-  }
-);
-
 console.log('\n--- Pintar datos hostiles en la interfaz ---');
 const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture.json'), 'utf8'));
 const hoja = fixture.hojas['Inscriptos Octubre 2026'];
@@ -191,11 +180,12 @@ caso('y los enlaces siguen sirviendo con datos normales',
 // La preview envenenada queda para poder mirarla en el navegador si hace falta.
 armar(envenenado, 'preview-xss.html');
 
-console.log('\n--- La página se sigue sirviendo vacía ---');
-const src = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'Codigo.gs'), 'utf8');
-caso('doGet no manda datos adentro del HTML',
-  'si los manda, tener la URL alcanza para ver nombres, mails y celulares sin el PIN',
-  () => /t\.datosIniciales\s*=\s*'null'\s*;/.test(src) || 'doGet incrusta datos'
+console.log('\n--- El servidor no sirve ninguna página ---');
+const src = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'Codigo.gs'), 'utf8')
+  .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/.*/g, ' ');
+caso('el servidor no arma ninguna página HTML',
+  'una página servida por Apps Script trae google.script.run: con la URL se lee la planilla sin el PIN',
+  () => !/HtmlService\s*\./.test(src) || 'Codigo.gs usa HtmlService'
 );
 caso('y la preview envenenada tampoco los ejecuta',
   'es la que se abre a mano para mirar; tiene que ser segura ella también',

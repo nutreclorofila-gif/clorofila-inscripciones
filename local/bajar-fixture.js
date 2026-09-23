@@ -53,23 +53,52 @@ const rellenar = (filas, ancho) =>
   });
   proc.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized' }) + '\n');
 
-  const hojasInscriptos = ['Inscriptos Agosto 2026', 'Inscriptos Septiembre 2026', 'Inscriptos Octubre 2026'];
+  // Las pestañas se descubren igual que en leerPlanilla(): las que empiezan con
+  // "Inscriptos", más las que nombren las fórmulas del Panel. Antes estaban
+  // escritas a mano, y la primera pestaña de un mes nuevo quedaba afuera de la
+  // prueba con datos reales sin que nada avisara.
+  const meta = await enviar('tools/call', {
+    name: 'sheets-get-spreadsheet', arguments: { spreadsheetId: ID }
+  });
+  const titulos = (JSON.parse(meta.content[0].text).sheets || []).map(h => h.title);
+  const norm = n => String(n).trim().toLowerCase();
+  const buscar = nombre => titulos.find(t => norm(t) === norm(nombre));
+  const citar = n => "'" + String(n).replace(/'/g, "''") + "'";
+
+  const panel = buscar('Panel');
+  if (!panel) throw new Error('no hay pestaña Panel. Pestañas: ' + titulos.join(', '));
+  // Mismo tope que FILAS_PANEL en Codigo.gs.
+  const panelFormulas = rellenar(await leer(citar(panel) + '!A1:F500', 'FORMULA'), 6);
+  const panelValores = rellenar(await leer(citar(panel) + '!A1:F500', 'FORMATTED_VALUE'), 6);
+
+  const nombradas = new Set();
+  panelFormulas.forEach(f => {
+    const re = /'((?:[^']|'')+)'!|([A-Za-zÁÉÍÓÚáéíóúÑñ0-9_]+)!/g;
+    let m;
+    while ((m = re.exec(String(f[3] || '')))) nombradas.add(norm((m[1] || m[2]).replace(/''/g, "'")));
+  });
+  const ignoradas = ['lista de espera', 'gift cards', 'panel'];
+  const aLeer = titulos.filter(t => !ignoradas.includes(norm(t)) &&
+    (/^inscriptos /i.test(String(t).trim()) || nombradas.has(norm(t))));
+
   const hojas = {};
-  for (const h of hojasInscriptos) {
-    hojas[h] = rellenar(await leer(`${h}!A1:K200`, 'FORMATTED_VALUE'), 11);
+  for (const h of aLeer) hojas[h] = rellenar(await leer(citar(h) + '!A:K', 'FORMATTED_VALUE'), 11);
+
+  // La lista de espera y las gift cards también, con el mismo ancho que usa la
+  // app (hasta la N). Sin ellas la prueba con datos reales nunca las veía.
+  const extras = {};
+  for (const nombre of ['Lista de espera', 'Gift Cards']) {
+    const real = buscar(nombre);
+    if (real) extras[nombre] = rellenar(await leer(citar(real) + '!A:N', 'FORMATTED_VALUE'), 14);
   }
 
-  const fixture = {
-    panelValores: rellenar(await leer('Panel!A1:F40', 'FORMATTED_VALUE'), 6),
-    panelFormulas: rellenar(await leer('Panel!A1:F40', 'FORMULA'), 6),
-    hojas,
-    generadoEn: new Date().toISOString()
-  };
+  const fixture = { panelValores, panelFormulas, hojas, extras, generadoEn: new Date().toISOString() };
 
   fs.writeFileSync(path.join(__dirname, 'fixture.json'), JSON.stringify(fixture, null, 1));
   console.log('fixture.json escrito:',
     fixture.panelValores.length, 'filas de Panel |',
-    Object.entries(hojas).map(([k, v]) => `${k}: ${v.length - 1}`).join(' | '));
+    Object.entries(hojas).map(([k, v]) => `${k}: ${v.length - 1}`).join(' | '), '|',
+    Object.entries(extras).map(([k, v]) => `${k}: ${v.length - 1}`).join(' | '));
   proc.kill();
   process.exit(0);
 })().catch(e => { console.error('ERROR:', e.message); proc.kill(); process.exit(1); });
