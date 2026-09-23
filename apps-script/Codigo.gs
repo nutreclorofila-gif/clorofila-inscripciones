@@ -546,9 +546,17 @@ function fechaDeEdicion(texto) {
  * mano ("4/9/2026"); en las ventas de Tikzet dice "(ver Tikzet)". Al teléfono va
  * solo esto, ya entendido, y no el texto de la celda: leerlo allá con
  * new Date() toma el día como mes, y "4/09/2026" salía 9 de abril.
+ *
+ * Y a veces viene con el año primero ("2026-08-14 10:22:33"): en la pestaña de
+ * agosto hay 17 filas así. Hasta el 23/9 se leía solo día/mes; esa gente no
+ * decía "se anotó el", no entraba en "Se anotaron N en los últimos 7 días" y
+ * se sumaba a los "sin fecha", que el aviso le achacaba a Tikzet.
  */
 function fechaDeInscripcion(texto) {
-  var m = String(texto || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  var t = String(texto || '').trim();
+  var m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  var alReves = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (alReves) m = [alReves[0], alReves[3], alReves[2], alReves[1]];
   if (!m) return null;
   var dia = Number(m[1]), mes = Number(m[2]), anio = Number(m[3]);
   var f = new Date(anio, mes - 1, dia);
@@ -792,6 +800,7 @@ function construirEstado(crudo, ahora) {
   var vigentes = ediciones.filter(function (e) { return e.vigente; });
   marcarRepetidores(ediciones);
   var espera = leerEspera((crudo.extras || {})[HOJA_ESPERA], ediciones);
+  marcarQuienYaSeAnoto(espera, ediciones);
   var gift = leerGiftCards((crudo.extras || {})[HOJA_GIFT]);
   var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas, espera, gift);
 
@@ -928,6 +937,28 @@ function leerEspera(filas, ediciones) {
   lista.noSeSupoLeer = crudas.length > 0 && lista.length === 0;
   lista.sinColumnaEdicion = lista.length > 0 && lista.every(function (x) { return !x.quiere; });
   return lista;
+}
+
+/**
+ * Marca a quien espera una edición en la que YA está anotado. Es el recorrido
+ * normal: se libera lugar, Leo le escribe, la persona se anota por el Tally, y
+ * su fila de la lista de espera queda, porque la app no escribe y nadie la
+ * borra. Sin esto el aviso de "Hay lugar y Fulana está esperando" seguía ahí
+ * para siempre, mandándolo a escribirle a alguien que ya estaba adentro.
+ *
+ * Se cruza por mail (sin mayúsculas ni espacios) o por celular ya normalizado,
+ * como en el resto de la app: el nombre se escribe distinto cada vez.
+ */
+function marcarQuienYaSeAnoto(espera, ediciones) {
+  (espera || []).forEach(function (x) {
+    var ed = (ediciones || []).filter(function (e) { return e.edicion === x.edicion; })[0];
+    if (!ed) return;
+    var mail = String(x.email || '').trim().toLowerCase();
+    x.yaAnotado = (ed.personas || []).some(function (p) {
+      return (mail && String(p.email || '').trim().toLowerCase() === mail) ||
+             (x.whatsapp && p.whatsapp === x.whatsapp);
+    });
+  });
 }
 
 /**
@@ -1716,6 +1747,8 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
   var conLugar = {};
   (esperaGlobal || []).forEach(function (x) {
     if (!x.edicion) return;
+    // Ya se anotó en esa misma edición: no hay a quién escribirle.
+    if (x.yaAnotado) return;
     var ed = ediciones.filter(function (e) { return e.edicion === x.edicion; })[0];
     // Sin cupo cargado no se sabe si está llena: decirlo sería inventarlo.
     if (!ed || ed.quedan === null) return;
@@ -1753,7 +1786,8 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
   (esperaGlobal || []).forEach(function (x) {
     if (!x.edicion) return;
     var ed = todasLasEdiciones.filter(function (e) { return e.edicion === x.edicion; })[0];
-    if (!ed || ed.vigente) return;
+    // Si fue a ese taller, no quedó esperando nada.
+    if (!ed || ed.vigente || x.yaAnotado) return;
 
     // La próxima fecha de lo mismo, HAYA O NO lugar. Decir "no hay otra fecha"
     // cuando en realidad la hay pero está llena es peor que no decir nada: esa
