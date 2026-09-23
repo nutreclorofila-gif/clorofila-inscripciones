@@ -771,9 +771,11 @@
     var quienes = g.slice(0, 3).map(function (x) { return esc(x.nombre || 'alguien'); }).join(', ');
     if (g.length > 3) quienes += ' y ' + (g.length - 3) + ' más';
     // Las ventas de Tikzet no traen fecha en la planilla: sin esto, la lista
-    // por fecha parece completa y le faltan justo esas.
+    // por fecha parece completa y le faltan justo esas. Tikzet va como ejemplo y
+    // no como la causa: también cae acá una fecha escrita de una forma que no
+    // se entiende, y antes el aviso le echaba la culpa a Tikzet igual.
     if (NOVEDADES.porFecha && NOVEDADES.sinFecha) {
-      quienes += '. Hay ' + NOVEDADES.sinFecha + ' sin fecha en la planilla (las ventas de Tikzet no la traen), ' +
+      quienes += '. Hay ' + NOVEDADES.sinFecha + ' sin fecha en la planilla (por ejemplo, las ventas de Tikzet), ' +
         (NOVEDADES.sinFecha === 1 ? 'y no entra' : 'y no entran') + ' en esta cuenta.';
     }
     return '<div class="aviso info nuevo"><div class="q">' +
@@ -876,7 +878,10 @@
 
   function tarjeta(e) {
     var cuando = cuandoEsLaEdicion(e);
-    var esperan = (DATOS.espera || []).filter(function (x) { return x.edicion === e.edicion; });
+    // Quien ya se anotó en esta misma edición no espera nada: su fila de la
+    // lista de espera queda porque nadie la borra, y la tarjeta decía "2
+    // esperando, y hay lugar" mandando a Leo a escribirle a alguien que ya está.
+    var esperan = (DATOS.espera || []).filter(function (x) { return x.edicion === e.edicion && !x.yaAnotado; });
     var pct = Math.round(e.ocupacion * 100);
     var clase = pct >= 100 ? 'full' : (pct >= 70 ? 'alta' : '');
     var abierta = ABIERTAS[e.id];

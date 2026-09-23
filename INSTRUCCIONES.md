@@ -92,7 +92,7 @@ una alerta alta en vez de dejar de mostrar ediciones en silencio.
 
 | Solapa | Qué hay |
 |---|---|
-| **Cupos** | Una tarjeta por edición vigente con `anotados / cupo` en número grande, barra de ocupación, cobrado y cuántos deben. Se toca la tarjeta y se despliega la gente. Si hay gente esperando, el pie lo dice, y en verde *"esperando, y hay lugar"* cuando hay lugar libre. Abajo, las ediciones que ya pasaron, colapsadas, y la gente de la lista de espera que no se pudo atar a una fecha, con lo que escribió que quiere. |
+| **Cupos** | Una tarjeta por edición vigente con `anotados / cupo` en número grande, barra de ocupación, cobrado y cuántos deben. Se toca la tarjeta y se despliega la gente. Si hay gente esperando, el pie lo dice, y en verde *"esperando, y hay lugar"* cuando hay lugar libre. Quien está en la lista de espera pero ya se anotó en esa misma edición (mismo mail o mismo celular) no cuenta como que espera, ni acá ni en Alertas. Abajo, las ediciones que ya pasaron, colapsadas, y la gente de la lista de espera que no se pudo atar a una fecha, con lo que escribió que quiere. |
 | **Plata** | Cobrado total de lo que viene, desglose por edición, lista de quién debe y cuánto, y el bloque de Tikzet. |
 | **Gente** | Todos los inscriptos con buscador por nombre, mail o celular, y su estado de pago. |
 | **Alertas** | Solo lo que necesita que alguien haga algo: descuadres, sobrecupo, pagos incompletos, Tikzet sin cargar, y *"Hay 2 lugares en … y Fulana está esperando"* cuando se libera lugar en una edición abierta con gente en la lista de espera (un aviso por edición). Si no hay nada, no hay nada. |
@@ -270,8 +270,10 @@ Si en el teléfono no hay nada guardado con qué comparar (la primera vez, despu
 **Salir** o después de 3 días sin abrirla), usa la fecha de inscripción de la planilla
 (columna J): *"Se anotaron 3 personas en los últimos 7 días (según la planilla)"*. Las
 ventas de Tikzet dicen *(ver Tikzet)* en esa columna y no tienen fecha: el aviso dice
-cuántas quedaron afuera, para que la lista no parezca completa. La fecha se lee a mano
-como día/mes (`new Date("4/09/2026")` da 9 de abril). Cada persona en la tarjeta de Cupos
+cuántas quedaron afuera (Tikzet va como ejemplo, no como la causa), para que la lista no
+parezca completa. La fecha se lee a mano como día/mes (`new Date("4/09/2026")` da 9 de
+abril), y también con el año primero (*2026-08-14 10:22:33*, como vienen algunas filas de
+agosto). Cada persona en la tarjeta de Cupos
 muestra además *"se anotó el 16/09"* cuando la planilla lo dice.
 
 La comparación es **por mail** (o por nombre si no hay mail), nunca por número de fila:

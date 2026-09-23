@@ -325,7 +325,7 @@ console.log('\n--- Escribirle a la gente desde donde aparece ---');
   const haceDias = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return dd(d.getDate()) + '/' + dd(d.getMonth() + 1) + '/' + d.getFullYear(); };
   const ED = 'Taller de prueba — 20/12/2099';
   const HH = ['nombre','email','celular','actividad','horario','medio','comprobante','monto','verif','fecha','Edición'];
-  const armar = (anotados) => G.paraElTelefono(G.construirEstado({
+  const armar = (anotados, masEspera) => G.paraElTelefono(G.construirEstado({
     panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
       ['Taller de prueba', ED, '12', String(anotados), '', 'Abierto']],
     panelFormulas: [['','','','','',''], ['','','',"=COUNTIF('Inscriptos'!K:K;B2)",'','']],
@@ -335,7 +335,7 @@ console.log('\n--- Escribirle a la gente desde donde aparece ---');
     ].concat(Array.from({ length: anotados - 2 }, (_, i) => ['Relleno' + i, 'r' + i + '@ejemplo.com', '', '', '', '', '', '2600', '', '', ED])) },
     extras: { 'Lista de espera': [['nombre','email','celular','Espera para'],
       ['Elsa Espera', 'elsa@ejemplo.com', '094000789', ED],
-      ['Fabio Espera', 'fabio@ejemplo.com', '094000456', 'curso de los jueves, el que viene']] }
+      ['Fabio Espera', 'fabio@ejemplo.com', '094000456', 'curso de los jueves, el que viene']].concat(masEspera || []) }
   }, new Date()));
   const est = armar(2);
   const ui = cargarUI(est);
@@ -396,6 +396,11 @@ console.log('\n--- Escribirle a la gente desde donde aparece ---');
   const llena = cargarUI(armar(12)).vistaCupos();
   chequeo('llena, dice solo que espera',
     /1 esperando lugar/.test(pie(llena)) && !/hay lugar/.test(pie(llena)), 'el pie quedó: ' + pie(llena));
+  // Carla se anotó y su fila de la lista de espera quedó: no es alguien más a
+  // quien escribirle, y "2 esperando, y hay lugar" lo mandaba a buscarla.
+  const conCarla = cargarUI(armar(2, [['Carla', '', '094000123', ED]])).vistaCupos();
+  chequeo('quien espera pero ya se anotó no cuenta en el pie de la tarjeta',
+    /1 esperando, y hay lugar/.test(pie(conCarla)), 'el pie quedó: ' + pie(conCarla));
 
   // La fecha de inscripción: de la planilla, no de lo que recuerde el teléfono.
   const conFecha = ui.persona({ nombre: 'X', estadoPago: 'completo', hoja: 'H', fila: 2, anotadoEl: '16/09/2026' });
@@ -410,6 +415,10 @@ console.log('\n--- Escribirle a la gente desde donde aparece ---');
     porFecha);
   chequeo('y avisa que hay anotados sin fecha, para no creer que la lista está completa',
     /1 sin fecha/.test(porFecha), porFecha);
+  // Sin fecha también queda quien tiene una que no se entiende: decir que son
+  // todas ventas de Tikzet era echarle la culpa a Tikzet sin saberlo.
+  chequeo('y no dice que todos los sin fecha son ventas de Tikzet',
+    !/las ventas de Tikzet no la traen\)/.test(porFecha), porFecha);
 }
 function montos(h) { return h.match(/\$\s?[\d.]+/g) || []; }
 

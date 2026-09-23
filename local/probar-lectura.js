@@ -225,6 +225,20 @@ console.log('\n--- Quien espera un taller que ya pasó ---');
   chequear('si no hay otra fecha, lo dice igual',
     a2.length === 1 && /No hay otra fecha/.test(a2[0].detalle),
     a2.length ? a2[0].detalle : '(sin alerta)');
+
+  // Ana esperó, le escribieron, se anotó y fue: su fila de espera quedó. No
+  // "quedó esperando" nada, y mandarla a la próxima fecha es un llamado de más.
+  const fue = api.construirEstado({
+    panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
+      ['Taller de tapeo', VIEJO, '12', '1', '11', 'Cerrado']],
+    panelFormulas: [['','','','','',''], ['','','',"=COUNTIF('Inscriptos'!K:K;B2)",'','']],
+    hojas: { 'Inscriptos': [HH, f('Ana', VIEJO)] },
+    extras: { 'Lista de espera': [['nombre','email','celular','Espera para'],
+      ['Ana', 'ana@x.com', '', 'Taller de tapeo 07/08/2026']] }
+  }, new Date(2026, 10, 1));
+  chequear('si ya fue a ese taller, no avisa que quedó esperando',
+    !(fue.alertas || []).some(x => x.tipo === 'espera_vieja'),
+    JSON.stringify((fue.alertas || []).filter(x => x.tipo === 'espera_vieja')));
 }
 
 console.log('\n--- Se liberó un lugar y hay gente esperando ---');
@@ -267,6 +281,35 @@ console.log('\n--- Se liberó un lugar y hay gente esperando ---');
   const cerrada = armar(11, ['Zulema'], 'Cerrado');
   chequear('si la edición está cerrada, no manda a escribirle',
     deTipo(cerrada, 'espera_con_lugar').length === 0, JSON.stringify(cerrada.alertas.map(a => a.tipo)));
+
+  // El recorrido normal: se libera lugar, Leo le escribe, la persona se anota y
+  // su fila de la lista de espera queda (la app no escribe, nadie la borra).
+  // Sin cruzarlos, el aviso de "es el momento de escribirle" seguía ahí para
+  // siempre, mandándolo a escribirle a alguien que ya estaba anotado.
+  const yaSeAnoto = api.construirEstado({
+    panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
+      ['Taller de prueba', ED, '12', '2', '10', 'Abierto']],
+    panelFormulas: [['','','','','',''], ['','','',"=COUNTIF('Inscriptos'!K:K;B2)",'','']],
+    hojas: { 'Inscriptos': [HH,
+      ['Zulema Inventada', 'zulema@ejemplo.com', '', '', '', '', '', '2600', '', '', ED],
+      ['Zacarías Inventado', 'zaca@ejemplo.com', '094000111', '', '', '', '', '2600', '', '', ED]] },
+    extras: { 'Lista de espera': [['nombre','email','celular','Espera para'],
+      ['Zulema Inventada', ' Zulema@Ejemplo.com', '', ED],          // el mismo mail, escrito distinto
+      ['Zacarías', 'otro-mail@ejemplo.com', '094 000 111', ED],       // otro mail, el mismo celular
+      ['Yolanda Inventada', 'yolanda@ejemplo.com', '', ED]] }
+  }, new Date(2026, 8, 9));
+  const c3 = deTipo(yaSeAnoto, 'espera_con_lugar');
+  chequear('quien ya se anotó (mismo mail o mismo celular) no cuenta como que espera',
+    c3.length === 1 && /Yolanda/.test(c3[0].texto) && /está esperando/.test(c3[0].texto) &&
+    !/Zulema|Zacar/.test(c3[0].texto + c3[0].detalle),
+    JSON.stringify(c3));
+  chequear('y la lista de espera lo dice, para que la tarjeta no lo cuente',
+    yaSeAnoto.espera.filter(x => x.yaAnotado).length === 2 && !yaSeAnoto.espera[2].yaAnotado,
+    JSON.stringify(yaSeAnoto.espera.map(x => [x.nombre, !!x.yaAnotado])));
+
+  const llenaYaAnotado = armar(12, ['Persona3']);
+  chequear('con la edición llena, tampoco avisa que espera alguien que ya está adentro',
+    deTipo(llenaYaAnotado, 'espera').length === 0, JSON.stringify(deTipo(llenaYaAnotado, 'espera')));
 }
 
 console.log('\n--- La fecha de inscripción que llega al teléfono ---');
@@ -277,7 +320,11 @@ console.log('\n--- La fecha de inscripción que llega al teléfono ---');
 {
   const HH = ['nombre','email','celular','actividad','horario','medio','comprobante','monto','verif','fecha','Edición'];
   const ED = 'Taller de prueba — 20/12/2099';
-  const fechas = ['16/09/2026 10:00:00', '4/9/2026', '(ver Tikzet)', '', '31/02/2026'];
+  // También "2026-08-14 10:22:33": en la pestaña de agosto hay filas así. Sin
+  // entenderlas, esa gente no decía "se anotó el", no entraba en "Se anotaron N
+  // en los últimos 7 días" y la cuenta de "sin fecha" se la achacaba a Tikzet.
+  const fechas = ['16/09/2026 10:00:00', '4/9/2026', '(ver Tikzet)', '', '31/02/2026',
+                  '2026-08-14 10:22:33', '2026-8-4', '2026-02-31 09:00:00'];
   const est = api.construirEstado({
     panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
       ['Taller de prueba', ED, '12', String(fechas.length), '', 'Abierto']],
@@ -287,8 +334,9 @@ console.log('\n--- La fecha de inscripción que llega al teléfono ---');
     extras: {}
   }, new Date(2026, 8, 20));
   const dias = ((est.ediciones[0] || {}).personas || []).map(p => p.anotadoEl);
-  chequear('entiende la fecha del Tally y la escrita a mano, siempre día/mes',
-    JSON.stringify(dias) === JSON.stringify(['16/09/2026', '04/09/2026', null, null, null]),
+  chequear('entiende la fecha del Tally, la escrita a mano y la de año primero, siempre como día/mes',
+    JSON.stringify(dias) === JSON.stringify(['16/09/2026', '04/09/2026', null, null, null,
+                                             '14/08/2026', '04/08/2026', null]),
     'quedó: ' + JSON.stringify(dias));
   const alTelefono = api.paraElTelefono(est);
   const p0 = alTelefono.ediciones[0].personas[0];

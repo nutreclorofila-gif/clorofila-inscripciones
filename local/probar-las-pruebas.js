@@ -221,7 +221,20 @@ const MUTACIONES = [
    "anotado ? 'se anotó el ' + diaYMes(anotado) : ''", "''"],
   ['la fecha de inscripción se lee mes/día', CODIGO,
    'var dia = Number(m[1]), mes = Number(m[2]), anio = Number(m[3]);',
-   'var dia = Number(m[2]), mes = Number(m[1]), anio = Number(m[3]);']
+   'var dia = Number(m[2]), mes = Number(m[1]), anio = Number(m[3]);'],
+  ['la fecha con el año primero vuelve a no entenderse', CODIGO,
+   'if (alReves) m = [alReves[0], alReves[3], alReves[2], alReves[1]];', ''],
+  ['el aviso por fecha vuelve a culpar a Tikzet de todos los sin fecha', INDEX,
+   'sin fecha en la planilla (por ejemplo, las ventas de Tikzet), ',
+   'sin fecha en la planilla (las ventas de Tikzet no la traen), '],
+  ['manda a escribirle a quien espera y ya se anotó', CODIGO,
+   '    if (x.yaAnotado) return;\n', ''],
+  ['no reconoce por el celular a quien ya se anotó', CODIGO,
+   '(x.whatsapp && p.whatsapp === x.whatsapp)', 'false'],
+  ['dice que quedó esperando un taller al que fue', CODIGO,
+   'if (!ed || ed.vigente || x.yaAnotado) return;', 'if (!ed || ed.vigente) return;'],
+  ['la tarjeta cuenta como esperando a quien ya se anotó', INDEX,
+   'x.edicion === e.edicion && !x.yaAnotado', 'x.edicion === e.edicion']
 ];
 
 const original = {
