@@ -489,6 +489,29 @@
     return { texto: 'en ' + dias + ' días', clase: '', dias: dias };
   }
 
+  /**
+   * El curso lleva solo el mes ("Octubre 2026"), no el día en que arranca cada
+   * grupo. Contar los días hasta e.fecha, que es el último día del mes, decía
+   * "en 38 días" para un curso que empezaba en una semana, y seguía contando
+   * durante el mes con las clases ya empezadas. Se dice lo que se sabe: el mes.
+   */
+  var NOMBRES_MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+                     'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
+  function cuandoEsElMes(inicioIso, finIso) {
+    var ini = new Date(inicioIso), fin = new Date(finIso);
+    if (isNaN(ini) || isNaN(fin)) return null;
+    var hoy = new Date();
+    var dia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+    if (dia > new Date(fin.getFullYear(), fin.getMonth(), fin.getDate())) return { texto: 'ya pasó', clase: 'ya' };
+    if (dia >= new Date(ini.getFullYear(), ini.getMonth(), ini.getDate())) return { texto: 'este mes', clase: 'pronto' };
+    return { texto: 'en ' + NOMBRES_MES[ini.getMonth()], clase: '' };
+  }
+  /** Lo que dice la tarjeta. Un backend viejo no manda inicio: ahí, como antes. */
+  function cuandoEsLaEdicion(e) {
+    if (e.fechaEsMes && e.inicio) return cuandoEsElMes(e.inicio, e.fecha);
+    return cuandoEs(e.fecha);
+  }
+
   /** Botones para escribirle a alguien. Sin dato, no se ofrece el botón. */
   function contacto(p) {
     var partes = [];
@@ -607,12 +630,15 @@
 
   /* ---------- cupos ---------- */
   function vistaCupos() {
-    // Lo más próximo primero: es lo que hay que mirar hoy.
+    // Lo más próximo primero: es lo que hay que mirar hoy. Por cuándo EMPIEZA:
+    // el curso de octubre va antes que un taller del 16/10 aunque siga vigente
+    // hasta el 31.
     var vigentes = DATOS.ediciones.filter(function (e) { return e.vigente; })
       .sort(function (a, b) {
-        if (!a.fecha) return 1;
-        if (!b.fecha) return -1;
-        return new Date(a.fecha) - new Date(b.fecha);
+        var fa = a.inicio || a.fecha, fb = b.inicio || b.fecha;
+        if (!fa) return 1;
+        if (!fb) return -1;
+        return new Date(fa) - new Date(fb);
       });
     var pasadas = DATOS.ediciones.filter(function (e) { return !e.vigente; });
     var html = '';
@@ -638,7 +664,7 @@
   }
 
   function tarjeta(e) {
-    var cuando = cuandoEs(e.fecha);
+    var cuando = cuandoEsLaEdicion(e);
     var esperan = (DATOS.espera || []).filter(function (x) { return x.edicion === e.edicion; });
     var pct = Math.round(e.ocupacion * 100);
     var clase = pct >= 100 ? 'full' : (pct >= 70 ? 'alta' : '');
@@ -651,11 +677,15 @@
         '<div class="cual">' + esc(e.subtitulo || e.edicion) + '</div>' +
         '<div class="cifra">' +
           '<span class="grande">' + e.anotados + '</span>' +
-          '<span class="de">de ' + e.cupo + '</span>' +
-          '<span class="quedan">' + (e.quedan > 0
-            ? '<b>' + e.quedan + '</b>' + (e.quedan === 1 ? 'lugar libre' : 'lugares libres')
-            : (e.quedan === 0 ? '<b>Lleno</b>' : '<b>' + Math.abs(e.quedan) + ' de más</b>')) +
-          '</span>' +
+          // Con el Cupo sin cargar en el Panel no se inventan lugares: "de null"
+          // y "0 de más" eran lo que salía. La alerta dice qué tiene la celda.
+          (e.cupo === null
+            ? '<span class="de">anotados</span><span class="quedan"><b>Cupo sin cargar</b></span>'
+            : '<span class="de">de ' + e.cupo + '</span>' +
+              '<span class="quedan">' + (e.quedan > 0
+                ? '<b>' + e.quedan + '</b>' + (e.quedan === 1 ? 'lugar libre' : 'lugares libres')
+                : (e.quedan === 0 ? '<b>Lleno</b>' : '<b>' + Math.abs(e.quedan) + ' de más</b>')) +
+              '</span>') +
         '</div>' +
         '<div class="barra"><i class="' + clase + '" style="width:' + Math.min(pct, 100) + '%"></i></div>' +
         '<div class="pie">' +
@@ -889,7 +919,7 @@
    */
   function copiarLista(ed, boton) {
     var texto = (ed.titulo + ' — ' + (ed.subtitulo || '') + '\n' +
-      ed.anotados + ' de ' + ed.cupo + '\n\n' +
+      ed.anotados + (ed.cupo === null ? ' anotados' : ' de ' + ed.cupo) + '\n\n' +
       ed.personas.map(function (p, i) {
         return (i + 1) + '. ' + (p.nombre || '(sin nombre)');
       }).join('\n')).trim();

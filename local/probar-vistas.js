@@ -220,6 +220,81 @@ if (archivo) {
   probarEstado('Planilla vacía', G.construirEstado({ panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado']], panelFormulas: [['','','','','','']], hojas: {}, extras: {} }, new Date()));
 }
 
+// El curso lleva solo el mes en el nombre. Para saber si ya pasó se toma el
+// último día del mes, y eso está bien; pero la tarjeta usaba esa misma fecha
+// para el "en N días" y para el orden: el curso de octubre decía "en 38 días"
+// el 23/9 y quedaba abajo de un taller del 16/10.
+console.log('\n--- El curso se cuenta y se ordena por cuándo empieza ---');
+{
+  const { cargar } = require('./cargar.js');
+  const G = cargar();
+  const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const COMO_SE_DICE = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','setiembre','octubre','noviembre','diciembre'];
+  const hoy = new Date();
+  const dd = (n) => (n < 10 ? '0' : '') + n;
+  const conCurso = (mes) => {
+    const curso = 'Curso de cocina — ' + MESES[mes.getMonth()] + ' ' + mes.getFullYear() + ' (Jueves 10-12h)';
+    const taller = 'Taller de prueba — 16/' + dd(mes.getMonth() + 1) + '/' + mes.getFullYear();
+    return G.construirEstado({
+      panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
+        ['Taller de prueba', taller, '12', '0', '12', 'Abierto'],
+        ['Curso de cocina', curso, '15', '0', '15', 'Abierto']],
+      panelFormulas: [['','','','','',''],
+        ['','','',"=COUNTIF('Inscriptos Prueba'!K:K;B2)",'',''],
+        ['','','',"=COUNTIF('Inscriptos Prueba'!K:K;B3)",'','']],
+      hojas: { 'Inscriptos Prueba': [['nombre','email','celular','actividad','horario','medio','comprobante','monto','verif','fecha','Edición']] },
+      extras: {}
+    }, hoy);
+  };
+  const cuandoDelCurso = (html) => {
+    const trozo = html.slice(html.indexOf('Curso de cocina'));
+    const m = trozo.match(/class="cuando[^"]*">([^<]*)</);
+    return m ? m[1] : '(sin cuándo)';
+  };
+
+  const siguiente = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 1);
+  const cupos = cargarUI(conCurso(siguiente)).vistaCupos();
+  corridos++;
+  if (cupos.indexOf('Curso de cocina') !== -1 && cupos.indexOf('Curso de cocina') < cupos.indexOf('Taller de prueba')) {
+    console.log('  ok    el curso del mes que viene queda antes que un taller del 16 de ese mes');
+  } else { fallas++; console.log('  FALLA el curso quedó después del taller del 16: se ordena por el fin de mes'); }
+  corridos++;
+  const esperado = 'en ' + COMO_SE_DICE[siguiente.getMonth()];
+  if (cuandoDelCurso(cupos) === esperado) console.log('  ok    la tarjeta del curso dice "' + esperado + '"');
+  else { fallas++; console.log('  FALLA la tarjeta del curso dice "' + cuandoDelCurso(cupos) + '" y esperaba "' + esperado + '"'); }
+
+  const esteMes = cuandoDelCurso(cargarUI(conCurso(new Date(hoy.getFullYear(), hoy.getMonth(), 1))).vistaCupos());
+  corridos++;
+  if (esteMes === 'este mes') console.log('  ok    el curso de este mes dice "este mes", no cuántos días faltan para fin de mes');
+  else { fallas++; console.log('  FALLA el curso de este mes dice "' + esteMes + '"'); }
+}
+
+// Una fila del Panel con el Cupo sin cargar ya no desaparece: la tarjeta tiene
+// que mostrarla sin inventar números ("de null", "0 de más").
+console.log('\n--- Tarjeta con el Cupo sin cargar ---');
+{
+  const { cargar } = require('./cargar.js');
+  const G = cargar();
+  const e = G.construirEstado({
+    panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
+      ['Taller de prueba', 'Taller de prueba — 20/12/2099', '', '1', '', 'Abierto']],
+    panelFormulas: [['','','','','',''], ['','','',"=COUNTIF('Inscriptos Prueba'!K:K;B2)",'','']],
+    hojas: { 'Inscriptos Prueba': [['nombre','email','celular','actividad','horario','medio','comprobante','monto','verif','fecha','Edición'],
+      ['Ana','a@x.com','','','','','','2600','','','Taller de prueba — 20/12/2099']] },
+    extras: {}
+  }, new Date());
+  const ui = cargarUI(e);
+  const html = ui.vistaCupos();
+  corridos++;
+  if (!/null|de más|>Lleno</.test(html) && /Cupo sin cargar/.test(html)) console.log('  ok    la tarjeta dice "Cupo sin cargar" y no inventa lugares');
+  else { fallas++; console.log('  FALLA la tarjeta con el cupo vacío quedó: ' + (html.match(/class="cifra">[\s\S]*?<\/div>/) || [html.slice(0, 300)])[0]); }
+  if (e.ediciones[0]) ui.copiarLista(e.ediciones[0], { textContent: '' });
+  const copiado = ui.verCopiado() || '';
+  corridos++;
+  if (!/null/.test(copiado) && /Ana/.test(copiado)) console.log('  ok    la lista copiada no dice "de null"');
+  else { fallas++; console.log('  FALLA la lista copiada quedó: ' + JSON.stringify(copiado)); }
+}
+
 // Las piezas se prueban sueltas; esto comprueba que estén enchufadas.
 console.log('\n--- Que las piezas estén conectadas ---');
 const fuente = fs.readFileSync(path.join(base, 'apps-script', 'Index.html'), 'utf8');

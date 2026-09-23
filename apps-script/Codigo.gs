@@ -28,7 +28,11 @@ var ID_PLANILLA = '1C3UfC__jr3F0x_XWp5lRvL47MLjQqOwTa9wURKuXZBQ';
  */
 var PRECIOS = {
   cursoTotal: 12200,
-  cursoCuota: 4800
+  cursoCuota: 4800,
+  // Por debajo de esto no es un pago del curso sino un monto mal leído: "2
+  // entradas 10400" se lee como 2, y la app decía "Seña, le falta $ 12.198". La
+  // seña real más chica que hubo fue de $ 2.000, así que el piso no toca a nadie.
+  cursoMinimo: 1000
 };
 
 /**
@@ -423,10 +427,19 @@ function rellenar(filas, ancho) {
  *   "$433,33"                           -> 433.33  (coma decimal)
  *   "10400 (4 personas)"                -> 10400
  *   "3000 de 12200 (seña) — saldo $9.200" -> 3000   (el primero es lo abonado)
+ *   "12,200"  /  "12 200"               -> 12200   (coma o espacio de miles)
+ *   "5200 (2 x 2600)"                   -> 5200    (el total primero, el detalle después)
+ *   "2 x 5200"                          -> null     (no dice el total: que se mire)
+ *   "USD 100"  /  "U$S 150"             -> null     (no son pesos)
  *   "no tengo / ya esta pago"           -> null     (hay texto pero ningún número)
  *   ""                                  -> null
  * Devuelve null cuando no hay número, para poder distinguir "no pagó" de
  * "está mal cargado" en vez de asumir cero.
+ *
+ * Las formas de coma y espacio de miles, dólares y "N x M" no están hoy en la
+ * planilla, pero la columna la escribe a mano quien se inscribe: con la coma
+ * siempre decimal, "12,200" en el curso daba 12,2 y la app decía que a alguien
+ * que pagó todo le faltaban $ 12.188.
  */
 function parsearMonto(texto) {
   if (texto === null || texto === undefined) return null;
@@ -435,10 +448,24 @@ function parsearMonto(texto) {
   var s = String(texto).trim();
   if (!s) return null;
 
-  var m = s.match(/\d[\d.,]*/);
+  // Dólares: sumarlos como pesos da un cobrado falso. Mejor que se mire a mano.
+  if (/u\$s|us\$|\busd\b|d[oó]lar/i.test(s)) return null;
+
+  // Primero el número con espacio de miles ("12 200"), que sin esto se cortaba
+  // en el espacio y daba 12. Si no hay, el de siempre.
+  var m = s.match(/\d{1,3}(?: \d{3})+(?![\d.,])|\d[\d.,]*/);
   if (!m) return null;
 
-  var num = m[0].replace(/[.,]+$/, '');
+  // "2 x 5200": el primer número es cuántos, no cuánto. "5200 (2 x 2600)" sí
+  // sirve, porque ahí el primero es el total: solo se descarta si la x viene
+  // pegada al primer número.
+  if (/^[x×]\s*\d/i.test(s.slice(m.index + m[0].length).trim())) return null;
+
+  var num = m[0].replace(/ /g, '').replace(/[.,]+$/, '');
+
+  // "12,200": coma de miles. Tres cifras exactas después de cada coma y ningún
+  // punto; "$433,33" y "1,5" siguen siendo decimales.
+  if (/^\d{1,3}(,\d{3})+$/.test(num)) num = num.replace(/,/g, '');
 
   if (num.indexOf(',') !== -1) {
     // Hay coma: la coma es el decimal, el punto es separador de miles.
@@ -510,6 +537,19 @@ function fechaDeEdicion(texto) {
   if (mes) return new Date(Number(mes[2]), MESES[mes[1]] + 1, 0);
 
   return null;
+}
+
+/**
+ * Cuándo EMPIEZA una edición, que no es lo mismo que hasta cuándo sigue
+ * vigente. En el taller es el mismo día. En el curso, que lleva solo el mes, es
+ * el 1.º: usando el último día del mes, la tarjeta del curso de octubre decía
+ * "en 38 días" el 23/9 y quedaba abajo de los talleres del 2 y del 16/10.
+ */
+function inicioDeEdicion(texto) {
+  var fin = fechaDeEdicion(texto);
+  if (!fin) return null;
+  if (/\d{1,2}\/\d{1,2}\/\d{4}/.test(String(texto || ''))) return { fecha: fin, esMes: false };
+  return { fecha: new Date(fin.getFullYear(), fin.getMonth(), 1), esMes: true };
 }
 
 /** Vigente = todavía no pasó, o está marcada Abierto en el Panel. */
@@ -689,7 +729,14 @@ function construirEstado(crudo, ahora) {
   var hoy = ahora || new Date();
   var filas = aplanarInscriptos(crudo.hojas);
   filas.panelLleno = !!crudo.panelLleno;
+  filas.panelColumnas = revisarColumnasDelPanel(crudo.panelValores);
   var ediciones = leerEdicionesDelPanel(crudo.panelValores, crudo.panelFormulas, hoy);
+
+  // leerPlanilla lee TODA pestaña que exista y que nombre una fórmula. Si la
+  // pestaña de la regla no está entre las leídas, es que no existe: la fórmula
+  // tiene el nombre mal escrito ("Novienbre") y la edición queda con 0 personas.
+  var leidas = {};
+  Object.keys(crudo.hojas || {}).forEach(function (n) { leidas[normalizarNombre(n)] = true; });
 
   // Cada fila entra en UNA sola edición. Si dos filas del Panel comparten la misma
   // regla (un copiar-pegar mal hecho), la segunda no se vuelve a quedar con la misma
@@ -697,6 +744,7 @@ function construirEstado(crudo, ahora) {
   var usadas = {};
   var duplicadas = [];
   ediciones.forEach(function (ed) {
+    if (ed.regla && !leidas[normalizarNombre(ed.regla.hoja)]) ed.pestanaInexistente = true;
     ed.personas = filas.filter(function (f) {
       if (!ed.regla) return false;
       // Normalizado: en Sheets los nombres de pestaña no distinguen mayúsculas, así
@@ -711,6 +759,14 @@ function construirEstado(crudo, ahora) {
       }
       return true;
     }).map(function (f) { usadas[f.clave] = ed.edicion; return evaluarPago(f, ed); });
+
+    // La celda Anotados da error: se muestran las filas que hay, que es un número
+    // real, en vez del 0 que no dice nadie. Nunca null: la página lo imprime tal cual.
+    if (ed.anotadosIlegible) {
+      ed.anotados = ed.personas.length;
+      ed.quedan = ed.cupo === null ? null : ed.cupo - ed.anotados;
+      ed.ocupacion = ed.cupo > 0 ? Math.min(ed.anotados / ed.cupo, 1) : 0;
+    }
 
     calcularPlata(ed);
   });
@@ -935,15 +991,68 @@ function sumar(lista, campo) {
   return lista.reduce(function (acc, x) { return acc + (Number(x[campo]) || 0); }, 0);
 }
 
+/**
+ * Dónde está cada columna de una pestaña de inscriptos, buscada por el
+ * encabezado de la fila 1: [campo, posición de siempre, palabra que la delata].
+ *
+ * Se leían todas por posición. Si se intercambiaban H (monto abonado) e I (pago
+ * verificado), ninguna fórmula del Panel se enteraba —solo miran K y E— y la app
+ * leía el monto de la columna vacía: cobrado $ 0 y todos "Sin pago", sin una
+ * alerta alta. Las palabras son cortas a propósito ("verif", "medio"): hay
+ * pestañas con los encabezados abreviados.
+ *
+ * E (horario) y K (Edición) NO se buscan: esas las fija la fórmula del Panel
+ * (COUNTIFS sobre K y E). Si se mueven, Sheets reescribe la fórmula y ya salta
+ * la alerta de fórmula; leerlas en otro lado haría que la app y el Panel cuenten
+ * cosas distintas.
+ */
+var COLUMNAS_INSCRIPTOS = [
+  ['nombre', 0, /nombre/], ['email', 1, /mail/], ['celular', 2, /celu|tel/],
+  ['actividad', 3, /actividad/], ['medioPago', 5, /medio/],
+  ['comprobante', 6, /comprobante/], ['montoTexto', 7, /monto/],
+  ['verificado', 8, /verif/], ['fecha', 9, /fecha/]
+];
+
+/** Cómo se llama cada campo en la alerta, que la lee Leo y no el código. */
+var NOMBRE_COLUMNA = {
+  nombre: 'nombre', email: 'email', celular: 'celular', actividad: 'actividad',
+  medioPago: 'medio de pago', comprobante: 'número de comprobante', montoTexto: 'monto abonado',
+  verificado: 'pago verificado', fecha: 'fecha de inscripción'
+};
+
+function columnasDeInscriptos(encabezados) {
+  var enc = (encabezados || []).map(function (c) { return normalizarNombre(c); });
+  var idx = {}, faltan = [], tomadas = { 4: true, 10: true };
+  COLUMNAS_INSCRIPTOS.forEach(function (c) {
+    var j = -1;
+    for (var k = 0; k < enc.length; k++) {
+      if (!tomadas[k] && c[2].test(enc[k])) { j = k; break; }
+    }
+    // Si no está, se lee en su lugar de siempre en vez de poner la plata en $ 0.
+    // Puede ser la columna equivocada, y por eso se avisa.
+    if (j === -1) { idx[c[0]] = c[1]; faltan.push(c[0]); }
+    else { idx[c[0]] = j; tomadas[j] = true; }
+  });
+  return { idx: idx, faltan: faltan };
+}
+
 /** Junta todas las pestañas "Inscriptos ..." en una sola lista de personas. */
 function aplanarInscriptos(hojas) {
   var salida = [];
+  salida.columnasRaras = [];
   Object.keys(hojas).forEach(function (nombreHoja) {
     if (HOJAS_IGNORADAS.indexOf(nombreHoja) !== -1) return;
     var filas = hojas[nombreHoja] || [];
+    var columnas = columnasDeInscriptos(filas[0]);
+    var col = columnas.idx;
+    // Una pestaña recién creada, sin nadie, no tiene nada que leer mal.
+    if (columnas.faltan.length && filas.length > 1) {
+      salida.columnasRaras.push({ hoja: nombreHoja, faltan: columnas.faltan });
+    }
+    var celda = function (f, campo) { return (f[col[campo]] || '').trim(); };
     for (var i = 1; i < filas.length; i++) {
       var f = filas[i] || [];
-      var nombre = (f[0] || '').trim();
+      var nombre = celda(f, 'nombre');
       var edicion = (f[10] || '').trim();
       if (!nombre && !edicion) continue;
       salida.push({
@@ -951,15 +1060,15 @@ function aplanarInscriptos(hojas) {
         hoja: nombreHoja,
         fila: i + 1,
         nombre: nombre,
-        email: (f[1] || '').trim(),
-        celular: (f[2] || '').trim(),
-        actividad: (f[3] || '').trim(),
+        email: celda(f, 'email'),
+        celular: celda(f, 'celular'),
+        actividad: celda(f, 'actividad'),
         horario: (f[4] || '').trim(),
-        medioPago: (f[5] || '').trim(),
-        comprobante: (f[6] || '').trim(),
-        montoTexto: (f[7] || '').trim(),
-        verificado: (f[8] || '').trim(),
-        fecha: (f[9] || '').trim(),
+        medioPago: celda(f, 'medioPago'),
+        comprobante: celda(f, 'comprobante'),
+        montoTexto: celda(f, 'montoTexto'),
+        verificado: celda(f, 'verificado'),
+        fecha: celda(f, 'fecha'),
         edicion: edicion
       });
     }
@@ -967,20 +1076,56 @@ function aplanarInscriptos(hojas) {
   return salida;
 }
 
-/** Cada fila del Panel que tenga Edición y Cupo es una edición de verdad. */
+/**
+ * El Panel se lee por posición: Edición en B, Cupo en C, Anotados en D y Estado
+ * en F (el rango llega hasta F). Si se agrega una columna entre Quedan y Estado,
+ * el Estado pasa a G, no se lee, y todas las ediciones quedan como cerradas sin
+ * que nada lo diga. Se mira la fila 1 y se avisa qué esperaba y qué encontró.
+ */
+var COLUMNAS_PANEL = [[1, 'B', 'Edición', /edici/], [2, 'C', 'Cupo', /cupo/],
+                      [3, 'D', 'Anotados', /anotad/], [5, 'F', 'Estado', /estado/]];
+
+function revisarColumnasDelPanel(valores) {
+  var enc = (valores || [])[0];
+  if (!enc) return [];
+  var raras = [];
+  COLUMNAS_PANEL.forEach(function (c) {
+    var dice = String(enc[c[0]] == null ? '' : enc[c[0]]).trim();
+    if (!c[3].test(normalizarNombre(dice))) raras.push({ columna: c[1], esperaba: c[2], dice: dice });
+  });
+  return raras;
+}
+
+/**
+ * Cada fila del Panel que tenga Edición es una edición de verdad.
+ *
+ * Antes se exigía también un Cupo con número, "para saltear la fila de la
+ * fórmula de avisos". Pero esa fila no tiene Edición, y con el Cupo vacío, con
+ * #REF! o escrito en letras desaparecía una edición entera con su gente y su
+ * plata. Ahora queda, con cupo null, y sale una alerta.
+ */
 function leerEdicionesDelPanel(valores, formulas, hoy) {
   var salida = [];
   for (var i = 1; i < valores.length; i++) {
     var v = valores[i] || [];
     var edicion = (v[1] || '').trim();
+    if (!edicion) continue;  // saltea la fila de la fórmula de avisos
     var cupo = parsearMonto(v[2]);
-    if (!edicion || cupo === null) continue;  // saltea la fila de la fórmula de avisos
 
-    var anotados = parsearMonto(v[3]) || 0;
+    // Una celda con error (#REF!, #N/A) se leía como 0 anotados. Se marca, y
+    // construirEstado pone en su lugar las filas que encontró. Se mira el '#'
+    // antes de parsear porque parsearMonto('#DIV/0!') agarra el 0.
+    var textoAnotados = String(v[3] == null ? '' : v[3]).trim();
+    var anotadosLeidos = /^#/.test(textoAnotados) ? null : parsearMonto(textoAnotados);
+    var anotados = anotadosLeidos === null ? 0 : anotadosLeidos;
+
     var estado = (v[5] || '').trim();
-    var abierta = /^abierto/i.test(estado);
+    // "Abierta" también: la edición es femenino y escribirlo así es lo natural.
+    // Con /^abierto/ quedaba todo como cerrado sin que nada lo dijera.
+    var abierta = /^abiert[oa]/i.test(estado);
     var partes = edicion.split('—');
     var fecha = fechaDeEdicion(edicion);
+    var inicio = inicioDeEdicion(edicion);
     var analisis = analizarFormula((formulas[i] || [])[3], edicion, i + 1);
 
     salida.push({
@@ -991,12 +1136,23 @@ function leerEdicionesDelPanel(valores, formulas, hoy) {
       titulo: (partes[0] || edicion).trim(),
       subtitulo: partes.slice(1).join('—').trim(),
       cupo: cupo,
+      cupoTexto: String(v[2] == null ? '' : v[2]).trim(),
       anotados: anotados,
-      quedan: cupo - anotados,
+      anotadosIlegible: anotadosLeidos === null ? (textoAnotados || '(vacía)') : '',
+      pestanaInexistente: false,
+      // Sin cupo no se sabe cuántos lugares quedan. null y no cupo - anotados:
+      // null - 4 da -4, y la edición salía como sobrecupo con una alerta alta falsa.
+      quedan: cupo === null ? null : cupo - anotados,
       ocupacion: cupo > 0 ? Math.min(anotados / cupo, 1) : 0,
       estado: estado,
       abierta: abierta,
+      estadoRaro: !!estado && !/^(abiert|cerrad)/i.test(estado),
+      // fecha es hasta cuándo sigue vigente (en el curso, el último día del mes);
+      // inicio es cuándo empieza, que es lo que sirve para ordenar y para el
+      // "en N días". fechaEsMes: el nombre solo dice el mes, no el día.
       fecha: fecha ? fecha.toISOString() : null,
+      inicio: inicio ? inicio.fecha.toISOString() : null,
+      fechaEsMes: !!(inicio && inicio.esMes),
       vigente: estaVigente(edicion, abierta, hoy),
       esCurso: /curso de cocina/i.test(edicion),
       regla: analisis.regla || null,
@@ -1066,6 +1222,15 @@ function evaluarPago(f, ed) {
       p.estadoPago = 'sin_pago';
       p.nota = 'Sin pago cargado';
     }
+    return p;
+  }
+
+  // En el curso no hay otra red: detectarMontosRaros solo mira talleres. Un monto
+  // que no puede ser ni una seña es algo que se leyó mal, y tratarlo como seña
+  // inventa una deuda de casi el total.
+  if (ed.esCurso && monto < PRECIOS.cursoMinimo) {
+    p.estadoPago = 'revisar';
+    p.nota = 'Monto demasiado chico para el curso: "' + f.montoTexto + '"';
     return p;
   }
 
@@ -1218,6 +1383,28 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
       });
       return;
     }
+    // La pestaña va primero: con el nombre mal escrito la celda también da #REF!,
+    // y la causa es una sola. Dos alertas por lo mismo confunden.
+    if (ed.pestanaInexistente) {
+      alertas.push({
+        nivel: 'alta', tipo: 'pestana_inexistente', edicion: ed.edicion,
+        texto: '"' + ed.edicion + '" cuenta en una pestaña que no existe',
+        detalle: 'La fórmula de la fila ' + ed.filaPanel + ' del Panel cuenta en "' + ed.regla.hoja +
+                 '", y esa pestaña no está en la planilla. Revisá cómo está escrito el nombre. ' +
+                 'Mientras tanto la app no puede mostrar la gente de esta edición ni cuántos lugares quedan.'
+      });
+      return;
+    }
+    if (ed.anotadosIlegible) {
+      alertas.push({
+        nivel: 'alta', tipo: 'anotados_ilegible', edicion: ed.edicion,
+        texto: ed.edicion + ': la celda Anotados del Panel no tiene un número',
+        detalle: 'Fila ' + ed.filaPanel + ' del Panel: la celda Anotados ' +
+                 (ed.anotadosIlegible === '(vacía)' ? 'está vacía' : 'dice ' + ed.anotadosIlegible) +
+                 '. La app muestra ' + ed.anotados + ', que son las filas que encontró para esta edición.'
+      });
+      return;
+    }
     if (ed.personas.length !== ed.anotados) {
       alertas.push({
         nivel: 'alta', tipo: 'descuadre', edicion: ed.edicion,
@@ -1248,7 +1435,50 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
     });
   }
 
-  // b) Sobrecupo.
+  // a-quater) Las columnas del Panel no están donde la app las lee.
+  var panelRaro = filas.panelColumnas || [];
+  if (panelRaro.length) {
+    alertas.push({
+      nivel: 'alta', tipo: 'panel_columnas', edicion: '',
+      texto: 'Las columnas del Panel no están donde la app las busca',
+      detalle: 'La app lee la Edición en la columna B, el Cupo en la C, los Anotados en la D y el Estado en la F. ' +
+               panelRaro.map(function (r) {
+                 return 'La ' + r.columna + ' tendría que decir "' + r.esperaba + '" y dice "' + (r.dice || '(vacía)') + '"';
+               }).join('. ') +
+               '. Si agregaste una columna, pasala a la derecha de Estado. Mientras tanto, lo que muestra la app puede estar mal.'
+    });
+  }
+
+  // a-quinquies) Una pestaña de inscriptos sin alguna de sus columnas. Solo las
+  // que tienen algo que ver con lo que viene: una pestaña vieja no se arregla.
+  var hojasVigentes = {};
+  ediciones.forEach(function (ed) { if (ed.regla) hojasVigentes[normalizarNombre(ed.regla.hoja)] = true; });
+  (filas.columnasRaras || []).forEach(function (c) {
+    if (!hojasVigentes[normalizarNombre(c.hoja)] && !estaVigente(c.hoja, false, hoy)) return;
+    var plataEnJuego = c.faltan.indexOf('montoTexto') !== -1 || c.faltan.indexOf('verificado') !== -1;
+    alertas.push({
+      nivel: plataEnJuego ? 'alta' : 'media', tipo: 'columnas', edicion: '',
+      texto: 'En "' + c.hoja + '" no encuentro la columna ' +
+             c.faltan.map(function (k) { return NOMBRE_COLUMNA[k] || k; }).join(', '),
+      detalle: 'La busco por el título de la fila 1. Como no está, la leo en su lugar de siempre, ' +
+               'y puede ser la columna equivocada. Revisá los títulos de esa pestaña.'
+    });
+  });
+
+  // a-sexies) El Cupo del Panel no es un número. La edición se muestra igual, con
+  // su gente y su plata, pero no se sabe cuántos lugares quedan.
+  ediciones.forEach(function (ed) {
+    if (ed.cupo !== null) return;
+    alertas.push({
+      nivel: ed.abierta ? 'alta' : 'media', tipo: 'cupo_ilegible', edicion: ed.edicion,
+      texto: ed.edicion + ': el Cupo no se entiende',
+      detalle: 'Fila ' + ed.filaPanel + ' del Panel, columna Cupo: ' +
+               (ed.cupoTexto ? 'dice "' + ed.cupoTexto + '"' : 'está vacía') +
+               '. La gente y la plata se muestran igual, pero no se sabe cuántos lugares quedan.'
+    });
+  });
+
+  // b) Sobrecupo. (Con el cupo sin cargar, quedan es null y null < 0 da false.)
   ediciones.forEach(function (ed) {
     if (ed.quedan < 0) {
       alertas.push({
@@ -1392,6 +1622,19 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
     });
   });
 
+  // f-octies) El Estado dice algo que no es Abierto ni Cerrado: la app lo toma
+  //           como cerrado. Importa en lo que viene, y en las ediciones sin fecha,
+  //           que dependen de estar Abiertas para aparecer.
+  todasLasEdiciones.forEach(function (ed) {
+    if (!ed.estadoRaro) return;
+    if (!ed.vigente && ed.fecha) return;
+    alertas.push({
+      nivel: 'media', tipo: 'estado_raro', edicion: ed.edicion,
+      texto: 'Fila ' + ed.filaPanel + ' del Panel: no entiendo el Estado "' + ed.estado + '"',
+      detalle: 'Tiene que decir Abierto o Cerrado. Mientras tanto "' + ed.edicion + '" figura como cerrada.'
+    });
+  });
+
   // g) Tikzet sin monto: es carga manual, es donde más se rompe.
   ediciones.forEach(function (ed) {
     ed.personas.forEach(function (p) {
@@ -1409,7 +1652,8 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
   (esperaGlobal || []).forEach(function (x) {
     if (!x.edicion) return;
     var ed = ediciones.filter(function (e) { return e.edicion === x.edicion; })[0];
-    if (!ed || ed.quedan > 0) return;
+    // Sin cupo cargado no se sabe si está llena: decirlo sería inventarlo.
+    if (!ed || ed.quedan === null || ed.quedan > 0) return;
     alertas.push({
       nivel: 'info', tipo: 'espera', edicion: ed.edicion,
       texto: x.nombre + ' está esperando lugar en ' + ed.edicion,
@@ -1437,6 +1681,8 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
     var queHacer;
     if (!proxima) {
       queHacer = 'No hay otra fecha de eso todavía.';
+    } else if (proxima.quedan === null) {
+      queHacer = 'La próxima es "' + proxima.edicion + '", pero su cupo no está cargado en el Panel.';
     } else if (proxima.quedan > 0) {
       queHacer = 'Hay otra fecha con lugar: "' + proxima.edicion + '", ' + proxima.quedan +
                  (proxima.quedan === 1 ? ' lugar libre.' : ' lugares libres.');

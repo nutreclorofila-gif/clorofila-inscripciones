@@ -74,6 +74,20 @@ El 10/9 se agregaron 12 formas distintas de escribir la fórmula (`local/probar-
 El Panel se lee hasta la fila **500**. Si alguna vez se llegara a ese tope, la app avisa con
 una alerta alta en vez de dejar de mostrar ediciones en silencio.
 
+**Lo que la app aguanta y lo que avisa**, para no mostrar un número que parece bueno y no lo es:
+
+- **Cupo vacío, con error o en letras**: la edición se muestra igual, con su gente y su plata,
+  y sale una alerta. Antes desaparecía entera.
+- **Anotados con `#REF!`** o una fórmula que cuenta en una pestaña que **no existe** (el
+  nombre mal escrito): alerta alta. Antes se leía como 0 y la tarjeta decía "12 lugares libres".
+- **El Estado** puede decir `Abierto` o `Abierta`. Cualquier otra cosa se toma como cerrada, y avisa.
+- **En el Panel**, Edición, Cupo, Anotados y Estado tienen que seguir en B, C, D y F. Si se
+  agrega una columna, va a la derecha de Estado; si no, alerta alta.
+- **En las pestañas de inscriptos** las columnas se buscan por el título de la fila 1, así que
+  se pueden reordenar. Salvo E (horario) y K (Edición), que son las que nombra la fórmula del Panel.
+- **Montos**: entiende `12.200`, `12,200`, `12 200` y `$433,33`. Lo que no puede ser plata en
+  pesos (`USD 100`, `2 x 5200` sin el total) queda para revisar en vez de sumarse.
+
 ## Qué muestra
 
 | Solapa | Qué hay |
@@ -89,7 +103,8 @@ Además:
   normaliza a formato uruguayo (`099123456` → `598099123456`); si es un fijo o está
   incompleto **no se ofrece el botón**, para no abrir un chat con el número equivocado.
 - **Las ediciones se ordenan por fecha**, lo más próximo primero, con `ES HOY` /
-  `es mañana` / `en N días`.
+  `es mañana` / `en N días`. El curso, que en el nombre lleva solo el mes, se ordena por el
+  1.º de ese mes y dice `en octubre` o `este mes`: contar hasta fin de mes daba un plazo falso.
 - **Copiar la lista de anotados** de una edición, con el estado de pago de cada uno, para
   pegarla en el grupo.
 - **Funciona sin señal**: guarda el último estado en el teléfono y lo muestra avisando de
