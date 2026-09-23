@@ -48,6 +48,8 @@ try {
 }
 
 const MUTACIONES = [
+  ['la tarjeta dice "hay lugar" en una edición cerrada o pasada', INDEX,
+   'e.quedan > 0 && e.abierta && e.vigente', 'e.quedan > 0'],
   ['acepta cualquier PIN', CODIGO,
    "if (hashPin(String(pin === null || pin === undefined ? '' : pin)) !== guardado) {", 'if (false) {'],
   ['no escapa el < al incrustar (el XSS que hubo)', PREVIEW,
