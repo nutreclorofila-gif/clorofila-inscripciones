@@ -4,7 +4,10 @@
  * App web SOLO LECTURA. No escribe nada en la planilla.
  * Lee la Master Sheet y arma el estado de cada edición: cupos, plata y gente.
  *
- * Se despliega como "Aplicación web" (Implementar → Nueva implementación):
+ * Se despliega como "Aplicación web". La implementación ya existe: se actualiza
+ * con ./desplegar.sh, o a mano en Implementar → Administrar implementaciones →
+ * lápiz → Versión nueva. NO crear una nueva: cambia la URL y la página sigue
+ * hablando con la vieja, que queda con el código anterior.
  *   Ejecutar como: Yo (nutreclorofila@gmail.com)
  *   Quién tiene acceso: Cualquiera
  *
@@ -19,6 +22,19 @@
  */
 
 var ID_PLANILLA = '1C3UfC__jr3F0x_XWp5lRvL47MLjQqOwTa9wURKuXZBQ';
+
+/**
+ * Versión de la forma del estado que se manda al teléfono. La página tiene la
+ * suya (FORMA_ESPERADA en Index.html) y, si no coinciden, lo avisa en pantalla.
+ *
+ * Existe porque la página (GitHub Pages) y este servidor se publican por
+ * separado, y el teléfono además guarda datos de hasta tres días: la página
+ * dibujaba en silencio con un servidor de otra versión, con campos que le
+ * faltaban. Se sube en 1, acá y en Index.html a la vez, cada vez que el estado
+ * gana, pierde o cambia un campo que la página lee. verificar.sh controla que
+ * los dos números sean iguales.
+ */
+var FORMA_ESTADO = 1;
 
 /**
  * Precios de referencia. Solo se usan para calcular SALDO del curso de cocina,
@@ -805,6 +821,7 @@ function construirEstado(crudo, ahora) {
   var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas, espera, gift);
 
   return {
+    forma: FORMA_ESTADO,
     generadoEn: crudo.generadoEn,
     hoy: hoy.toISOString(),
     ediciones: ediciones,

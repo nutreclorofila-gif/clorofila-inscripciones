@@ -31,6 +31,10 @@ try {
 const CODIGO = path.join(base, 'apps-script', 'Codigo.gs');
 const INDEX = path.join(base, 'apps-script', 'Index.html');
 const PREVIEW = path.join(base, 'local', 'generar-preview.js');
+const WEB = path.join(base, 'web', 'index.html');
+const GENERAR_WEB = path.join(base, 'local', 'generar-web.js');
+const PUBLICAR = path.join(base, 'local', 'publicar-pagina.sh');
+const DESPLEGAR = path.join(base, 'desplegar.sh');
 
 // La base tiene que estar en verde. Si verificar.sh ya falla sin tocar nada,
 // cada mutación "se detecta" por la falla que ya estaba y el resultado da un
@@ -275,14 +279,26 @@ const MUTACIONES = [
   ['el nombre de la gift card deja de escaparse', INDEX,
    "esc(g.nombre || '(sin nombre)')", "(g.nombre || '(sin nombre)')"],
   ['sin importe en las gift cards se inventa un $ 0', INDEX,
-   "(r.giftSinMonto ? ''", "(false ? ''"]
+   "(r.giftSinMonto ? ''", "(false ? ''"],
+  // Publicar la página y el desfase entre página y servidor (23/9).
+  ['el aviso de versiones distintas no sale nunca', INDEX,
+   "if (f === FORMA_ESPERADA) return '';", "return '';"],
+  ['el servidor deja de mandar su versión', CODIGO,
+   'forma: FORMA_ESTADO,', ''],
+  ['una página editada a mano pasa por buena', GENERAR_WEB,
+   'return generar(textoIndex) === textoWeb;', 'return true;'],
+  ['publicar-pagina.sh no sube nada a gh-pages', PUBLICAR,
+   'git -C "$TMP/gh-pages" push -q "$REMOTO" HEAD:gh-pages', 'true'],
+  ['publicar-pagina.sh publica cambios sin commitear', PUBLICAR,
+   'if ! git diff --quiet HEAD -- apps-script/Index.html web/index.html; then', 'if false; then'],
+  ['desplegar.sh sube el servidor sin mirar si la página se puede publicar', DESPLEGAR,
+   'local/publicar-pagina.sh --revisar', 'true'],
+  ['desplegar.sh deja de publicar la página', DESPLEGAR,
+   'local/publicar-pagina.sh   # la sube a gh-pages', 'true   # la sube a gh-pages']
 ];
 
-const original = {
-  [CODIGO]: fs.readFileSync(CODIGO, 'utf8'),
-  [INDEX]: fs.readFileSync(INDEX, 'utf8'),
-  [PREVIEW]: fs.readFileSync(PREVIEW, 'utf8')
-};
+const original = {};
+[CODIGO, INDEX, PREVIEW, WEB, GENERAR_WEB, PUBLICAR, DESPLEGAR].forEach(f => { original[f] = fs.readFileSync(f, 'utf8'); });
 const restaurar = () => Object.keys(original).forEach(f => fs.writeFileSync(f, original[f]));
 process.on('exit', restaurar);
 process.on('SIGINT', () => { restaurar(); process.exit(1); });
@@ -300,6 +316,11 @@ for (const [nombre, archivo, viejo, nuevo] of MUTACIONES) {
   }
   aplicadas++;
   fs.writeFileSync(archivo, s.replace(viejo, nuevo));
+  // Una mutación de Index.html se lleva también a web/index.html. Si no, la
+  // suite que compara las dos páginas la "detecta" siempre, por el desfase y no
+  // por la prueba que tendría que verla, y un agujero en las pruebas de la
+  // pantalla quedaría tapado.
+  if (archivo === INDEX) execFileSync('node', [GENERAR_WEB], { cwd: base, stdio: 'pipe' });
   let detectada = false;
   try { execFileSync(path.join(base, 'verificar.sh'), { cwd: base, stdio: 'pipe' }); }
   catch (e) { detectada = true; }

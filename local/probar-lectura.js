@@ -460,6 +460,11 @@ console.log('\n--- Lo que sale hacia el teléfono: solo lo que la pantalla usa -
   chequear('doGet con el PIN trae personas y gift cards (si no, lo de abajo no probaría nada)',
     r.ok === true && personasDe(r.estado).length > 0 && (r.estado.giftCards || []).length > 0,
     'respuesta: ' + JSON.stringify(r).slice(0, 200));
+  // Con esto la página se da cuenta de que habla con un servidor de otra
+  // versión (ver FORMA_ESTADO en Codigo.gs).
+  chequear('doGet manda la versión de la forma del estado',
+    r.ok === true && typeof r.estado.forma === 'number' && r.estado.forma === G4.FORMA_ESTADO,
+    'forma: ' + (r.ok ? r.estado.forma : r.error));
   chequear('doGet no manda comprobantes, mails ni montos que la pantalla no muestra',
     r.ok === true && sobrantes(r.estado).length === 0,
     'salen igual: ' + (r.ok ? sobrantes(r.estado).join(', ') : r.error));
