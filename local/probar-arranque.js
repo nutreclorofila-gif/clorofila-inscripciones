@@ -74,7 +74,7 @@ function montar(op) {
   op = op || {};
   const almacen = {};
   if (op.pin) almacen.clorofila_pin = op.pin;
-  if (op.cache) almacen.clorofila_ultimo = JSON.stringify({ pin: op.cachePin || op.pin || PIN, estado: ESTADO, cuando: Date.now() - op.cache });
+  if (op.cache) almacen.clorofila_ultimo = JSON.stringify({ pin: op.cachePin || op.pin || PIN, estado: op.cacheEstado || ESTADO, cuando: Date.now() - op.cache });
   const localStorage = {
     getItem: (k) => (k in almacen ? almacen[k] : null),
     setItem: (k, v) => { almacen[k] = String(v); },
@@ -454,6 +454,40 @@ const JERGA = /Unexpected|JSON|token|Load failed|Failed to fetch|NetworkError|Ab
     const t2 = montar({ pin: PIN, cache: 26 * HORA, respuestas: [R.sinRed()], onLine: false });
     await asentar();
     caso('dice "hace 1 día", no "hace 1 días"', /hace 1 día\b/.test(t2.panel()) && !/hace 1 días/.test(t2.panel()), t2.panel());
+  }
+
+  console.log('\n--- Página y servidor de versiones distintas ---');
+  // La página (GitHub Pages) y el servidor (Apps Script) se publican por
+  // separado, y el teléfono puede tener guardada una página vieja o datos de
+  // hasta tres días de un servidor anterior. Sin marca de versión, la página
+  // dibujaba igual y en silencio con campos que faltaban. Ahora lo dice, sin
+  // montos (se ve en la portada), en las cuatro solapas.
+  {
+    const conForma = (f) => { const e = JSON.parse(JSON.stringify(ESTADO)); if (f === undefined) delete e.forma; else e.forma = f; return e; };
+    const actual = ESTADO.forma;
+    const enLasCuatro = (t) => ['cupos', 'plata', 'gente', 'alertas'].every(s => { t.api.solapa(s); return /desfase/.test(t.todo()); });
+    const aviso = (t) => (t.todo().match(/<div class="aviso media desfase">[\s\S]*?<\/div><\/div>/) || [''])[0];
+
+    const igual = montar({ pin: PIN, respuestas: [R.datos()] });
+    await asentar();
+    const hayAlguno = ['cupos', 'plata', 'gente', 'alertas'].some(s => { igual.api.solapa(s); return /desfase/.test(igual.todo()); });
+    caso('con el servidor de este mismo código no aparece ningún aviso de versión',
+      igual.abierta() && typeof actual === 'number' && !hayAlguno, 'forma del servidor: ' + actual);
+
+    const viejo = montar({ pin: PIN, respuestas: [R.json({ ok: true, estado: conForma(undefined) })] });
+    await asentar();
+    caso('un servidor anterior a la marca de versión se nota, en las cuatro solapas', viejo.abierta() && enLasCuatro(viejo), viejo.panel().slice(0, 200));
+    caso('el aviso no muestra plata', viejo.abierta() && aviso(viejo) !== '' && aviso(viejo).indexOf('$') === -1, aviso(viejo));
+
+    const nuevo = montar({ pin: PIN, respuestas: [R.json({ ok: true, estado: conForma((actual || 0) + 1) })] });
+    await asentar();
+    caso('un servidor más nuevo que la página se nota, y dice que hay que volver a abrirla',
+      nuevo.abierta() && enLasCuatro(nuevo) && /abrila de nuevo/.test(aviso(nuevo)), aviso(nuevo));
+
+    const guardado = montar({ pin: PIN, cache: 2 * HORA, cacheEstado: conForma(undefined), respuestas: [R.sinRed()], onLine: false });
+    await asentar();
+    caso('lo guardado por un servidor anterior también se nota, sin señal',
+      !!guardado.api.ver().DATOS && enLasCuatro(guardado), guardado.panel().slice(0, 200));
   }
 
   console.log('\n--- Los colores ---');

@@ -226,6 +226,13 @@
   /** Por qué se está mostrando lo guardado en vez de lo nuevo, en palabras de Leo. */
   var MOTIVO_CACHE = '';
 
+  /**
+   * La versión de la forma de los datos que esta página sabe leer. Tiene que ser
+   * igual a FORMA_ESTADO de Codigo.gs (verificar.sh lo controla) y se suben
+   * juntas. Si el servidor manda otra, avisoDeVersion() lo dice en pantalla.
+   */
+  var FORMA_ESPERADA = 1;
+
   /** Después de esto, lo guardado no se muestra más y hay que buscar de nuevo. */
   var VIDA_CACHE = 3 * 24 * 60 * 60 * 1000;   // 3 días
 
@@ -803,12 +810,34 @@
            ' Esto es lo último que se pudo leer, ' + hace + '. Tocá Actualizar para probar de nuevo.</div>';
   }
 
+  /**
+   * La página y el servidor se publican por separado, y el teléfono puede tener
+   * guardada una página vieja (en la pantalla de inicio) o datos de hasta tres
+   * días de un servidor anterior. Antes se dibujaba igual y en silencio, con
+   * campos que faltaban. Sin montos: se ve en la portada.
+   */
+  function avisoDeVersion() {
+    var f = DATOS && DATOS.forma;
+    if (f === FORMA_ESPERADA) return '';
+    var titulo, detalle;
+    if (typeof f === 'number' && f > FORMA_ESPERADA) {
+      titulo = 'Esta pantalla es más vieja que los datos';
+      detalle = 'Puede faltar algo nuevo. Cerrá la app y abrila de nuevo para que se actualice; ' +
+                'si el aviso sigue, hay que volver a publicar la página.';
+    } else {
+      titulo = 'Los datos vienen de una versión anterior de la app';
+      detalle = 'Puede faltar algún dato o verse algo raro. Tocá Actualizar; ' +
+                'si el aviso sigue, hay que volver a publicar la app completa.';
+    }
+    return '<div class="aviso media desfase"><div class="q">' + titulo + '</div><div class="p">' + detalle + '</div></div>';
+  }
+
   function pintarPanel() {
     var p = document.getElementById('panel');
     // El cartel de datos viejos va en las cuatro solapas. Estaba solo en Cupos
     // y Plata, y en Gente los "Debe" y en Alertas los pagos de hasta tres días
-    // atrás parecían de ahora.
-    var viejo = avisoDeCache();
+    // atrás parecían de ahora. El de versiones distintas, por lo mismo.
+    var viejo = avisoDeCache() + avisoDeVersion();
     if (SOLAPA === 'cupos') p.innerHTML = viejo + avisoDeNovedades() + vistaCupos();
     else if (SOLAPA === 'plata') p.innerHTML = viejo + vistaPlata();
     else if (SOLAPA === 'gente') {

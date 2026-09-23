@@ -8,8 +8,11 @@ Misma familia que `~/Proyectos/clorofila-comandas`: un solo archivo, sin build, 
 **https://nutreclorofila-gif.github.io/clorofila-inscripciones/** — se abre con un PIN de
 6 dígitos. El PIN queda guardado en el teléfono: se escribe una sola vez.
 
-(Sigue existiendo una copia en `clorofila-inscripciones.netlify.app`, de cuando la página
-vivía ahí. Funciona igual, pero la de GitHub es la buena: no consume créditos de Netlify.)
+(Sigue existiendo en `clorofila-inscripciones.netlify.app` una copia **vieja**, del 9/9, de
+cuando la página vivía ahí. Se conserva a pedido de Leo y no se vuelve a publicar: gasta
+créditos de Netlify. Habla con la misma API y trae los datos de hoy, pero muestra lo cobrado
+en la portada, no tiene botón Salir y guarda el PIN para siempre. No se usa ni se comparte.
+Si algún teléfono la abrió, borrar a mano los datos de ese sitio en el navegador.)
 
 Desde Safari en el celu: **Compartir → Añadir a pantalla de inicio** y queda como una app.
 
@@ -26,7 +29,7 @@ Son dos piezas:
 Apps Script falla en cualquier navegador con **varias cuentas de Google logueadas** — Google
 reescribe la URL agregando `/u/1/` y esa forma devuelve *"No se pudo abrir el archivo en
 este momento"*. En el Chrome de escritorio hay tres cuentas, así que ahí no había forma de
-abrirla. Sirviendo la página desde Netlify y hablando con la API por `fetch` con
+abrirla. Sirviendo la página desde GitHub Pages y hablando con la API por `fetch` con
 `credentials:'omit'`, no viajan cookies de sesión y el problema desaparece en todos lados.
 
 ## El PIN
@@ -35,7 +38,8 @@ La API está publicada con acceso anónimo (si no, vuelve el problema de arriba)
 PIN es lo único que separa la URL de los datos personales de los inscriptos:
 
 - La página se sirve **vacía**: los datos no viajan hasta que el PIN es correcto.
-- Se guarda **hasheado** (SHA-256), nunca en claro, ni en el código ni en el repo.
+- En el servidor se guarda **hasheado** (SHA-256); en el teléfono queda en claro, para no
+  pedirlo cada vez (ver *Lo que queda guardado en el teléfono*). Nunca en el código ni en el repo.
 - **8 intentos cada 15 minutos.** A ese ritmo, probar los 1.000.000 de PINs llevaría años.
 - Se configura una sola vez con `?formato=json&configurar=<pin>`, que **solo funciona
   mientras no haya ninguno guardado**: no sirve para cambiarlo ni para pisarlo.
@@ -108,8 +112,8 @@ Además:
 - **Las ediciones se ordenan por fecha**, lo más próximo primero, con `ES HOY` /
   `es mañana` / `en N días`. El curso, que en el nombre lleva solo el mes, se ordena por el
   1.º de ese mes y dice `en octubre` o `este mes`: contar hasta fin de mes daba un plazo falso.
-- **Copiar la lista de anotados** de una edición, con el estado de pago de cada uno, para
-  pegarla en el grupo.
+- **Copiar la lista de anotados** de una edición: título, cupo y solo los nombres (sin estado
+  de pago ni montos), para pegarla en el grupo o mandarla a la cocina.
 - **Funciona sin señal**: guarda el último estado en el teléfono y lo muestra enseguida al
   abrir, mientras busca lo nuevo, con un cartel en las cuatro solapas que dice de cuándo es y
   por qué no es lo de ahora. Lo guardado va junto al PIN con que se obtuvo, pero como el PIN
@@ -127,6 +131,7 @@ La app dice qué pasó y no toca el PIN, salvo que el servidor lo rechace:
 | Google contesta con su página de error (el 403 cuando se revoca el permiso) | "Google no mandó los datos (error 403). Puede que haya que volver a autorizar la app." |
 | El teléfono está sin señal | "El teléfono está sin señal." |
 | El pedido queda colgado | A los 8 segundos avisa que sigue esperando; a los 30 corta y lo dice. |
+| La página y el servidor quedaron de versiones distintas (se publicó uno solo, o el teléfono tiene la página vieja) | Un aviso en las cuatro solapas, sin montos: *"Cerrá la app y abrila de nuevo"* o *"Tocá Actualizar"*, y si sigue, que hay que volver a publicar. Ver *Desplegar cambios*. |
 
 Si hay datos guardados, en todos los casos menos el primero se muestran esos datos con el
 motivo en el cartel amarillo. Lo prueba `local/probar-arranque.js`.
@@ -161,6 +166,14 @@ esa persona no la cuenta nadie y desaparece del cupo. La app lo levanta como ale
 
 ## Desplegar cambios
 
+Son dos piezas y se publican en este orden: **primero el servidor, después la página.** La
+página nueva lee campos que agrega el servidor nuevo; al revés, si el servidor falla, en el
+teléfono queda una pantalla que espera datos que nadie le manda. Si igual quedan de versiones
+distintas, la app lo avisa en las cuatro solapas (*"Los datos vienen de una versión anterior
+de la app"* o *"Esta pantalla es más vieja que los datos"*): la marca es `FORMA_ESTADO` en
+`Codigo.gs` y `FORMA_ESPERADA` en `Index.html`, y se suben juntas, en 1, cada vez que el
+estado gana, pierde o cambia un campo que la página lee.
+
 ### Lo rápido: `./desplegar.sh`
 
 ```bash
@@ -168,9 +181,12 @@ esa persona no la cuenta nadie y desaparece del cupo. La app lo levanta como ale
 ```
 
 Verifica, sube el código y actualiza **la implementación que ya existe** — la URL no cambia.
-Al final consulta la app de verdad y muestra los números, así se ve enseguida si algo se rompió.
-Si la verificación no pasa, **no sube nada**. Y si no encuentra la implementación que usa la
-página publicada, tampoco: crear una nueva cambiaría la URL.
+Consulta la app de verdad, muestra los números y controla que el servidor que responde sea
+el nuevo. Recién ahí publica la página en GitHub Pages (rama `gh-pages`, con
+`local/publicar-pagina.sh`). Si la verificación no pasa, **no sube nada**. Si
+`apps-script/Index.html` o `web/index.html` tienen cambios sin commitear, tampoco: la página
+publicada tiene que salir de un commit de `main`. Y si no encuentra la implementación que
+usa la página, no crea otra: cambiaría la URL.
 
 **Dos cosas, una sola vez**, antes del primer uso:
 
@@ -185,17 +201,24 @@ navegador y el problema desaparece.
 
 ### A mano (si clasp no está disponible)
 
-**La página** (`web/index.html`, que se genera desde `apps-script/Index.html`):
-```bash
-npx -y @netlify/mcp@latest --site-id 4f9b1156-1240-41af-ae84-38dc0a83f5bb
-```
-No tiene build command, así que no consume minutos de compilación.
-
-**La API** (`apps-script/Codigo.gs`): pegar en
+**1. La API** (`apps-script/Codigo.gs`): pegar en
 [el editor](https://script.google.com/u/1/home/projects/13XHxKVCAS693-LHSTZhyQOMzy5vhXfax4Yxz4WRe2Xv6chb-kx4CvL67/edit)
 → guardar → **Implementar → Administrar implementaciones → lápiz → Versión: Versión nueva →
 Implementar**. Si se crea una implementación nueva en vez de editar la existente, cambia la
-URL y hay que actualizarla en `web/index.html`.
+URL: hay que cambiarla en `ID_IMPLEMENTACION` de `local/generar-web.js` (es el único lugar
+donde está escrita; `desplegar.sh` la toma de ahí), regenerar la página y publicarla. Si se
+edita `web/index.html` a mano, el cambio se pierde la próxima vez que se regenera.
+
+**2. La página** (`web/index.html`, que se genera desde `apps-script/Index.html`), recién
+cuando la API nueva responde:
+```bash
+node local/generar-web.js        # regenera web/index.html; commitearlo
+local/publicar-pagina.sh         # lo sube a la rama gh-pages y comprueba que quedó igual
+```
+GitHub tarda uno o dos minutos en servirla. En el teléfono, cerrar la app y abrirla de nuevo.
+
+⛔ **La página NO se publica en Netlify**: gasta créditos. El sitio de Netlify
+(`netlify.toml`) queda como está, sin tocarlo ni borrarlo.
 
 ⚠️ Al copiar código al portapapeles para pegarlo, usar **`LC_CTYPE=UTF-8 pbcopy`**. Sin eso,
 `pbcopy` convierte a MacRoman y rompe los acentos — y la lógica del curso compara contra
@@ -204,7 +227,7 @@ URL y hay que actualizarla en `web/index.html`.
 ## Verificar
 
 ```bash
-./verificar.sh                  # corre las 12 suites; tiene que pasar entero antes de subir
+./verificar.sh                  # corre las 14 suites; tiene que pasar entero antes de subir
 node local/bajar-fixture.js     # refresca local/fixture.json con los datos de hoy
 node local/generar-preview.js   # arma local/preview.html para mirarla en el navegador
 node local/probar-las-pruebas.js  # rompe el código a propósito y controla que la suite se dé cuenta
@@ -222,17 +245,23 @@ pruebas. Una prueba que nunca falla no prueba nada, y eso no se ve leyéndola.
 
 | Suite | Qué prueba |
 |---|---|
-| `local/probar.js` | Los conteos contra el Panel real, edición por edición. **12 de 12 cuadran.** |
-| `local/casos-limite.js` | 24 escenarios plausibles de la planilla que podrían romperla, incluidas las alertas de sobrecupo, fórmula que no se entiende y Panel lleno. |
-| `local/probar-lectura.js` | `leerPlanilla()` con un Sheets falso: qué pestañas lee y cuáles no, y cuándo el Panel llegó al tope de filas que se leen. Y que `doGet` no mande al teléfono comprobantes, mails ni montos que la pantalla no muestra. |
-| `local/probar-codigo.js` | Control estático de `Codigo.gs` **antes de pegarlo**: que parsee, que no llame funciones que no existen, que no vuelva a usar `SpreadsheetApp`, que no escriba en la planilla y que la página se siga sirviendo vacía. Verificado rompiendo el archivo a propósito: detecta los cuatro casos. |
+| `local/probar-codigo.js` | Control estático de `Codigo.gs` **antes de pegarlo**: que parsee, que no llame funciones que no existen, que no vuelva a usar `SpreadsheetApp`, que no escriba en la planilla y que el servidor no sirva ninguna página (sin `HtmlService`). |
+| `local/probar.js` | Los conteos contra el Panel real, edición por edición: anotados, cupo y personas. |
+| `local/casos-limite.js` | Escenarios plausibles de la planilla que podrían romperla, incluidas las alertas de sobrecupo, fórmula que no se entiende y Panel lleno. |
+| `local/probar-lectura.js` | `leerPlanilla()` con un Sheets falso: qué pestañas lee y cuáles no, y cuándo el Panel llegó al tope de filas que se leen. Y que `doGet` no mande al teléfono comprobantes, mails ni montos que la pantalla no muestra, y sí su marca de versión. |
 | `local/probar-pin.js` | Que sin el PIN correcto no salga nada, y el freno a los intentos. |
-| `local/probar-plata.js` | 52 casos de la lógica de plata: señas, precio del curso, montos raros, comprobantes repetidos, columna de verificación, y los totales de arriba ("Falta cobrar", lugares libres, pendientes), que suman solo lo que viene. |
-| `local/probar-planilla-a-mano.js` | 115 casos: cómo se puede escribir la fórmula del Panel, la lista de espera y las gift cards, y que lo que no se pudo leer termine en una alerta. |
-| `local/probar-cache.js` | 17 casos: qué queda guardado en el teléfono, cuándo vence y que "Salir" lo borre. |
+| `local/probar-planilla-a-mano.js` | Cómo se puede escribir la fórmula del Panel, la lista de espera y las gift cards, y que lo que no se pudo leer termine en una alerta. |
+| `local/probar-cache.js` | Qué queda guardado en el teléfono, cuándo vence y que "Salir" lo borre. |
 | `local/probar-vistas.js` | Las cuatro solapas con datos nuevos, con un backend viejo y con la planilla vacía. También la tarjeta de Cupos abierta (el chip dice cuánto falta, no cuánto pagó) y las gift cards de Plata (lo cobrado por adelantado suma solo las sin usar). |
-| `local/probar-arranque.js` | Qué ve Leo cuando algo falla al abrir la app, en la puerta del PIN y al tocar Actualizar: que un error del servidor no borre el PIN ni se disfrace de "Sin conexión", que el PIN rechazado borre todo, el límite de espera y el cartel de datos viejos en las cuatro solapas. |
+| `local/probar-plata.js` | La lógica de plata: señas, precio del curso, montos raros, comprobantes repetidos, columna de verificación, y los totales de arriba ("Falta cobrar", lugares libres, pendientes), que suman solo lo que viene. |
 | `local/probar-xss.js` | Datos hostiles del Tally público: el escape al incrustar, y que al pintarlos no quede ninguna etiqueta ni ningún manejador vivo — incluidos los enlaces de contacto, que es donde el dato entra dentro de un `href`, la gente de adentro de cada tarjeta de Cupos y las gift cards. |
+| `local/probar-privacidad.js` | Cruza los nombres, mails y celulares reales del fixture contra todo lo que está en el repo (que es público) y contra la página publicada en `gh-pages`. |
+| `local/probar-arranque.js` | Qué ve Leo cuando algo falla al abrir la app, en la puerta del PIN y al tocar Actualizar: que un error del servidor no borre el PIN ni se disfrace de "Sin conexión", que el PIN rechazado borre todo, el límite de espera, el cartel de datos viejos y el aviso de versiones distintas en las cuatro solapas. |
+| `local/probar-publicacion.js` | Que `web/index.html` sea exactamente lo que sale de `Index.html`, que la URL del servidor esté escrita en un solo lugar, que `desplegar.sh` publique la página después del servidor, y `local/publicar-pagina.sh` de punta a punta contra un `gh-pages` de mentira (sin red). |
+| `local/probar-documentacion.js` | Que este documento no vuelva a decir cosas que dejaron de ser ciertas: la receta de Netlify, la copia "que funciona igual", el PIN "nunca en claro", cuántas suites hay. |
+
+Cada suite imprime al final cuántos casos pasan; ese es el número de verdad, por eso la tabla
+no lo repite.
 
 ## Buscar gente
 
@@ -283,9 +312,11 @@ doce personas de golpe.
 ## Lo que queda guardado en el teléfono
 
 La app guarda el último estado en el navegador del celular para poder abrirla sin señal.
-**Eso incluye nombres, mails y celulares, en texto plano.** El PIN es la puerta de la app,
-no cifra lo guardado: quien tenga el teléfono desbloqueado y sepa mirar el almacenamiento
-del navegador lo lee.
+**Eso incluye nombres, mails y celulares, en texto plano.** El PIN también queda guardado,
+sin cifrar, para no pedirlo cada vez: la app se abre sola, con o sin señal, y quien tenga el
+teléfono desbloqueado ve todo sin escribir ningún PIN. El PIN es la puerta de la app desde
+otro teléfono, no cifra lo guardado. Lo que protege acá es el bloqueo del teléfono, el
+vencimiento de 3 días y el botón **Salir** (usalo si prestás el teléfono).
 
 Por eso:
 - Llega **solo lo que la pantalla muestra**. El comprobante de cada pago (números de
@@ -373,7 +404,8 @@ están en `.gitignore`.
     comprobar que lo que `doGet` incrusta pasa por el camino escapado.
 18. **`verificar.sh` decía "TODO VERIFICADO" con pruebas en rojo** (faltaba `pipefail`).
 
-Hoy las 12 mutaciones se detectan.
+Cada mutación de la lista `MUTACIONES` de `local/probar-las-pruebas.js` tiene que detectarse;
+cuántas son y cuántas se detectan lo dice el script al terminar, no este documento.
 
 ⚠️ **Nunca copiar un dato de la planilla a un comentario o a una prueba.** El repo es
 público. Para los ejemplos van números y nombres inventados con la misma forma. Las
