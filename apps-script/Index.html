@@ -61,7 +61,7 @@
   .botonesCabecera { display: flex; align-items: center; gap: 16px; flex: 0 0 auto; }
   /* Salir se usa una vez cada tanto: que no le pelee el lugar a Actualizar. */
   .salir {
-    border: none; background: none; color: var(--apagado); font: inherit; font-size: 13px;
+    border: none; background: none; color: var(--tenue); font: inherit; font-size: 13px;
     padding: 10px 4px; min-width: 44px; cursor: pointer;
     text-decoration: underline; text-underline-offset: 3px;
   }
@@ -197,7 +197,7 @@
     <div class="tituloFila">
       <h1>Inscripciones</h1>
       <div class="botonesCabecera">
-        <button class="refrescar" id="btnRefrescar" type="button">Actualizar</button>
+        <button class="refrescar oculto" id="btnRefrescar" type="button">Actualizar</button>
         <button class="salir oculto" id="btnSalir" type="button">Salir</button>
       </div>
     </div>
@@ -219,6 +219,10 @@
   var DESDE_CACHE = false;
   var PIN_ACTUAL = '';
   var NOVEDADES = null;
+  /** Hay un pedido al servidor en camino: Actualizar no lanza otro encima. */
+  var CARGANDO = false;
+  /** Por qué se está mostrando lo guardado en vez de lo nuevo, en palabras de Leo. */
+  var MOTIVO_CACHE = '';
 
   /** Después de esto, lo guardado no se muestra más y hay que buscar de nuevo. */
   var VIDA_CACHE = 3 * 24 * 60 * 60 * 1000;   // 3 días
@@ -287,6 +291,7 @@
     guardarCache(estado, pin);
     DATOS = estado;
     DESDE_CACHE = false;
+    MOTIVO_CACHE = '';
   }
 
   function pinGuardado() {
@@ -307,7 +312,31 @@
     borrarCache();
     DATOS = null;
     DESDE_CACHE = false;
+    MOTIVO_CACHE = '';
     NOVEDADES = null;
+  }
+
+  /**
+   * Solo "PIN incorrecto" prueba que el PIN está mal: es el único texto con que
+   * el servidor lo rechaza (verificarPin en Codigo.gs). "Demasiados intentos" y
+   * "Falta configurar el PIN" cortan ANTES de comparar, y un error de Google ni
+   * llega a mirarlo. Antes se buscaba "PIN" en el texto, y al abrir la app
+   * directamente cualquier falla borraba el PIN: el 23/9/2026 un 403 de Google
+   * le dijo a Leo "Volvé a escribir el PIN" y él buscó el problema en su clave.
+   */
+  function pinRechazado(mensaje) {
+    return /PIN incorrecto/i.test(String(mensaje || ''));
+  }
+
+  /**
+   * El PIN guardado dejó de servir: casi seguro se cambió, y lo típico es
+   * cambiarlo porque se perdió el teléfono. Se va todo, no solo el PIN: antes
+   * quedaban los nombres, mails y celulares guardados, y como sin PIN guardado
+   * la app nunca vuelve a leer lo guardado, tampoco vencían nunca.
+   */
+  function pinGuardadoNoSirve() {
+    olvidarTodo();
+    mostrarPuerta('El PIN guardado en este teléfono ya no es el correcto. Escribí el nuevo.');
   }
 
   /**
@@ -321,16 +350,84 @@
    */
   var API = (typeof URL_API !== 'undefined') ? URL_API : null;
 
-  function pedirDatos(pin, alLograrlo, alFallar) {
-    fetch(API + '?formato=json&pin=' + encodeURIComponent(pin), { credentials: 'omit' })
-      .then(function (r) { return r.json(); })
+  /**
+   * Cuánto se espera. Con poca señal un pedido puede quedar colgado, y el
+   * navegador tarda minutos en abandonarlo: Leo miraba "Buscando los números…"
+   * sin saber nada. A los 8 segundos se le avisa que sigue esperando; a los 30
+   * se corta. Las cifras no están medidas contra el servidor: si alguna vez se
+   * cortan lecturas buenas, se sube ESPERA_MAXIMA.
+   */
+  var ESPERA_AVISO = 8 * 1000;
+  var ESPERA_MAXIMA = 30 * 1000;
+
+  /**
+   * Cada falla dice lo que se sabe de ella, en castellano. Antes todo lo que no
+   * era una respuesta del servidor salía como "Sin conexión con la planilla." +
+   * el error del navegador en inglés ("Unexpected token '<'…"), también cuando
+   * Google contestaba con su página de error y el teléfono tenía señal de sobra.
+   */
+  function pedirDatos(pin, alLograrlo, alFallar, alTardar) {
+    var terminado = false;
+    var ctl = window.AbortController ? new window.AbortController() : null;
+    function terminar(fn, x) {
+      if (terminado) return;
+      terminado = true;
+      clearTimeout(aviso);
+      clearTimeout(corte);
+      fn(x);
+    }
+    var aviso = setTimeout(function () { if (!terminado && alTardar) alTardar(); }, ESPERA_AVISO);
+    var corte = setTimeout(function () {
+      terminar(alFallar, new Error('La planilla no contestó a tiempo. Probá de nuevo en un rato.'));
+      if (ctl) ctl.abort();
+    }, ESPERA_MAXIMA);
+
+    // El pedido no tuvo respuesta, o se cortó a mitad. Sin señal pasa esto,
+    // pero también cuando Google contesta con un error sin los permisos del
+    // navegador: el 403 del 23/9 llegaba así, con el teléfono conectado.
+    function sinRespuesta() {
+      return { ok: false, error: navigator.onLine === false
+        ? 'El teléfono está sin señal.'
+        : 'No llegó respuesta de Google. Puede ser la señal, o que haya que volver a autorizar la app.' };
+    }
+
+    fetch(API + '?formato=json&pin=' + encodeURIComponent(pin), { credentials: 'omit', signal: ctl ? ctl.signal : undefined })
+      .then(function (r) {
+        return r.text().then(function (t) {
+          var d = null;
+          try { d = JSON.parse(t); } catch (x) {}
+          if (d && typeof d === 'object') return d;
+          // Llegó algo, pero no de la app: la página de error de Google (un 403
+          // cuando se revocó el permiso, un 500) o nada. La señal está bien.
+          return { ok: false, error: 'Google no mandó los datos' +
+            (r.status && r.status !== 200 ? ' (error ' + r.status + ')' : '') +
+            '. Puede que haya que volver a autorizar la app.' };
+        }, sinRespuesta);
+      }, sinRespuesta)
       .then(function (d) {
-        if (d && d.ok) alLograrlo(d.estado);
-        else alFallar(new Error((d && d.error) || 'No se pudo leer la planilla.'));
-      })
-      .catch(function (e) {
-        alFallar(new Error('Sin conexión con la planilla. ' + (e.message || '')));
+        if (d && d.ok) terminar(alLograrlo, d.estado);
+        else terminar(alFallar, new Error((d && d.error) || 'No se pudo leer la planilla.'));
       });
+  }
+
+  /** Hay un pedido en camino: Actualizar queda quieto y lo dice. */
+  function buscando(si) {
+    CARGANDO = si;
+    var btn = document.getElementById('btnRefrescar');
+    btn.disabled = si;
+    btn.textContent = si ? 'Buscando…' : 'Actualizar';
+  }
+
+  /**
+   * No se pudo leer y no hay nada guardado para mostrar. El PIN NO se toca: la
+   * falla no fue del PIN, y borrarlo lo mandaba a buscar el problema ahí.
+   */
+  function mostrarFalla(mensaje) {
+    document.getElementById('panel').innerHTML =
+      '<div class="vacio">No pude leer la planilla.<br>' + esc(mensaje) +
+      '<br><br>El PIN sigue guardado: no hace falta volver a escribirlo.<br><br>' +
+      '<button class="refrescar" id="reintentar" type="button">Reintentar</button></div>';
+    document.getElementById('reintentar').addEventListener('click', arrancar);
   }
 
   function mostrarPuerta(mensaje) {
@@ -365,20 +462,26 @@
         abrirApp();
       }, function (e) {
         var mensaje = (e && e.message) ? e.message : 'No se pudo entrar.';
-        // Sin señal: si el PIN es el mismo con que se guardó, se muestra lo último.
-        var c = /PIN/i.test(mensaje) ? null : leerCache(pin);
+        // No se pudo leer, pero si el PIN es el mismo con que se guardó lo
+        // último, se muestra eso, diciendo por qué no es lo nuevo.
+        var c = pinRechazado(mensaje) ? null : leerCache(pin);
         if (c) {
           guardarPin(pin);
           DATOS = c.estado;
           DESDE_CACHE = c.cuando;
+          MOTIVO_CACHE = mensaje;
           abrirApp();
           return;
         }
         boton.disabled = false;
         boton.textContent = 'Entrar';
         aviso.textContent = mensaje;
-        campo.value = '';
+        // Lo escrito se borra solo si el PIN estaba mal. Con un error de Google
+        // el campo vacío parecía decir que el problema era la clave.
+        if (pinRechazado(mensaje)) campo.value = '';
         campo.focus();
+      }, function () {
+        aviso.textContent = 'La planilla todavía no contestó; sigo esperando.';
       });
     }
 
@@ -400,16 +503,35 @@
     var pin = pinGuardado();
     if (!pin) { mostrarPuerta(''); return; }
     // Ya entró antes en este teléfono: no le pedimos el PIN de nuevo.
-    document.getElementById('panel').innerHTML = '<div class="vacio">Buscando los números…</div>';
+    // Lo guardado se muestra ya, mientras se busca lo nuevo: con poca señal el
+    // pedido puede tardar mucho, y es justo cuando lo guardado sirve. Antes
+    // recién aparecía cuando el navegador abandonaba el pedido.
+    buscando(true);
+    var c = leerCache(pin);
+    if (c) {
+      DATOS = c.estado;
+      DESDE_CACHE = c.cuando;
+      MOTIVO_CACHE = '';
+      abrirApp();
+    } else {
+      document.getElementById('panel').innerHTML = '<div class="vacio">Buscando los números…</div>';
+    }
     pedirDatos(pin, function (estado) {
+      buscando(false);
+      if (pinGuardado() !== pin) return;   // tocó Salir mientras se buscaba
       recibirEstado(estado, pin);
       abrirApp();
     }, function (e) {
-      var mensaje = (e && e.message) ? e.message : '';
-      var c = /PIN/i.test(mensaje) ? null : leerCache(pin);
-      if (c) { DATOS = c.estado; DESDE_CACHE = c.cuando; abrirApp(); return; }
-      olvidarPin();
-      mostrarPuerta('Volvé a escribir el PIN.');
+      buscando(false);
+      if (pinGuardado() !== pin) return;
+      var mensaje = (e && e.message) ? e.message : 'No se pudo leer la planilla.';
+      if (pinRechazado(mensaje)) { pinGuardadoNoSirve(); return; }
+      if (DESDE_CACHE) { MOTIVO_CACHE = mensaje; pintarPanel(); return; }
+      mostrarFalla(mensaje);
+    }, function () {
+      if (DATOS) return;
+      document.getElementById('panel').innerHTML = '<div class="vacio">Buscando los números…<br>' +
+        'La planilla todavía no contestó; sigo esperando.</div>';
     });
   }
 
@@ -603,29 +725,43 @@
       '</div><div class="p">' + quienes + '</div></div>';
   }
 
+  /**
+   * Lo que se ve son datos guardados, no los de ahora. Dice por qué: antes
+   * decía siempre "Sin conexión… cuando tengas señal", también cuando el
+   * servidor había contestado otra cosa (una pestaña renombrada, el permiso de
+   * Google), y Leo esperaba una señal que ya tenía.
+   */
   function avisoDeCache() {
     if (!DESDE_CACHE) return '';
     var min = Math.round((Date.now() - DESDE_CACHE) / 60000);
+    var dias = Math.round(min / 1440);
     var hace = min < 60 ? ('hace ' + (min || 1) + ' min')
              : (min < 1440 ? ('hace ' + Math.round(min / 60) + ' h')
-             : ('hace ' + Math.round(min / 1440) + ' días'));
-    return '<div class="viejo">Sin conexión. Esto es lo último que se pudo leer, ' + hace +
-           '. Tocá Actualizar cuando tengas señal.</div>';
+             : ('hace ' + dias + (dias === 1 ? ' día' : ' días')));
+    if (CARGANDO) {
+      return '<div class="viejo">Actualizando… Mientras tanto, esto es lo último que se leyó, ' + hace + '.</div>';
+    }
+    return '<div class="viejo">No pude actualizar. ' + esc(MOTIVO_CACHE || 'No hubo respuesta.') +
+           ' Esto es lo último que se pudo leer, ' + hace + '. Tocá Actualizar para probar de nuevo.</div>';
   }
 
   function pintarPanel() {
     var p = document.getElementById('panel');
-    if (SOLAPA === 'cupos') p.innerHTML = avisoDeCache() + avisoDeNovedades() + vistaCupos();
-    else if (SOLAPA === 'plata') p.innerHTML = avisoDeCache() + vistaPlata();
+    // El cartel de datos viejos va en las cuatro solapas. Estaba solo en Cupos
+    // y Plata, y en Gente los "Debe" y en Alertas los pagos de hasta tres días
+    // atrás parecían de ahora.
+    var viejo = avisoDeCache();
+    if (SOLAPA === 'cupos') p.innerHTML = viejo + avisoDeNovedades() + vistaCupos();
+    else if (SOLAPA === 'plata') p.innerHTML = viejo + vistaPlata();
     else if (SOLAPA === 'gente') {
-      p.innerHTML = '<input class="buscador" id="buscador" type="search" autocomplete="off" ' +
+      p.innerHTML = viejo + '<input class="buscador" id="buscador" type="search" autocomplete="off" ' +
         'placeholder="Buscar por nombre, mail o celular"><div id="listaGente"></div>';
       var b = document.getElementById('buscador');
       var lista = document.getElementById('listaGente');
       lista.innerHTML = vistaGente('');
       b.addEventListener('input', function () { lista.innerHTML = vistaGente(b.value); });
     }
-    else p.innerHTML = vistaAlertas();
+    else p.innerHTML = viejo + vistaAlertas();
   }
 
   /* ---------- cupos ---------- */
@@ -955,20 +1091,26 @@
   });
 
   document.getElementById('btnRefrescar').addEventListener('click', function () {
-    var btn = this;
-    btn.disabled = true;
-    btn.textContent = 'Buscando…';
+    // Mientras hay un pedido en camino no se lanza otro: el de la apertura
+    // puede estar tardando y dos a la vez solo gastan la señal que no hay.
+    if (CARGANDO) return;
+    var pin = pinGuardado();
+    buscando(true);
     document.getElementById('error').classList.add('oculto');
-    pedirDatos(pinGuardado(), function (nuevo) {
-      recibirEstado(nuevo, pinGuardado());
-      btn.disabled = false;
-      btn.textContent = 'Actualizar';
+    pedirDatos(pin, function (nuevo) {
+      buscando(false);
+      // Si tocó Salir mientras se buscaba, lo que llega no se guarda: si no,
+      // los datos volvían al teléfono justo después de borrarlos.
+      if (pinGuardado() !== pin) return;
+      recibirEstado(nuevo, pin);
       pintarTodo();
     }, function (e) {
-      btn.disabled = false;
-      btn.textContent = 'Actualizar';
+      buscando(false);
+      if (pinGuardado() !== pin) return;
       var mensaje = (e && e.message) ? e.message : String(e);
-      if (/PIN/i.test(mensaje)) { olvidarPin(); mostrarPuerta(mensaje); return; }
+      if (pinRechazado(mensaje)) { pinGuardadoNoSirve(); return; }
+      // Si lo que se ve ya es lo guardado, el motivo va en su cartel.
+      if (DESDE_CACHE) { MOTIVO_CACHE = mensaje; pintarPanel(); return; }
       var caja = document.getElementById('error');
       caja.textContent = 'No se pudo leer la planilla: ' + mensaje;
       caja.classList.remove('oculto');
