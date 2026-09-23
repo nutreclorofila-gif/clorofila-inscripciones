@@ -210,6 +210,25 @@ if (archivo) {
   const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture.json'), 'utf8'));
   probarEstado('Backend nuevo (el de este repo)', G.construirEstado(fixture, new Date(2026, 8, 9, 15, 30)));
 
+  // Lo que de verdad llega al teléfono: doGet recorta el comprobante, los mails de
+  // las gift cards y otros datos que la pantalla no muestra. Si alguna solapa los
+  // usara, acá quedaría un "undefined" a la vista.
+  if (typeof G.paraElTelefono !== 'function') {
+    fallas++; corridos++;
+    console.log('\n--- Lo que manda doGet, recortado ---\n  FALLA no existe paraElTelefono en Codigo.gs');
+  } else {
+    const entero = G.construirEstado(fixture, new Date(2026, 8, 9, 15, 30));
+    const recortado = G.paraElTelefono(entero);
+    probarEstado('Lo que manda doGet, recortado', recortado);
+    // Más fuerte que "no explota": las cuatro solapas tienen que salir idénticas
+    // con y sin el recorte. Si difieren, se sacó algo que la pantalla sí mostraba.
+    const a = cargarUI(entero), b = cargarUI(recortado);
+    const distintas = ['vistaCupos', 'vistaPlata', 'vistaGente', 'vistaAlertas'].filter(v => a[v]() !== b[v]());
+    corridos++;
+    if (distintas.length === 0) console.log('  ok    las cuatro solapas quedan idénticas con y sin el recorte');
+    else { fallas++; console.log('  FALLA el recorte cambió lo que se ve en: ' + distintas.join(', ')); }
+  }
+
   // Backend viejo: sin los campos que se agregaron después.
   const viejo = G.construirEstado(fixture, new Date(2026, 8, 9, 15, 30));
   delete viejo.espera; delete viejo.giftCards;

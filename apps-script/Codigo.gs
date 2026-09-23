@@ -114,7 +114,7 @@ function doGet(e) {
       // había ninguno guardado: justo al cambiarlo (borrar el viejo, poner el
       // nuevo) quedaba una ventana en la que cualquiera con la URL ponía el suyo.
       verificarPin(p.pin);
-      salida = { ok: true, estado: construirEstado(leerPlanilla()) };
+      salida = { ok: true, estado: paraElTelefono(construirEstado(leerPlanilla())) };
     } catch (err) {
       salida = { ok: false, error: explicarError(err) };
     }
@@ -805,6 +805,44 @@ function construirEstado(crudo, ahora) {
       alertasTotal: alertas.length
     }
   };
+}
+
+/**
+ * Lo que sale hacia el teléfono: el estado sin los datos que la pantalla no usa.
+ *
+ * Todo lo que manda doGet queda guardado entero, en texto plano, en el
+ * almacenamiento del navegador del celular (para abrir la app sin señal). Hasta
+ * el 23/9 viajaba el comprobante de cada pago, que es texto libre: en casi la
+ * mitad había números de operación o de cuenta, y en varios el nombre de otra
+ * persona ("mismo pago que…"). También el mail de las gift cards y de quién las
+ * usó, y el monto de la gente que no ocupa cupo. La página no mostraba nada de
+ * eso.
+ *
+ * El recorte va acá, a la salida, y no en evaluarPago: construirEstado todavía
+ * necesita el comprobante para encontrar pagos compartidos y "verificado" para
+ * sus alertas. Se trabaja sobre una copia para no tocar el estado del servidor.
+ * hoja y fila se quedan: son la clave con la que la página encuentra a alguien.
+ */
+var NO_VAN_AL_TELEFONO = {
+  persona:     ['comprobante', 'idPago', 'verificado', 'esTikzet', 'fecha', 'montoTexto'],
+  giftCard:    ['email', 'usadaPor'],
+  fueraDeCupo: ['email', 'montoTexto', 'monto']
+};
+
+function paraElTelefono(estado) {
+  var copia = JSON.parse(JSON.stringify(estado));
+  var sacar = function (lista, campos) {
+    (lista || []).forEach(function (x) {
+      campos.forEach(function (c) { delete x[c]; });
+    });
+  };
+  (copia.ediciones || []).forEach(function (ed) {
+    sacar(ed.personas, NO_VAN_AL_TELEFONO.persona);
+    sacar(ed.pendientes, NO_VAN_AL_TELEFONO.persona);
+  });
+  sacar(copia.giftCards, NO_VAN_AL_TELEFONO.giftCard);
+  sacar(copia.fueraDeCupo, NO_VAN_AL_TELEFONO.fueraDeCupo);
+  return copia;
 }
 
 /**

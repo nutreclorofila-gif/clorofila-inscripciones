@@ -275,5 +275,85 @@ chequear('los mensajes que ya están en castellano no se tocan',
   api.explicarError(new Error('PIN incorrecto.')) === 'PIN incorrecto.',
   'quedó: ' + api.explicarError(new Error('PIN incorrecto.')));
 
+console.log('\n--- Lo que sale hacia el teléfono: solo lo que la pantalla usa ---');
+// Importa porque: todo lo que manda doGet queda guardado entero, en texto plano,
+// en el almacenamiento del navegador del celular. Hasta el 23/9 viajaban el
+// comprobante de cada pago (texto libre: números de operación y de cuenta,
+// "mismo pago que…" con el nombre de otra persona), el mail de quien regaló una
+// gift card y de quién la usó, y el monto de gente que no ocupa cupo. La página
+// no mostraba nada de eso. El servidor los sigue usando para sus cuentas (pagos
+// compartidos, columna de verificación); al teléfono no le sirven.
+{
+  const { crear, cargarCon } = require('./entorno-google.js');
+  const PIN_DE_PRUEBA = '314159';
+  const s4 = crear({ sheetsFalso: Sheets });
+  const G4 = cargarCon(s4);
+  s4.PropertiesService.getScriptProperties().setProperty('PIN_HASH', G4.hashPin(PIN_DE_PRUEBA));
+  const r = JSON.parse(G4.doGet({ parameter: { formato: 'json', pin: PIN_DE_PRUEBA } }).getContent());
+
+  const QUE_NO_SALEN = {
+    personas:    ['comprobante', 'idPago', 'verificado', 'esTikzet', 'fecha', 'montoTexto'],
+    pendientes:  ['comprobante', 'idPago', 'verificado', 'esTikzet', 'fecha', 'montoTexto'],
+    giftCards:   ['email', 'usadaPor'],
+    fueraDeCupo: ['email', 'montoTexto', 'monto']
+  };
+  const sobrantes = (est) => {
+    const vistos = [];
+    const mirar = (donde, lista) => (lista || []).forEach(x => QUE_NO_SALEN[donde].forEach(k => {
+      if (k in x) vistos.push(donde + '.' + k);
+    }));
+    (est.ediciones || []).forEach(e => { mirar('personas', e.personas); mirar('pendientes', e.pendientes); });
+    mirar('giftCards', est.giftCards);
+    mirar('fueraDeCupo', est.fueraDeCupo);
+    return [...new Set(vistos)];
+  };
+  const personasDe = (est) => (est.ediciones || []).reduce((a, e) => a.concat(e.personas || []), []);
+
+  chequear('doGet con el PIN trae personas y gift cards (si no, lo de abajo no probaría nada)',
+    r.ok === true && personasDe(r.estado).length > 0 && (r.estado.giftCards || []).length > 0,
+    'respuesta: ' + JSON.stringify(r).slice(0, 200));
+  chequear('doGet no manda comprobantes, mails ni montos que la pantalla no muestra',
+    r.ok === true && sobrantes(r.estado).length === 0,
+    'salen igual: ' + (r.ok ? sobrantes(r.estado).join(', ') : r.error));
+
+  // fueraDeCupo depende de la fecha de hoy y puede venir vacío: se prueba el
+  // recorte directo, con una persona inventada.
+  const completo = api.construirEstado(crudo, new Date(2026, 8, 9));
+  completo.fueraDeCupo = [{ nombre: 'Persona Inventada', email: 'inventada@ejemplo.com', edicion: 'Taller inventado',
+    actividad: 'Taller', montoTexto: '$ 1.234', monto: 1234, hoja: 'Inscriptos Inventados', fila: 7 }];
+  const antes = JSON.stringify(completo);
+  let recortado = null, error = '';
+  try { recortado = api.paraElTelefono(completo); } catch (e) { error = e.message; }
+  chequear('el recorte también saca lo que no se usa de "No ocupan cupo"',
+    !!recortado && sobrantes(recortado).length === 0 &&
+    recortado.fueraDeCupo[0].nombre === 'Persona Inventada' && recortado.fueraDeCupo[0].edicion === 'Taller inventado',
+    recortado ? 'salen igual: ' + sobrantes(recortado).join(', ') : 'no hay recorte: ' + error);
+  chequear('el recorte no toca el estado del servidor',
+    JSON.stringify(completo) === antes,
+    'construirEstado todavía usa "verificado" para las alertas: borrarlo del original rompe cuentas');
+
+  // Lo que la página SÍ usa tiene que llegar igual. hoja y fila son la clave con
+  // la que persona() encuentra a alguien; mail y celular, los botones de contacto.
+  const QUE_SI_SALEN = ['nombre', 'email', 'celular', 'whatsapp', 'horario', 'medioPago', 'monto', 'saldo',
+                        'estadoPago', 'veces', 'nota', 'hoja', 'fila'];
+  const perdidos = [];
+  if (recortado) {
+    const orig = personasDe(completo), rec = personasDe(recortado);
+    if (orig.length !== rec.length) perdidos.push('personas: ' + orig.length + ' → ' + rec.length);
+    orig.forEach((p, i) => QUE_SI_SALEN.forEach(k => {
+      if (k in p && JSON.stringify(p[k]) !== JSON.stringify((rec[i] || {})[k])) perdidos.push(k);
+    }));
+    if (JSON.stringify(completo.resumen) !== JSON.stringify(recortado.resumen)) perdidos.push('resumen');
+    if (recortado.ediciones.some((e, i) => e.pendientes.length !== completo.ediciones[i].pendientes.length)) perdidos.push('pendientes');
+    const g0 = completo.giftCards[0], g1 = recortado.giftCards[0] || {};
+    ['nombre', 'deQuien', 'actividad', 'monto', 'estado', 'usada'].forEach(k => {
+      if (JSON.stringify(g0[k]) !== JSON.stringify(g1[k])) perdidos.push('giftCards.' + k);
+    });
+  }
+  chequear('y todo lo que la pantalla usa llega igual',
+    !!recortado && perdidos.length === 0,
+    recortado ? 'se perdió: ' + [...new Set(perdidos)].join(', ') : 'no hay recorte: ' + error);
+}
+
 console.log('\n' + (fallas === 0 ? 'LECTURA VERIFICADA' : fallas + ' FALLAS'));
 process.exit(fallas ? 1 : 0);

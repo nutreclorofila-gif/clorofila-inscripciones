@@ -150,7 +150,15 @@ const MUTACIONES = [
    'var fa = a.inicio || a.fecha, fb = b.inicio || b.fecha;', 'var fa = a.fecha, fb = b.fecha;'],
   ['la tarjeta sin Cupo vuelve a decir "de null"', INDEX,
    "? '<span class=\"de\">anotados</span><span class=\"quedan\"><b>Cupo sin cargar</b></span>'",
-   "? '<span class=\"de\">de ' + e.cupo + '</span>'"]
+   "? '<span class=\"de\">de ' + e.cupo + '</span>'"],
+  ['doGet vuelve a mandar el comprobante al teléfono', CODIGO,
+   'estado: paraElTelefono(construirEstado(leerPlanilla()))', 'estado: construirEstado(leerPlanilla())'],
+  ['el recorte saca algo que la pantalla sí muestra', CODIGO,
+   "persona:     ['comprobante', 'idPago',", "persona:     ['celular', 'comprobante', 'idPago',"],
+  ['el recorte borra del estado del servidor', CODIGO,
+   'var copia = JSON.parse(JSON.stringify(estado));', 'var copia = estado;'],
+  ['las gift cards vuelven a mandar mails al teléfono', CODIGO,
+   '  sacar(copia.giftCards, NO_VAN_AL_TELEFONO.giftCard);', '']
 ];
 
 const original = {
