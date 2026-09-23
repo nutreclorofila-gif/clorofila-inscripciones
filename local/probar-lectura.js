@@ -161,6 +161,10 @@ chequear('detecta a los que vinieron más de una vez',
   cuantos > 0, 'no encontró ninguno, y en la planilla hay gente repetida');
 console.log('        ' + cuantos + ' personas repiten; la que más vino estuvo ' + maximo + ' veces');
 
+chequear('a quien espera un taller que todavía no pasó NO le dice que ya pasó',
+  !estado.alertas.some(a => a.tipo === 'espera_vieja' && /Ana Espera/.test(a.texto)),
+  'el aviso de "ya pasó" salió para el tapeo del 18/09, que al 9/9 todavía no pasó');
+
 console.log('\n--- Quien espera un taller que ya pasó ---');
 // Importa porque la alerta de "está lleno y hay alguien esperando" solo mira
 // ediciones vigentes: sin esto, esa persona no aparece en ningún lado y se
