@@ -200,9 +200,9 @@ pruebas. Una prueba que nunca falla no prueba nada, y eso no se ve leyéndola.
 
 ## Buscar gente
 
-El buscador de la solapa **Gente** ignora los acentos y la ñ: "sofia" encuentra a
-*Sofía*, "tomas" a *Tomás*, "nunez" a *Núñez*. Las palabras van en cualquier orden
-("gomez sofia" encuentra a *Úrsula Méndez*).
+El buscador de la solapa **Gente** ignora los acentos y la ñ: "ursula" encuentra a
+*Úrsula*, "tomas" a *Tomás*, "nunez" a *Núñez*. Las palabras van en cualquier orden
+("mendez ursula" encuentra a *Úrsula Méndez*).
 
 Si lo que escribís son números, busca por celular en cualquier formato: `098765110`,
 `098 765 110`, `+598 98 765 110` o solo los últimos dígitos. Sirve para pegar directo lo

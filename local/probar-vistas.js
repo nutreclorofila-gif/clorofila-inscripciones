@@ -47,9 +47,9 @@ function probarEstado(titulo, estado) {
 
   // El buscador tiene que aguantar cómo escribe la gente de verdad.
   const buscar = [
-    ['sin acento encuentra con acento', 'Úrsula Méndez', '098765110', 'sofia', true],
-    ['el apellido solo', 'Úrsula Méndez', '098765110', 'gomez', true],
-    ['las palabras en cualquier orden', 'Úrsula Méndez', '098765110', 'gomez sofia', true],
+    ['sin acento encuentra con acento', 'Úrsula Méndez', '098765110', 'ursula', true],
+    ['el apellido solo', 'Úrsula Méndez', '098765110', 'mendez', true],
+    ['las palabras en cualquier orden', 'Úrsula Méndez', '098765110', 'mendez ursula', true],
     ['la ñ', 'Ana Núñez', '091234567', 'nunez', true],
     ['la á, que es la más común acá', 'Tomás Rodríguez', '091234567', 'tomas', true],
     ['la Á con mayúscula', 'Álvaro Ángel', '091234567', 'alvaro angel', true],

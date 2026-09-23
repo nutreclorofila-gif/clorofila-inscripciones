@@ -114,14 +114,22 @@ chequear('empareja las filas cortas hasta la columna K',
   'la API recorta las celdas vacías del final; sin emparejar, la columna K a veces no existe');
 
 console.log('\n--- construirEstado() de punta a punta ---');
+// Cuántas ediciones hay sale del propio Panel del fixture, no de un número fijo:
+// con datos nuevos el número cambia y la prueba no tiene que ponerse en rojo por eso.
+const edicionesPanel = fixture.panelValores.slice(1).filter(r => String(r[1] || '').trim()).length;
+// La fecha queda fija en el 9/9: la lista de espera de mentira de arriba espera
+// el tapeo del 18/09, y los avisos de espera dependen de que ese taller no haya
+// pasado todavía.
 const estado = api.construirEstado(crudo, new Date(2026, 8, 9));
 chequear('arma el estado completo sin explotar',
-  estado.ediciones.length === 12 && estado.resumen.vigentes === 3, JSON.stringify(estado.resumen));
-chequear('los 12 conteos cuadran contra el Panel',
+  edicionesPanel > 0 && estado.ediciones.length === edicionesPanel &&
+  Object.values(estado.resumen).every(v => typeof v === 'boolean' || Number.isFinite(v)),
+  'ediciones: ' + estado.ediciones.length + ' de ' + edicionesPanel + ' — ' + JSON.stringify(estado.resumen));
+chequear('los conteos cuadran contra el Panel',
   estado.ediciones.every(e => e.personas.length === e.anotados),
   estado.ediciones.filter(e => e.personas.length !== e.anotados).map(e => e.edicion).join(', '));
 chequear('el JSON viaja al navegador sin romperse',
-  JSON.parse(JSON.stringify(estado)).ediciones.length === 12, 'no serializa');
+  JSON.parse(JSON.stringify(estado)).ediciones.length === edicionesPanel, 'no serializa');
 
 console.log('\n--- lista de espera y gift cards ---');
 chequear('lee la lista de espera',

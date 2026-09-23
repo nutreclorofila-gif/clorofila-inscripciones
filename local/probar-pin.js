@@ -64,5 +64,51 @@ chequear('después de bloquear, ni el PIN bueno pasa',
   (() => { try { G2.verificarPin(PIN); return false; } catch (e) { return /Demasiados/i.test(e.message); } })(),
   'el bloqueo no aplica al PIN correcto');
 
+console.log('\n--- La puerta real: doGet ---');
+// Hasta ahora ninguna prueba ejecutaba doGet, que es lo que responde en
+// producción: se le podía sacar el control del PIN y todo seguía en verde.
+const leido = { veces: 0 };
+const planillaFalsa = { Spreadsheets: {
+  get: () => { leido.veces++; return { sheets: [{ properties: { title: 'Panel' } }] }; },
+  Values: {
+    get: () => ({ values: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado']] }),
+    batchGet: (id, o) => ({ valueRanges: o.ranges.map(() => ({ values: [] })) })
+  }
+}};
+const s3 = crear({ sheetsFalso: planillaFalsa });
+const G3 = cargarCon(s3);
+const pedir = (param) => JSON.parse(G3.doGet({ parameter: param }).getContent());
+
+chequear('sin PIN guardado, ?configurar= NO fija ninguno',
+  (() => {
+    const r = pedir({ formato: 'json', configurar: '123456' });
+    const guardado = s3.PropertiesService.getScriptProperties().getProperty('PIN_HASH');
+    return (guardado === null && r.ok === false) || ('quedó guardado: ' + guardado + ' | respuesta: ' + JSON.stringify(r));
+  })() === true,
+  'si la URL pública deja fijar el PIN, el primero que llega pone el suyo y se lleva los datos');
+
+s3.PropertiesService.getScriptProperties().setProperty('PIN_HASH', G3.hashPin(PIN));
+leido.veces = 0;
+chequear('doGet con un PIN equivocado no lee la planilla',
+  (() => { const r = pedir({ formato: 'json', pin: OTRO }); return r.ok === false && leido.veces === 0; })(),
+  'la puerta de producción deja pasar o lee antes de validar');
+s3.CacheService.getScriptCache().remove('intentos_pin');
+
+chequear('doGet sin PIN no lee la planilla',
+  (() => { const r = pedir({ formato: 'json' }); return r.ok === false && leido.veces === 0; })(),
+  'sin PIN no puede salir nada');
+s3.CacheService.getScriptCache().remove('intentos_pin');
+
+chequear('doGet con el PIN correcto sí trae el estado',
+  (() => { const r = pedir({ formato: 'json', pin: PIN }); return (r.ok === true && !!r.estado && leido.veces > 0) || JSON.stringify(r).slice(0, 200); })() === true,
+  'la app dejaría de andar');
+
+chequear('sin ?formato=json no sirve ninguna página',
+  (() => {
+    const texto = G3.doGet({ parameter: {} }).getContent();
+    return (s3.usosHtml.length === 0 && !/[{<]/.test(texto)) || ('HtmlService usado: ' + s3.usosHtml.join(',') + ' | respuesta: ' + texto.slice(0, 80));
+  })() === true,
+  'una página de Apps Script trae google.script.run, que llama funciones del servidor sin PIN');
+
 console.log('\n' + (fallas === 0 ? 'PIN VERIFICADO' : fallas + ' FALLAS'));
 process.exit(fallas ? 1 : 0);

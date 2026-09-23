@@ -5,7 +5,10 @@ const { cargar } = require('./cargar.js');
 
 const G = cargar();
 const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture.json'), 'utf8'));
-const estado = G.construirEstado(fixture, new Date(2026, 8, 9));
+// "Hoy" es el día en que se bajaron los datos, no una fecha fija: con una fecha
+// vieja, un taller de la semana pasada figura como si todavía no hubiera pasado.
+const hoy = fixture.generadoEn ? new Date(fixture.generadoEn) : new Date(2026, 8, 9);
+const estado = G.construirEstado(fixture, hoy);
 
 fs.writeFileSync(path.join(__dirname, 'estado.json'), JSON.stringify(estado, null, 1));
 
@@ -29,25 +32,37 @@ console.log(estado.resumen);
 console.log('\n=== TIKZET ===');
 console.log(`${estado.tikzet.entradas} entradas · ${pl(estado.tikzet.recaudado)} · ${estado.tikzet.sinMonto} sin monto`);
 
+// Solo el tipo de cada alerta, nunca el texto: el texto trae nombres y montos de
+// personas reales, y esta salida termina en la pantalla y en los registros.
 console.log('\n=== ALERTAS (' + estado.alertas.length + ') ===');
-estado.alertas.forEach(a => console.log(` [${a.nivel}] ${a.texto}`));
+const porTipo = {};
+estado.alertas.forEach(a => { const k = a.nivel + ' · ' + a.tipo; porTipo[k] = (porTipo[k] || 0) + 1; });
+Object.entries(porTipo).forEach(([k, n]) => console.log(` [${k}] × ${n}`));
 
 // --- verificación dura ---
-const descuadres = estado.ediciones.filter(e => e.personas.length !== e.anotados);
-const esperado = {
-  'Taller de tapeo — 18/09/2026': [12, 12],
-  'Curso de cocina — Octubre 2026 (Miércoles 19-21h)': [4, 15],
-  'Curso de cocina — Octubre 2026 (Jueves 10-12h)': [1, 15]
-};
+// La referencia es el propio Panel: sus números los calcula Google Sheets con
+// sus fórmulas, sin pasar por este código. Antes se comparaba contra tres cifras
+// anotadas a mano el 9/9, que se volvían falsas en cuanto se anotaba alguien más
+// — y con la suite en rojo, desplegar.sh no deja subir nada.
+const filasPanel = fixture.panelValores.slice(1).filter(r => String(r[1] || '').trim());
 let fallas = 0;
-Object.entries(esperado).forEach(([nombre, [anotados, cupo]]) => {
+filasPanel.forEach(r => {
+  const nombre = String(r[1]).trim();
   const e = estado.ediciones.find(x => x.edicion === nombre);
-  if (!e) { console.log(`\nFALLA: no se encontró "${nombre}"`); fallas++; return; }
+  if (!e) { console.log(`\nFALLA: la app no muestra "${nombre}", que está en el Panel`); fallas++; return; }
+  const anotados = Number(r[3]), cupo = Number(r[2]);
   if (e.anotados !== anotados || e.cupo !== cupo || e.personas.length !== anotados) {
-    console.log(`\nFALLA: ${nombre} -> panel ${e.anotados}/${e.cupo}, filas ${e.personas.length} (esperado ${anotados}/${cupo})`);
+    console.log(`\nFALLA: ${nombre} -> app ${e.anotados}/${e.cupo} con ${e.personas.length} personas; el Panel dice ${anotados}/${cupo}`);
     fallas++;
   }
 });
-console.log('\n' + (fallas === 0 && descuadres.length === 0
-  ? 'VERIFICADO: los conteos de la app coinciden con el Panel y con el estado esperado al 9/9/2026.'
-  : `REVISAR: ${fallas} falla(s) contra el estado esperado, ${descuadres.length} descuadre(s) panel-vs-filas.`));
+if (estado.ediciones.length !== filasPanel.length) {
+  console.log(`\nFALLA: el Panel tiene ${filasPanel.length} ediciones y la app muestra ${estado.ediciones.length}`);
+  fallas++;
+}
+if (filasPanel.length === 0) { console.log('\nFALLA: el fixture no tiene ediciones en el Panel'); fallas++; }
+const cuando = fixture.generadoEn ? fixture.generadoEn.slice(0, 10) : 'sin fecha';
+console.log('\n' + (fallas === 0
+  ? `VERIFICADO: las ${filasPanel.length} ediciones coinciden con el Panel (anotados, cupo y personas), datos del ${cuando}.`
+  : `REVISAR: ${fallas} diferencia(s) contra el Panel (datos del ${cuando}).`));
+process.exitCode = fallas ? 1 : 0;

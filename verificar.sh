@@ -10,43 +10,47 @@ set -e
 set -o pipefail
 cd "$(dirname "$0")"
 
-echo "=== 1/10  El código, antes de pegarlo en Apps Script ==="
+echo "=== 1/11  El código, antes de pegarlo en Apps Script ==="
 node local/probar-codigo.js | tail -1
 
 echo
-echo "=== 2/10  Conteos contra el Panel (datos reales) ==="
+echo "=== 2/11  Conteos contra el Panel (datos reales) ==="
 node local/probar.js | tail -3
 
 echo
-echo "=== 3/10  Casos límite ==="
+echo "=== 3/11  Casos límite ==="
 node local/casos-limite.js | tail -2
 
 echo
-echo "=== 4/10  Lectura de la planilla ==="
+echo "=== 4/11  Lectura de la planilla ==="
 node local/probar-lectura.js | tail -2
 
 echo
-echo "=== 5/10  PIN ==="
+echo "=== 5/11  PIN ==="
 node local/probar-pin.js | tail -2
 
 echo
-echo "=== 6/10  Planilla editada a mano ==="
+echo "=== 6/11  Planilla editada a mano ==="
 node local/probar-planilla-a-mano.js | tail -2
 
 echo
-echo "=== 7/10  Lo que queda guardado en el teléfono ==="
+echo "=== 7/11  Lo que queda guardado en el teléfono ==="
 node local/probar-cache.js | tail -2
 
 echo
-echo "=== 8/10  Las cuatro solapas, con datos nuevos, viejos y vacíos ==="
+echo "=== 8/11  Las cuatro solapas, con datos nuevos, viejos y vacíos ==="
 node local/probar-vistas.js | tail -2
 
 echo
-echo "=== 9/10  La plata ==="
+echo "=== 9/11  La plata ==="
 node local/probar-plata.js | tail -2
 
 echo
-echo "=== 10/10  Datos hostiles del Tally público ==="
+echo "=== 10/11  Datos hostiles del Tally público ==="
 node local/probar-xss.js | tail -2
+
+echo
+echo "=== 11/11  Ningún dato real en lo que se publica ==="
+node local/probar-privacidad.js | tail -2
 echo
 echo "TODO VERIFICADO"

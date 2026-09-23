@@ -16,7 +16,7 @@ function caso(nombre, esperado, obtenido) {
 const HOJA = 'Inscriptos Noviembre 2026';
 const ED = 'Taller de pastas — 12/11/2026';
 const r = (f) => {
-  const x = G.parsearRegla(f, ED, 5);
+  const x = (G.analizarFormula(f, ED, 5).regla || null);
   return x && { hoja: x.hoja, k: x.criterioK, e: x.criterioE };
 };
 
