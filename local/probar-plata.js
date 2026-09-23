@@ -306,5 +306,59 @@ caso(
   () => { const p = persona1('2 entradas 10400'); return (p.estadoPago === 'revisar' && p.saldo === 0 && /2 entradas 10400/.test(p.nota)) || 'dio ' + p.estadoPago + ' / ' + p.nota; }
 );
 
+console.log('\n--- Los totales de arriba: solo lo que viene ---');
+// De acá salen el "Falta cobrar" de Plata y la barra de la portada. Se probaba
+// la plata persona por persona, pero ningún total: se podía sumar el cobrado en
+// lugar del saldo, o contar las ediciones que ya pasaron, y todo seguía en verde.
+// Arma varias ediciones en un mismo Panel, cada una con su COUNTIF sobre su fila.
+function armarVarias(ediciones) {
+  const panelValores = [['Actividad','Edición','Cupo','Anotados','Quedan','Estado']];
+  const panelFormulas = [['','','','','','']];
+  let gente = [];
+  ediciones.forEach((ed, i) => {
+    panelValores.push([ed.edicion.split('—')[0].trim(), ed.edicion, String(ed.cupo), String(ed.gente.length),
+                       String(ed.cupo - ed.gente.length), ed.estado]);
+    panelFormulas.push(['','','', "=COUNTIF('Inscriptos Noviembre 2026'!K:K;B" + (i + 2) + ")", '','']);
+    gente = gente.concat(ed.gente.map(g => fila({ ...g, edicion: ed.edicion })));
+  });
+  return G.construirEstado({ panelValores, panelFormulas,
+    hojas: { 'Inscriptos Noviembre 2026': [H].concat(gente) }, extras: {} }, HOY);
+}
+{
+  const e = armarVarias([
+    { edicion: 'Curso de cocina — Noviembre 2026', cupo: 15, estado: 'Abierto', gente: [
+      { nombre: 'Total', monto: '12200', comprobante: 'c1' },
+      { nombre: 'Señado', monto: '3000', comprobante: 'c2' },
+      { nombre: 'Sinpago' }] },
+    { edicion: 'Taller de pastas — 20/11/2026', cupo: 10, estado: 'Abierto', gente: [
+      { nombre: 'Tallerista', monto: '1500', comprobante: 'c3' },
+      { nombre: 'Sinpago2' }] },
+    // La trampa: ya pasó y tiene saldo y pendientes propios, que no van arriba.
+    { edicion: 'Curso de cocina — Enero 2026', cupo: 15, estado: 'Cerrado', gente: [
+      { nombre: 'Viejo', monto: '3000', comprobante: 'c4' },
+      { nombre: 'Viejo2' }] }
+  ]);
+  const r = e.resumen;
+  const igual = (campo, esperado) => r[campo] === esperado || campo + ' dio ' + r[campo] + ' y esperaba ' + esperado;
+  caso('el armado tiene lo que la prueba supone',
+    'si la edición vieja no quedara como pasada, lo de abajo no probaría nada',
+    () => (e.ediciones.length === 3 && e.ediciones[2].vigente === false && e.ediciones[2].saldo > 0 &&
+           e.ediciones[2].pendientes.length === 2) || 'ediciones: ' + e.ediciones.map(x => x.edicion + ' vigente=' + x.vigente).join(' | '));
+  caso('cuenta solo las ediciones que vienen', 'la de enero ya pasó', () => igual('vigentes', 2));
+  caso('anotados de lo que viene', 'es el número grande de la barra', () => igual('anotados', 5));
+  caso('cupo de lo que viene', 'sale de la columna Cupo del Panel', () => igual('cupo', 25));
+  caso('lugares libres: lo que queda, no el cupo',
+    'sumar el cupo le diría que hay 25 lugares cuando hay 20', () => igual('libres', 20));
+  caso('cobrado de lo que viene', 'la plata de enero no es de lo que viene', () => igual('recaudado', 16700));
+  // Sin pago = pendiente, pero NO suma a "Falta cobrar": la app no inventa una
+  // deuda que la planilla no dice (evaluarPago le deja saldo 0). Y los talleres
+  // no calculan deuda (decisión documentada en INSTRUCCIONES). Por eso es solo
+  // la seña del curso, $ 9.200, y no más: no lo "corrijas" pensando que falta.
+  caso('"Falta cobrar" suma solo el saldo de lo que viene',
+    'sumar el cobrado, o el saldo de enero, le mostraría una deuda que no es', () => igual('saldo', 9200));
+  caso('pendientes: la seña y los dos sin pago de lo que viene',
+    'contar los de enero lo mandaría a cobrarle a gente de un curso que terminó', () => igual('pendientes', 3));
+}
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);

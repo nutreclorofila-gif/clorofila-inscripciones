@@ -420,6 +420,98 @@ console.log('\n--- Escribirle a la gente desde donde aparece ---');
   chequeo('y no dice que todos los sin fecha son ventas de Tikzet',
     !/las ventas de Tikzet no la traen\)/.test(porFecha), porFecha);
 }
+// La tarjeta abierta de Cupos es la vista que más se usa para ver quién viene, y
+// ninguna prueba la abría: persona() y su chip de pago no se pintaban nunca.
+// Otra instancia de la interfaz, a propósito: abierta se ven montos por diseño,
+// y la de arriba es la que comprueba que la portada no los muestre.
+console.log('\n--- La tarjeta abierta de Cupos ---');
+{
+  const { cargar } = require('./cargar.js');
+  const G = cargar();
+  const ED = 'Curso de cocina — Diciembre 2099';
+  const est = G.paraElTelefono(G.construirEstado({
+    panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
+      ['Curso de cocina', ED, '15', '2', '13', 'Abierto']],
+    panelFormulas: [['','','','','',''], ['','','',"=COUNTIF('Inscriptos'!K:K;B2)",'','']],
+    hojas: { 'Inscriptos': [['nombre','email','celular','actividad','horario','medio','comprobante','monto','verif','fecha','Edición'],
+      ['Hugo Inventado', 'hugo@ejemplo.com', '', '', 'Jueves', 'Transferencia', '', '3000', '', '', ED],
+      ['Irene Inventada', 'irene@ejemplo.com', '', '', 'Jueves', 'Transferencia', '', '12200', '', '', ED]] },
+    extras: {}
+  }, new Date()));
+  const ui = cargarUI(est);
+  const hugo = est.ediciones[0].personas.filter(p => p.nombre === 'Hugo Inventado')[0] || {};
+  const chequeo = (nombre, cond, detalle) => {
+    corridos++;
+    if (cond) console.log('  ok    ' + nombre);
+    else { fallas++; console.log('  FALLA ' + nombre + '\n        ' + detalle); }
+  };
+  chequeo('el armado tiene una seña con saldo distinto de lo que pagó',
+    hugo.estadoPago === 'parcial' && hugo.saldo > 0 && hugo.saldo !== hugo.monto, JSON.stringify(hugo));
+  const cerrada = ui.vistaCupos();
+  ui.abrirTodas();
+  const abierta = ui.vistaCupos();
+  chequeo('al abrir la tarjeta aparece la gente',
+    /Hugo Inventado/.test(abierta) && /Irene Inventada/.test(abierta) && !/Hugo Inventado/.test(cerrada),
+    'cerrada: ' + /Hugo/.test(cerrada) + ', abierta: ' + /Hugo/.test(abierta));
+  chequeo('el chip de quien debe dice cuánto le falta, no cuánto pagó',
+    abierta.indexOf('Debe ' + ui.plata(hugo.saldo)) !== -1 && abierta.indexOf('Debe ' + ui.plata(hugo.monto)) === -1,
+    (abierta.match(/class="chip parcial">[^<]*/) || ['(sin chip)'])[0]);
+  chequeo('y quien pagó todo dice "Pagó", sin monto en el chip',
+    /class="chip completo">Pagó</.test(abierta), (abierta.match(/class="chip completo">[^<]*/) || ['(sin chip)'])[0]);
+  ui.cerrarTodas();
+  chequeo('al cerrarla, la portada vuelve a no mostrar plata',
+    montos(ui.vistaCupos()).length === 0, JSON.stringify(montos(ui.vistaCupos())));
+}
+
+// Las gift cards sin usar son plata cobrada por adelantado. La pestaña no está
+// en el fixture y ninguna prueba pintaba esa parte de Plata: se podían sumar
+// también las usadas y nada se ponía rojo. Se carga por el camino real, con los
+// encabezados de la planilla más una columna de importe.
+{
+  const { cargar } = require('./cargar.js');
+  const G = cargar();
+  const fx = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture.json'), 'utf8'));
+  const HGC = ['Código', 'Actividad', 'Comprada por', 'Email comprador', 'Fecha de compra',
+               'Destinatario', 'Contacto destinatario', 'Estado', 'Usada por (nombre en Inscriptos)', 'Fecha de uso'];
+  const conGift = (encabezados, filas) => {
+    const crudo = JSON.parse(JSON.stringify(fx));
+    crudo.extras = Object.assign({}, crudo.extras, { 'Gift Cards': [encabezados].concat(filas) });
+    return G.construirEstado(crudo, new Date(2026, 8, 9, 15, 30));
+  };
+  const est = conGift(HGC.concat('Monto'), [
+    ['GC-901', 'Taller de tapeo', 'Sara Inventada', 'sara@ejemplo.com', '01/07/2026', 'Olga Inventada', '', 'Libre', '', '', '1000'],
+    ['GC-902', 'Taller de tapeo', 'Sara Inventada', 'sara@ejemplo.com', '01/07/2026', 'Pablo Inventado', '', 'Libre', '', '', '2000'],
+    ['GC-903', 'Curso de cocina', 'Tito Inventado', 'tito@ejemplo.com', '01/06/2026', 'Rita Inventada', '', 'Libre', 'Rita Inventada', '20/08/2026', '5000']]);
+  probarEstado('Gift cards en Plata', est);
+  const ui = cargarUI(est);
+  const seccion = (h) => h.slice(h.indexOf('>Gift cards<'), h.indexOf('>Tikzet<'));
+  const gift = seccion(ui.vistaPlata());
+  const chequeo = (nombre, cond) => {
+    corridos++;
+    if (cond) console.log('  ok    ' + nombre);
+    else { fallas++; console.log('  FALLA ' + nombre + '\n        la sección quedó: ' + gift.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 300)); }
+  };
+  chequeo('cuenta las vendidas', /3 vendidas en total/.test(gift));
+  chequeo('el número grande son las 2 sin usar', /class="grande">2<\/span><span class="de">sin usar/.test(gift));
+  chequeo('lo cobrado por adelantado suma solo las sin usar',
+    gift.indexOf(ui.plata(3000) + '</b>cobrado por adelantado') !== -1 && gift.indexOf(ui.plata(8000)) === -1);
+  chequeo('la lista muestra las sin usar y quién las compró',
+    /Olga Inventada/.test(gift) && /Pablo Inventado/.test(gift) && /la compró Sara Inventada/.test(gift));
+  chequeo('y no la que ya se usó', !/Rita Inventada/.test(gift));
+
+  // La pestaña de hoy no tiene columna de importe: no se inventa un $ 0.
+  const sinMonto = conGift(HGC, [
+    ['GC-901', 'Taller de tapeo', 'Sara Inventada', 'sara@ejemplo.com', '01/07/2026', 'Olga Inventada', '', 'Libre', '', '']]);
+  const gift2 = seccion(cargarUI(sinMonto).vistaPlata());
+  corridos++;
+  if (sinMonto.resumen.giftSinMonto && gift2.indexOf('$') === -1 && /Sin importe cargado en la planilla\./.test(gift2)) {
+    console.log('  ok    sin columna de importe no muestra plata y dice que falta');
+  } else {
+    fallas++;
+    console.log('  FALLA sin importe la sección quedó: ' + gift2.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 300));
+  }
+}
+
 function montos(h) { return h.match(/\$\s?[\d.]+/g) || []; }
 
 // Las piezas se prueban sueltas; esto comprueba que estén enchufadas.

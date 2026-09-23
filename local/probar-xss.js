@@ -86,13 +86,42 @@ VENENOS.forEach(v => {
   f[5] = v; f[6] = v; f[7] = '12200'; f[8] = v; f[10] = 'Curso de cocina — Octubre 2026';
   hoja.push(f);
 });
+// Las gift cards se cargan a mano, pero se pintan en Plata con nombre, quién la
+// compró y estado: van envenenadas en los tres. La pestaña no está en el fixture.
+fixture.extras = Object.assign({}, fixture.extras, { 'Gift Cards': [['Destinatario', 'Comprada por', 'Estado', 'Monto']]
+  .concat(VENENOS.map(v => [v, v, v, '1000'])) });
 const envenenado = G.construirEstado(fixture, new Date(2026, 8, 9));
+// La lista de espera de adentro de una tarjeta: el fixture no trae la pestaña,
+// así que se cuelga a mano de una edición que viene y tiene gente.
+const conGente = envenenado.ediciones.filter(e => e.vigente && e.personas.length)[0];
+VENENOS.forEach(v => envenenado.espera.push({ nombre: v, quiere: conGente.edicion, edicion: conGente.edicion }));
 const ui = cargarUI(envenenado);
-const pintado = ui.vistaCupos() + ui.vistaPlata() + ui.vistaGente('') + ui.vistaAlertas();
+const cuposCerrados = ui.vistaCupos();
+// Tocar cada tarjeta: es donde se ve quién viene, con persona() y su chip de pago.
+ui.abrirTodas();
+const cuposAbiertos = ui.vistaCupos();
+const pintado = cuposCerrados + cuposAbiertos + ui.vistaPlata() + ui.vistaGente('') + ui.vistaAlertas();
 
 caso('las cargas llegan a la interfaz (si no, la prueba no prueba nada)',
   'una prueba que no enfrenta el veneno pasa por la razón equivocada',
   () => /&lt;img|&lt;svg|&lt;\/script/.test(pintado) || 'los datos hostiles no aparecieron en lo pintado'
+);
+caso('las tarjetas de Cupos se pintan abiertas, con su gente y su espera',
+  'si no se abren, persona() no corre y un nombre sin escapar ahí no lo ve nadie',
+  () => {
+    const cuantas = (h) => (h.match(/class="persona"/g) || []).length;
+    const espera = (cuposAbiertos.match(/Esperando lugar/g) || []).length;
+    return (cuantas(cuposAbiertos) > cuantas(cuposCerrados) + conGente.personas.length && espera >= 1) ||
+      'personas cerradas/abiertas: ' + cuantas(cuposCerrados) + '/' + cuantas(cuposAbiertos) + ', secciones de espera: ' + espera;
+  }
+);
+caso('las gift cards envenenadas también se pintan en Plata',
+  'si no aparecen, lo de abajo no dice nada del nombre ni de quién la compró',
+  () => {
+    const plata = ui.vistaPlata();
+    const gift = plata.slice(plata.indexOf('>Gift cards<'), plata.indexOf('>Tikzet<'));
+    return (/&lt;img/.test(gift) && /la compró &lt;img/.test(gift)) || 'la sección quedó: ' + gift.slice(0, 200);
+  }
 );
 caso('no queda ninguna etiqueta ejecutable',
   'un <script> o un <img> con onerror corre en el navegador de Leo, con sus datos a la vista',

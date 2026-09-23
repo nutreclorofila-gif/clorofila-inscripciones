@@ -109,6 +109,9 @@ chequear('trae todas las pestañas en UNA sola llamada',
   llamadas.filter(l => l.op === 'batchGet').length === 1,
   'llamadas: ' + JSON.stringify(llamadas.map(l => l.op)));
 
+chequear('con el Panel de hoy no dice que está lleno',
+  crudo.panelLleno === false, 'panelLleno quedó ' + crudo.panelLleno);
+
 chequear('empareja las filas cortas hasta la columna K',
   Object.values(crudo.hojas).every(f => f.every(x => x.length === 11)),
   'la API recorta las celdas vacías del final; sin emparejar, la columna K a veces no existe');
@@ -342,6 +345,34 @@ console.log('\n--- La fecha de inscripción que llega al teléfono ---');
   const p0 = alTelefono.ediciones[0].personas[0];
   chequear('al teléfono llega el día y no el texto de la columna',
     p0.anotadoEl === '16/09/2026' && !('fecha' in p0), JSON.stringify(p0));
+}
+
+console.log('\n--- El Panel llega al tope de filas que se leen ---');
+// Importa porque de ahí en más una edición nueva no aparece en la app, y nadie
+// se entera. La alerta ya se probaba con la marca puesta a mano; esto prueba la
+// cuenta que decide si está lleno, que es lo que se rompe sin que se note.
+{
+  const getReal = Sheets.Spreadsheets.Values.get;
+  const conFilas = (n) => {
+    // El relleno lleva algo en la columna A y nada en la Edición: la API no
+    // devuelve filas vacías, y así no se inventa ninguna edición.
+    Sheets.Spreadsheets.Values.get = (id, rango, opts) => {
+      const r = getReal(id, rango, opts);
+      const values = r.values.slice(0, n);
+      while (values.length < n) values.push(['relleno']);
+      return { values };
+    };
+    try { return api.leerPlanilla(); } finally { Sheets.Spreadsheets.Values.get = getReal; }
+  };
+  const tope = api.FILAS_PANEL;
+  const lleno = conFilas(tope);
+  chequear('con ' + tope + ' filas (FILAS_PANEL) se marca lleno',
+    lleno.panelLleno === true, 'panelLleno quedó ' + lleno.panelLleno);
+  chequear('y la alerta llega al estado',
+    api.construirEstado(lleno, new Date(2026, 8, 9)).alertas.some(a => a.tipo === 'panel_lleno'),
+    'no salió la alerta panel_lleno');
+  chequear('con una fila menos todavía no',
+    conFilas(tope - 1).panelLleno === false, 'avisa antes de tiempo');
 }
 
 console.log('\n--- Si las pestañas se llaman con otras mayúsculas ---');
