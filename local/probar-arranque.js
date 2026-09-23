@@ -28,6 +28,10 @@ const ESTADO = G.construirEstado({
   extras: {}
 }, new Date());
 
+// Los ids que están en la página desde el principio, fuera del JavaScript.
+const ESTATICOS = new Set([...(html.split('<script>')[0] + html.split('</script>').slice(1).join(''))
+  .matchAll(/id="([^"]+)"/g)].map(m => m[1]));
+
 const PIN = '424242';
 const HORA = 60 * 60 * 1000;
 
@@ -78,10 +82,15 @@ function montar(op) {
   };
 
   const nodos = {};
+  // Lo que se pinta con innerHTML se va cuando se pinta otra cosa encima, como
+  // en el navegador: getElementById devuelve null para lo que ya no está. Antes
+  // devolvía siempre un nodo, nuevo o viejo, y no se podía probar nada que
+  // dependiera de si el buscador de Gente seguía en pantalla.
+  const borrar = (h) => { if (nodos[h.id] === h) delete nodos[h.id]; h._hijos.forEach(borrar); };
   function nuevoNodo(id) {
     const clases = new Set(), oyentes = {};
     const n = {
-      id: id, value: '', disabled: false, dataset: {}, _html: '', _texto: '',
+      id: id, value: '', disabled: false, dataset: {}, _html: '', _texto: '', _hijos: [],
       classList: { add: (c) => clases.add(c), remove: (c) => clases.delete(c), contains: (c) => clases.has(c) },
       addEventListener: (ev, fn) => { (oyentes[ev] = oyentes[ev] || []).push(fn); },
       disparar: (ev, datos) => (oyentes[ev] || []).forEach(fn => fn.call(n, Object.assign({ target: n }, datos || {}))),
@@ -91,6 +100,8 @@ function montar(op) {
     Object.defineProperty(n, 'innerHTML', {
       get: () => n._html,
       set: (v) => {
+        n._hijos.forEach(borrar);
+        n._hijos = [];
         n._html = String(v);
         n._texto = n._html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
         // Lo que se pinta adentro reemplaza a los nodos que había con esos ids.
@@ -100,6 +111,7 @@ function montar(op) {
           const hijo = nuevoNodo(m[1]);
           hijo._texto = m[2].replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&');
           nodos[m[1]] = hijo;
+          n._hijos.push(hijo);
         }
       }
     });
@@ -116,8 +128,10 @@ function montar(op) {
     return n;
   }
   const nodo = (id) => nodos[id] || (nodos[id] = nuevoNodo(id));
+  // Todo lo pintado adentro de un nodo, también lo que se pintó después en sus hijos.
+  const todo = (n) => n._html + n._hijos.map(todo).join('');
   const document = {
-    getElementById: nodo,
+    getElementById: (id) => nodos[id] || (ESTATICOS.has(id) ? nodo(id) : null),
     querySelector: () => nuevoNodo(''), querySelectorAll: () => [],
     createElement: () => nuevoNodo(''), body: nuevoNodo('body'), addEventListener() {},
     execCommand() {}
@@ -153,6 +167,7 @@ function montar(op) {
 
   return {
     api, almacen, pedidos, nodo, pasar,
+    todo: () => todo(nodo('panel')),
     agregar: (r) => cola.push(r),
     puerta: () => /class="puerta"/.test(nodo('panel').innerHTML),
     panel: () => nodo('panel').textContent,
@@ -316,6 +331,51 @@ const JERGA = /Unexpected|JSON|token|Load failed|Failed to fetch|NetworkError|Ab
     caso('Salir mientras busca: queda en la puerta', t.puerta() && !t.api.ver().DATOS);
   }
 
+  console.log('\n--- Escribiendo en el buscador de Gente mientras se busca lo nuevo ---');
+  // Lo guardado se muestra con las solapas andando mientras el pedido sigue en
+  // camino, y Google tarda unos segundos: da tiempo a ir a Gente y escribir.
+  // Cuando llegaba la respuesta se rehacía el buscador vacío: se borraba lo
+  // escrito y el celular cerraba el teclado.
+  async function escribiendo(respuesta, desenlace) {
+    const t = montar({ pin: PIN, cache: 1 * HORA, respuestas: [respuesta] });
+    await asentar();
+    t.api.solapa('gente');
+    const b = t.nodo('buscador');
+    b.value = 'zeno';
+    b.disparar('input');
+    await desenlace(t);
+    await asentar();
+    return { t, b };
+  }
+  {
+    const control = {};
+    const { t, b } = await escribiendo(R.diferida(control), async () => control.soltar());
+    const lista = t.nodo('listaGente').textContent;
+    caso('llegan los datos nuevos: lo escrito sigue ahí', t.nodo('buscador').value === 'zeno', t.nodo('buscador').value);
+    caso('llegan los datos nuevos: el buscador no se rehace (no se cierra el teclado)', t.nodo('buscador') === b);
+    caso('llegan los datos nuevos: la lista sigue filtrada',
+      /Zenobia/.test(lista) && !/Teodulfo/.test(lista), lista);
+    caso('llegan los datos nuevos: el cartel de viejos se va', !/class="viejo"/.test(t.todo()) && !t.api.ver().DESDE_CACHE);
+  }
+  {
+    const { t, b } = await escribiendo(R.colgado(), async (t) => t.pasar(10 * 60 * 1000));
+    const texto = t.todo();
+    caso('el pedido se corta: lo escrito sigue ahí y el buscador es el mismo',
+      t.nodo('buscador') === b && b.value === 'zeno', t.nodo('buscador') && t.nodo('buscador').value);
+    caso('el pedido se corta: el cartel dice que no contestó', /no contestó a tiempo/.test(texto), texto.slice(0, 200));
+  }
+  {
+    // Ir a otra solapa y volver sí empieza de cero: es otra búsqueda.
+    const t = montar({ pin: PIN, cache: 1 * HORA, respuestas: [R.datos()] });
+    await asentar();
+    t.api.solapa('gente');
+    t.nodo('buscador').value = 'zeno';
+    t.api.solapa('cupos');
+    t.api.solapa('gente');
+    caso('volver a Gente desde otra solapa arranca con el buscador vacío',
+      t.nodo('buscador').value === '' && /Teodulfo/.test(t.nodo('listaGente').textContent));
+  }
+
   console.log('\n--- La puerta: escribir el PIN y tocar Entrar ---');
   async function entrar(t, pin) {
     t.nodo('pin').value = pin;
@@ -389,7 +449,7 @@ const JERGA = /Unexpected|JSON|token|Load failed|Failed to fetch|NetworkError|Ab
     for (const s of ['cupos', 'plata', 'gente', 'alertas']) {
       if (!t.api.ver().DATOS) { caso('solapa ' + s + ': hay datos guardados para mostrar', false); continue; }
       t.api.solapa(s);
-      caso('solapa ' + s + ': tiene el cartel', /class="viejo"/.test(t.nodo('panel').innerHTML), t.panel().slice(0, 120));
+      caso('solapa ' + s + ': tiene el cartel', /class="viejo"/.test(t.todo()), t.panel().slice(0, 120));
     }
     const t2 = montar({ pin: PIN, cache: 26 * HORA, respuestas: [R.sinRed()], onLine: false });
     await asentar();

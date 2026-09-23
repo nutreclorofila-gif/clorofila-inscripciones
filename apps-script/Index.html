@@ -754,12 +754,22 @@
     if (SOLAPA === 'cupos') p.innerHTML = viejo + avisoDeNovedades() + vistaCupos();
     else if (SOLAPA === 'plata') p.innerHTML = viejo + vistaPlata();
     else if (SOLAPA === 'gente') {
-      p.innerHTML = viejo + '<input class="buscador" id="buscador" type="search" autocomplete="off" ' +
-        'placeholder="Buscar por nombre, mail o celular"><div id="listaGente"></div>';
+      // Si Gente ya está en pantalla, el buscador NO se rehace: solo el cartel
+      // y la lista, filtrada con lo que haya escrito. Desde que lo guardado se
+      // muestra mientras se busca lo nuevo, Leo puede estar escribiendo cuando
+      // llega la respuesta (o cuando se corta), y rehacerlo le borraba lo
+      // escrito y le cerraba el teclado. Pasaba también al tocar a alguien de
+      // la lista para ver su contacto.
       var b = document.getElementById('buscador');
-      var lista = document.getElementById('listaGente');
-      lista.innerHTML = vistaGente('');
-      b.addEventListener('input', function () { lista.innerHTML = vistaGente(b.value); });
+      if (!b) {
+        p.innerHTML = '<div id="cartelGente"></div><input class="buscador" id="buscador" type="search" ' +
+          'autocomplete="off" placeholder="Buscar por nombre, mail o celular"><div id="listaGente"></div>';
+        b = document.getElementById('buscador');
+        var lista = document.getElementById('listaGente');
+        b.addEventListener('input', function () { lista.innerHTML = vistaGente(b.value); });
+      }
+      document.getElementById('cartelGente').innerHTML = viejo;
+      document.getElementById('listaGente').innerHTML = vistaGente(b.value);
     }
     else p.innerHTML = viejo + vistaAlertas();
   }
