@@ -213,8 +213,9 @@ edita `web/index.html` a mano, el cambio se pierde la próxima vez que se regene
 cuando la API nueva responde:
 ```bash
 node local/generar-web.js        # regenera web/index.html; commitearlo
-local/publicar-pagina.sh         # lo sube a la rama gh-pages y comprueba que quedó igual
+local/publicar-pagina.sh         # corre ./verificar.sh; si pasa, lo sube a la rama gh-pages y comprueba que quedó igual
 ```
+Si la verificación no pasa, `publicar-pagina.sh` no publica nada y muestra lo que falló.
 GitHub tarda uno o dos minutos en servirla. En el teléfono, cerrar la app y abrirla de nuevo.
 
 ⛔ **La página NO se publica en Netlify**: gasta créditos. El sitio de Netlify
@@ -257,7 +258,7 @@ pruebas. Una prueba que nunca falla no prueba nada, y eso no se ve leyéndola.
 | `local/probar-xss.js` | Datos hostiles del Tally público: el escape al incrustar, y que al pintarlos no quede ninguna etiqueta ni ningún manejador vivo — incluidos los enlaces de contacto, que es donde el dato entra dentro de un `href`, la gente de adentro de cada tarjeta de Cupos y las gift cards. |
 | `local/probar-privacidad.js` | Cruza los nombres, mails y celulares reales del fixture contra todo lo que está en el repo (que es público) y contra la página publicada en `gh-pages`. |
 | `local/probar-arranque.js` | Qué ve Leo cuando algo falla al abrir la app, en la puerta del PIN y al tocar Actualizar: que un error del servidor no borre el PIN ni se disfrace de "Sin conexión", que el PIN rechazado borre todo, el límite de espera, el cartel de datos viejos y el aviso de versiones distintas en las cuatro solapas. |
-| `local/probar-publicacion.js` | Que `web/index.html` sea exactamente lo que sale de `Index.html`, que la URL del servidor esté escrita en un solo lugar, que `desplegar.sh` publique la página después del servidor, y `local/publicar-pagina.sh` de punta a punta contra un `gh-pages` de mentira (sin red). |
+| `local/probar-publicacion.js` | Que `web/index.html` sea exactamente lo que sale de `Index.html`, que la URL del servidor esté escrita en un solo lugar, que `desplegar.sh` publique la página después del servidor, y `local/publicar-pagina.sh` de punta a punta contra un `gh-pages` de mentira (sin red), incluido que no publique si `verificar.sh` no pasa. |
 | `local/probar-documentacion.js` | Que este documento no vuelva a decir cosas que dejaron de ser ciertas: la receta de Netlify, la copia "que funciona igual", el PIN "nunca en claro", cuántas suites hay. |
 
 Cada suite imprime al final cuántos casos pasan; ese es el número de verdad, por eso la tabla

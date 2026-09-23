@@ -294,7 +294,14 @@ const MUTACIONES = [
   ['desplegar.sh sube el servidor sin mirar si la página se puede publicar', DESPLEGAR,
    'local/publicar-pagina.sh --revisar', 'true'],
   ['desplegar.sh deja de publicar la página', DESPLEGAR,
-   'local/publicar-pagina.sh   # la sube a gh-pages', 'true   # la sube a gh-pages']
+   'local/publicar-pagina.sh   # la sube a gh-pages', 'true   # la sube a gh-pages'],
+  // Publicar sin verificar: pasó en una copia de prueba el 23/9 (ver publicar-pagina.sh).
+  ['publicar-pagina.sh publica sin correr verificar.sh', PUBLICAR,
+   '  if ! ./verificar.sh > "$SALIDA" 2>&1; then', '  if false; then'],
+  ['cualquier VERIFICADO_EN saltea la verificación', PUBLICAR,
+   'if [ "${VERIFICADO_EN:-}" != "$(git rev-parse HEAD)" ]; then', 'if [ -z "${VERIFICADO_EN:-}" ]; then'],
+  ['desplegar.sh no avisa qué commit ya verificó', DESPLEGAR,
+   'export VERIFICADO_EN=$(git rev-parse HEAD)', 'true']
 ];
 
 const original = {};

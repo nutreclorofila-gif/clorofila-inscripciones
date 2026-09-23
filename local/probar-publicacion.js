@@ -71,6 +71,13 @@ console.log('\n--- desplegar.sh publica la página, después del servidor ---');
   const comprueba = pos(/curl /);
   const publica = pos(/^local\/publicar-pagina\.sh(\s+#.*)?$/m);
   const version = pos(/e\.forma/);
+  // publicar-pagina.sh corre verificar.sh salvo que le digan qué commit ya se
+  // verificó. desplegar.sh lo dice recién después de que la verificación pasó;
+  // si no, verifica tres veces lo mismo.
+  const verifica = pos(/^\.\/verificar\.sh /m);
+  const avisa = pos(/^export VERIFICADO_EN=\$\(git rev-parse HEAD\)/m);
+  caso('le avisa a publicar-pagina.sh qué commit verificó, después de verificar',
+    verifica !== -1 && avisa > verifica && avisa < revisa, 'verificar en ' + verifica + ', aviso en ' + avisa);
   caso('antes de subir nada, controla que la página esté commiteada y al día',
     revisa !== -1 && sube !== -1 && revisa < sube, 'revisar en ' + revisa + ', clasp push en ' + sube);
   // El orden importa: la página nueva lee campos que agrega el servidor nuevo.
@@ -104,6 +111,9 @@ if (!fs.existsSync(script)) {
     GIT_COMMITTER_NAME: 'Prueba', GIT_COMMITTER_EMAIL: 'prueba@ejemplo.invalid',
     GIT_CONFIG_NOSYSTEM: '1', HOME: tmp
   });
+  // Si quedó exportada de un desplegar.sh, el script se saltearía la
+  // verificación de mentira y las pruebas de abajo no probarían nada.
+  delete env.VERIFICADO_EN;
   const git = (cwd, ...a) => execFileSync('git', a, { cwd, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
   const correr = (cwd, ...a) => spawnSync('bash', [path.join(cwd, 'local', 'publicar-pagina.sh'), ...a], { cwd, env, encoding: 'utf8' });
   try {
@@ -124,6 +134,18 @@ if (!fs.existsSync(script)) {
     for (const f of ['local/generar-web.js', 'local/publicar-pagina.sh', 'apps-script/Index.html', 'web/index.html']) {
       fs.copyFileSync(path.join(base, f), path.join(obra, f));
     }
+    // Un verificar.sh de mentira: el de verdad correría esta misma suite
+    // adentro de sí misma. Deja una marca para saber que lo llamaron, y se
+    // rompe cuando existe local/verificacion-rota.
+    fs.writeFileSync(path.join(obra, 'verificar.sh'),
+      '#!/bin/bash\ncd "$(dirname "$0")"\necho x >> local/verificaciones\n' +
+      '[ -f local/verificacion-rota ] && { echo "1 FALLA una prueba"; exit 1; }\necho "TODO VERIFICADO"\n');
+    fs.chmodSync(path.join(obra, 'verificar.sh'), 0o755);
+    fs.writeFileSync(path.join(obra, '.gitignore'), 'local/verificaciones\nlocal/verificacion-rota\n');
+    const verificaciones = () => {
+      try { return fs.readFileSync(path.join(obra, 'local', 'verificaciones'), 'utf8').split('\n').filter(Boolean).length; }
+      catch (e) { return 0; }
+    };
     git(obra, 'init', '-q', '-b', 'main');
     git(obra, 'add', '-A');
     git(obra, 'commit', '-q', '-m', 'La app, de prueba');
@@ -136,8 +158,11 @@ if (!fs.existsSync(script)) {
     caso('--revisar con todo commiteado pasa y no publica nada',
       rev.status === 0 && commitsGhPages() === 1, rev.stdout + rev.stderr);
 
+    caso('--revisar también corre ./verificar.sh', verificaciones() === 1, 'veces: ' + verificaciones());
+
     const r1 = correr(obra);
     caso('publica web/index.html en gh-pages', r1.status === 0 && enGhPages() === paginaObra(), r1.stdout + r1.stderr);
+    caso('antes de publicar corre ./verificar.sh', verificaciones() === 2, 'veces: ' + verificaciones());
     caso('suma un commit a la historia de gh-pages, no la pisa', commitsGhPages() === 2, 'commits: ' + commitsGhPages());
     const mensaje = git(remoto, 'log', '-1', '--format=%B', 'gh-pages');
     const corto = git(obra, 'rev-parse', '--short', 'HEAD');
@@ -149,13 +174,38 @@ if (!fs.existsSync(script)) {
     caso('si gh-pages ya tiene esta página, no hace otro commit',
       r2.status === 0 && commitsGhPages() === 2, r2.stdout + r2.stderr);
 
+    // Una página nueva, commiteada, con la verificación en rojo. Pasó el
+    // 23/9/2026 en una copia de prueba: con un error de sintaxis en Index.html
+    // el script decía "página publicada" y verificar.sh salía con 1.
+    fs.appendFileSync(path.join(obra, 'apps-script', 'Index.html'), '\n<!-- cambio nuevo -->\n');
+    execFileSync('node', [path.join(obra, 'local', 'generar-web.js')], { cwd: obra, env, stdio: 'pipe' });
+    git(obra, 'commit', '-q', '-am', 'Un cambio en la página');
+    const cabeza = git(obra, 'rev-parse', 'HEAD');
+    fs.writeFileSync(path.join(obra, 'local', 'verificacion-rota'), '');
+    const r4 = correr(obra);
+    caso('si la verificación no pasa, no publica', r4.status !== 0 && commitsGhPages() === 2, r4.stdout + r4.stderr);
+    caso('y lo dice, con lo que falló', /verificación/i.test(r4.stdout) && /FALLA una prueba/.test(r4.stdout), r4.stdout + r4.stderr);
+    const rev3 = correr(obra, '--revisar');
+    caso('--revisar tampoco da por buena una página que no pasa la verificación', rev3.status !== 0, rev3.stdout + rev3.stderr);
+    // desplegar.sh ya corrió verificar.sh y avisa con el commit que verificó.
+    // Una variable que quedó exportada de otro commit no alcanza.
+    const r5 = spawnSync('bash', [path.join(obra, 'local', 'publicar-pagina.sh')],
+      { cwd: obra, env: Object.assign({}, env, { VERIFICADO_EN: 'otro-commit' }), encoding: 'utf8' });
+    caso('VERIFICADO_EN de otro commit no saltea la verificación', r5.status !== 0 && commitsGhPages() === 2, r5.stdout + r5.stderr);
+    const antes = verificaciones();
+    const r6 = spawnSync('bash', [path.join(obra, 'local', 'publicar-pagina.sh')],
+      { cwd: obra, env: Object.assign({}, env, { VERIFICADO_EN: cabeza }), encoding: 'utf8' });
+    caso('llamado desde desplegar.sh (VERIFICADO_EN con este commit) no verifica dos veces y publica',
+      r6.status === 0 && commitsGhPages() === 3 && verificaciones() === antes, r6.stdout + r6.stderr);
+    fs.unlinkSync(path.join(obra, 'local', 'verificacion-rota'));
+
     // Un cambio en Index.html sin commitear: se publicaría algo que no está en
     // ningún commit de main y nadie sabría de dónde salió.
     fs.appendFileSync(path.join(obra, 'apps-script', 'Index.html'), '\n<!-- cambio sin commitear -->\n');
     const rev2 = correr(obra, '--revisar');
-    caso('--revisar se planta con Index.html sin commitear', rev2.status !== 0 && commitsGhPages() === 2, rev2.stdout + rev2.stderr);
+    caso('--revisar se planta con Index.html sin commitear', rev2.status !== 0 && commitsGhPages() === 3, rev2.stdout + rev2.stderr);
     const r3 = correr(obra);
-    caso('con cambios sin commitear no publica', r3.status !== 0 && commitsGhPages() === 2, r3.stdout + r3.stderr);
+    caso('con cambios sin commitear no publica', r3.status !== 0 && commitsGhPages() === 3, r3.stdout + r3.stderr);
     caso('y dice qué hacer, en castellano', /commit/i.test(r3.stdout + r3.stderr) && !/fatal:/.test(r3.stdout), r3.stdout + r3.stderr);
   } catch (e) {
     caso('el repositorio de mentira se pudo armar', false, (e.stderr || '') + e.message);

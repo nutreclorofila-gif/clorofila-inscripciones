@@ -57,6 +57,11 @@ console.log('\n--- Cómo se publica la página ---');
 {
   caso('no manda a publicar en Netlify', !/npx[^\n]*netlify/i.test(doc), lineaCon(doc, /npx[^\n]*netlify/i));
   caso('la receta de la página usa local/publicar-pagina.sh', /local\/publicar-pagina\.sh/.test(doc));
+  // La receta "A mano" mandaba a regenerar, commitear y publicar sin nombrar la
+  // verificación: se podía subir al teléfono una página que no pasa las pruebas.
+  const aMano = parrafoCon(doc, /^local\/publicar-pagina\.sh/m);
+  caso('la receta "A mano" dice que publicar-pagina.sh verifica antes de publicar',
+    /verificar\.sh/.test(aMano) && /no publica/i.test(aMano), aMano);
   // Es el párrafo que explica ./desplegar.sh.
   const rapido = parrafoCon(doc, /^Verifica, sube el código/m);
   caso('dice que desplegar.sh publica también la página',

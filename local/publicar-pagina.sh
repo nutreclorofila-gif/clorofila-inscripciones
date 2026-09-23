@@ -3,8 +3,13 @@
 # (la URL que Leo tiene en el teléfono). Lo corre desplegar.sh al final, después
 # de que el servidor nuevo respondió bien. También se puede correr solo:
 #
-#   local/publicar-pagina.sh             publica
+#   local/publicar-pagina.sh             verifica y publica
 #   local/publicar-pagina.sh --revisar   solo controla que se pueda publicar; no sube nada
+#
+# Las dos formas corren ./verificar.sh primero y no siguen si no pasa. La
+# primera versión (23/9/2026) no lo hacía: en una copia de prueba, con un error
+# de sintaxis en Index.html, decía "página publicada" mientras verificar.sh
+# salía con 1. Corrido a mano era justo el agujero que tenía que tapar.
 #
 # Hasta el 23/9/2026 esto se hacía a mano y sin receta: desplegar.sh terminaba
 # en "LISTO" con la página vieja en el teléfono, y la única receta escrita
@@ -25,6 +30,20 @@ if ! git diff --quiet HEAD -- apps-script/Index.html web/index.html; then
   echo "★ apps-script/Index.html o web/index.html tienen cambios sin commitear."
   echo "  Hacé el commit (web/index.html ya quedó regenerado) y volvé a correr esto. No publico nada."
   exit 1
+fi
+
+# desplegar.sh ya verificó y lo avisa con VERIFICADO_EN=<commit>. Vale solo para
+# ese mismo commit: una variable que quedó exportada de otra vez no alcanza para
+# saltearse la verificación.
+if [ "${VERIFICADO_EN:-}" != "$(git rev-parse HEAD)" ]; then
+  SALIDA=$(mktemp)
+  if ! ./verificar.sh > "$SALIDA" 2>&1; then
+    echo "★ La verificación NO pasa. No publico nada."
+    tail -20 "$SALIDA"
+    rm -f "$SALIDA"
+    exit 1
+  fi
+  rm -f "$SALIDA"
 fi
 [ "$1" = "--revisar" ] && { echo "  la página se puede publicar"; exit 0; }
 
