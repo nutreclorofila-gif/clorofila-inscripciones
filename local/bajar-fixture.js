@@ -77,17 +77,18 @@ const rellenar = (filas, ancho) =>
     let m;
     while ((m = re.exec(String(f[3] || '')))) nombradas.add(norm((m[1] || m[2]).replace(/''/g, "'")));
   });
-  const ignoradas = ['lista de espera', 'gift cards', 'panel'];
+  const ignoradas = ['lista de espera', 'gift cards', 'pagos en cuotas', 'panel'];
   const aLeer = titulos.filter(t => !ignoradas.includes(norm(t)) &&
     (/^inscriptos /i.test(String(t).trim()) || nombradas.has(norm(t))));
 
   const hojas = {};
   for (const h of aLeer) hojas[h] = rellenar(await leer(citar(h) + '!A:K', 'FORMATTED_VALUE'), 11);
 
-  // La lista de espera y las gift cards también, con el mismo ancho que usa la
-  // app (hasta la N). Sin ellas la prueba con datos reales nunca las veía.
+  // La lista de espera, las gift cards y los pagos en cuotas también, con el
+  // mismo ancho que usa la app (hasta la N). Sin ellas la prueba con datos
+  // reales nunca las veía.
   const extras = {};
-  for (const nombre of ['Lista de espera', 'Gift Cards']) {
+  for (const nombre of ['Lista de espera', 'Gift Cards', 'Pagos en cuotas']) {
     const real = buscar(nombre);
     if (real) extras[nombre] = rellenar(await leer(citar(real) + '!A:N', 'FORMATTED_VALUE'), 14);
   }

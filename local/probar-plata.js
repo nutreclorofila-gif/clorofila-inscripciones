@@ -286,9 +286,14 @@ console.log('\n--- Lectura de montos ---');
 console.log('\n--- El curso: cuota, seña y montos que no pueden ser ---');
 const persona1 = (monto) => armar('Curso de cocina — Noviembre 2026', 15, [{ nombre: 'A', monto: monto }]).ediciones[0].personas[0];
 caso(
-  'una cuota dice que pagó por cuotas',
+  'una cuota dice que pagó por cuotas, y cuántas le faltan',
   'la nota le dice a Leo si es una cuota o una seña: al revés, llama a quien no tiene que llamar',
-  () => { const p = persona1('6000'); return (p.estadoPago === 'parcial' && /^Pagó por cuotas/.test(p.nota)) || 'dio ' + p.estadoPago + ' / ' + p.nota; }
+  () => { const p = persona1('4800'); return (p.estadoPago === 'parcial' && /^Pagó 1 de 3 cuotas/.test(p.nota) && p.saldo === 9600) || 'dio ' + p.estadoPago + ' / ' + p.nota; }
+);
+caso(
+  'un monto que no es una cuota exacta es una seña contra el pago bonificado',
+  '$6.000 no es ni una ni dos cuotas: contarlo como cuota inventaría cuántas le faltan',
+  () => { const p = persona1('6000'); return (/^Seña/.test(p.nota) && p.saldo === 6200) || 'dio ' + p.nota + ' / ' + p.saldo; }
 );
 caso(
   'menos que una cuota es una seña',
@@ -359,6 +364,136 @@ function armarVarias(ediciones) {
   caso('pendientes: la seña y los dos sin pago de lo que viene',
     'contar los de enero lo mandaría a cobrarle a gente de un curso que terminó', () => igual('pendientes', 3));
 }
+
+
+console.log('\n--- La pestaña "Pagos en cuotas" ---');
+// Datos inventados. Misma forma que la pestaña real: una fila por cuota.
+const HC = ['Alumno','Email','Grupo','Cuota','Monto','Fecha de pago','Medio','Comprobante','Estado','Observaciones'];
+const cuota = (o) => [o.nombre||'', o.email||'', 'Grupo', String(o.n||''), o.monto||'', '', 'transferencia', '99999', o.estado||'Pagada', o.obs||''];
+function conCuotas(edicion, gente, filasCuotas, estado, hoy) {
+  const crudo = {
+    panelValores: [
+      ['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
+      [edicion.split('—')[0].trim(), edicion, '15', String(gente.length), String(15 - gente.length), estado || 'Abierto']
+    ],
+    panelFormulas: [['','','','','',''], ['','','', "=COUNTIF('Inscriptos Noviembre 2026'!K:K;B2)", '','']],
+    hojas: { 'Inscriptos Noviembre 2026': [H].concat(gente.map(g => fila({ ...g, edicion }))) },
+    extras: { 'Pagos en cuotas': [HC].concat(filasCuotas.map(cuota)) }
+  };
+  return G.construirEstado(crudo, hoy || HOY);
+}
+const CURSO = 'Curso de cocina — Noviembre 2026';
+caso(
+  'la segunda cuota pagada se suma: le falta solo la tercera',
+  'es lo que pasaba el 23/9: con la segunda cuota ya paga, la app seguía cobrándole como si no',
+  () => {
+    const e = conCuotas(CURSO, [{ nombre: 'Ana', email: 'ana@ejemplo.uy', monto: '4800' }],
+      [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '4800' }, { nombre: 'Ana', email: 'ana@ejemplo.uy', n: 2, monto: '4800' }]);
+    const p = e.ediciones[0].personas[0];
+    return (p.monto === 9600 && p.saldo === 4800 && /2 de 3 cuotas/.test(p.nota) && e.ediciones[0].recaudado === 9600)
+      || 'monto ' + p.monto + ', saldo ' + p.saldo + ', nota ' + p.nota + ', cobrado ' + e.ediciones[0].recaudado;
+  }
+);
+caso(
+  'el mail se compara sin mayúsculas ni espacios',
+  'el mail lo escriben a mano en dos pestañas distintas; con una mayúscula de más la cuota no se ligaba',
+  () => {
+    const e = conCuotas(CURSO, [{ nombre: 'Ana', email: 'Ana@Ejemplo.uy ', monto: '4800' }],
+      [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '4800' }, { nombre: 'Ana', email: ' ANA@ejemplo.uy', n: 2, monto: '4800' }]);
+    return e.ediciones[0].personas[0].saldo === 4800 || 'saldo ' + e.ediciones[0].personas[0].saldo;
+  }
+);
+caso(
+  'completar con el saldo del pago bonificado deja el curso pago',
+  '$4.800 + $7.400 = $12.200 es el curso entero: seguir cobrándole sería reclamar plata que no debe',
+  () => {
+    const e = conCuotas(CURSO, [{ nombre: 'Ana', email: 'ana@ejemplo.uy', monto: '4800' }],
+      [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '4800' }, { nombre: 'Ana', email: 'ana@ejemplo.uy', n: 2, monto: '7400' }]);
+    const p = e.ediciones[0].personas[0];
+    return (p.estadoPago === 'completo' && p.saldo === 0 && e.ediciones[0].pendientes.length === 0) || p.estadoPago + ' / ' + p.saldo;
+  }
+);
+caso(
+  'una cuota pagada sin el monto escrito cuenta como una cuota, y lo dice',
+  'en la pestaña real hay cuotas "Pagada" con el monto vacío; no contarlas deja deudas que no existen',
+  () => {
+    const e = conCuotas(CURSO, [{ nombre: 'Ana', email: 'ana@ejemplo.uy', monto: '4800' }],
+      [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '4800' }, { nombre: 'Ana', email: 'ana@ejemplo.uy', n: 2 }]);
+    const p = e.ediciones[0].personas[0];
+    return (p.saldo === 4800 && /sin el monto escrito/.test(p.nota)) || p.saldo + ' / ' + p.nota;
+  }
+);
+caso(
+  'un plan acordado con otros montos manda sobre la cuenta por mes',
+  'hay quien arregla seña y dos cuotas de otro monto; la cuenta por mes le inventaría una deuda distinta',
+  () => {
+    const e = conCuotas(CURSO, [{ nombre: 'Ana', email: 'ana@ejemplo.uy', monto: '3000' }],
+      [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '3000' },
+       { nombre: 'Ana', email: 'ana@ejemplo.uy', n: 2, monto: '4100', estado: 'Pendiente', obs: 'VENCE EL 20/11/2026 según lo acordado' },
+       { nombre: 'Ana', email: 'ana@ejemplo.uy', n: 3, monto: '5100', estado: 'Pendiente', obs: 'VENCE EL 30/11/2026' }]);
+    const p = e.ediciones[0].personas[0];
+    return (p.saldo === 9200 && /plan acordado/.test(p.nota) && /20\/11/.test(p.nota)) || p.saldo + ' / ' + p.nota;
+  }
+);
+caso(
+  'una cuota vencida sin pagar es una alerta alta',
+  'la fecha la acordó él por WhatsApp; si pasa y nadie se acuerda, esa plata no se cobra',
+  () => {
+    const filas = [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '3000' },
+      { nombre: 'Ana', email: 'ana@ejemplo.uy', n: 2, monto: '4100', estado: 'Pendiente', obs: 'VENCE EL 20/10/2026' }];
+    const e = conCuotas(CURSO, [{ nombre: 'Ana', email: 'ana@ejemplo.uy', monto: '3000' }], filas);
+    const a = tipos(e, 'cuota_vencida');
+    if (a.length !== 1 || a[0].nivel !== 'alta') return 'esperaba 1 alerta alta, hubo ' + a.length;
+    if (!/20\/10\/2026/.test(a[0].detalle) || !/4\.100/.test(a[0].detalle)) return 'no dice cuál ni cuándo: ' + a[0].detalle;
+    const antes = conCuotas(CURSO, [{ nombre: 'Ana', email: 'ana@ejemplo.uy', monto: '3000' }], filas, null, new Date(2026, 9, 19));
+    return tipos(antes, 'cuota_vencida').length === 0 || 'avisó antes de que venza';
+  }
+);
+caso(
+  'una cuota de alguien que no está anotada se avisa',
+  'con el mail mal escrito la cuota no se suma en ningún lado y la deuda sigue figurando entera',
+  () => {
+    const e = conCuotas(CURSO, [{ nombre: 'Ana', email: 'ana@ejemplo.uy', monto: '4800' }],
+      [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '4800' }, { nombre: 'Beto', email: 'beto@ejemplo.uy', n: 2, monto: '4800' }]);
+    const a = tipos(e, 'cuota_sin_inscripta');
+    return (a.length === 1 && /Beto/.test(a[0].texto)) || 'hubo ' + a.length + ' alertas';
+  }
+);
+caso(
+  'el curso que ya empezó sigue en lo que falta cobrar, pero solo quien figura en cuotas',
+  'la edición de agosto cerró la inscripción y su nombre no tiene fecha: sin esto, las cuotas por cobrar no aparecían en ningún lado',
+  () => {
+    const e = conCuotas('Curso de cocina — Martes 19-21h',
+      [{ nombre: 'Ana', email: 'ana@ejemplo.uy', monto: '4800' }, { nombre: 'Beto', email: 'beto@ejemplo.uy', monto: '4800' }],
+      [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '4800' }, { nombre: 'Ana', email: 'ana@ejemplo.uy', n: 2, monto: '4800' }],
+      'Cerrado');
+    const ed = e.ediciones[0];
+    if (ed.vigente) return 'la edición salió vigente; la prueba no prueba nada';
+    if (!ed.cobrando) return 'no quedó marcada como cobrando';
+    if (ed.pendientes.length !== 1 || ed.pendientes[0].nombre !== 'Ana') return 'pendientes: ' + ed.pendientes.map(p => p.nombre).join(', ');
+    return e.resumen.saldo === 4800 || 'falta cobrar ' + e.resumen.saldo;
+  }
+);
+caso(
+  'lo cobrado en cuotas no dispara el aviso de precio viejo',
+  'tres personas en la segunda cuota ($9.600) parecían un precio nuevo del curso',
+  () => {
+    const gente = ['a', 'b', 'c'].map(x => ({ nombre: x, email: x + '@ejemplo.uy', monto: '4800' }));
+    const filas = [];
+    gente.forEach(g => { filas.push({ ...g, n: 1, monto: '4800' }, { ...g, n: 2, monto: '4800' }); });
+    return tipos(conCuotas(CURSO, gente, filas), 'precio_viejo').length === 0 || 'saltó el aviso';
+  }
+);
+caso(
+  'al teléfono no va nada de la pestaña de cuotas más que la cuenta',
+  'comprobante, medio y observaciones traen números de cuenta y de operación',
+  () => {
+    const e = conCuotas(CURSO, [{ nombre: 'Ana', email: 'ana@ejemplo.uy', monto: '4800' }],
+      [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '4800', obs: 'cuenta 001234567 referencia ZZTOP' }]);
+    const txt = JSON.stringify(G.paraElTelefono(e));
+    return (!/ZZTOP|001234567|99999|primerPago/.test(txt)) || 'se coló algo de la pestaña de cuotas';
+  }
+);
 
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);

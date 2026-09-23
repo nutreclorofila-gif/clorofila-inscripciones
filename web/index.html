@@ -231,7 +231,7 @@
    * igual a FORMA_ESTADO de Codigo.gs (verificar.sh lo controla) y se suben
    * juntas. Si el servidor manda otra, avisoDeVersion() lo dice en pantalla.
    */
-  var FORMA_ESPERADA = 1;
+  var FORMA_ESPERADA = 2;
 
   /** Después de esto, lo guardado no se muestra más y hay que buscar de nuevo. */
   var VIDA_CACHE = 3 * 24 * 60 * 60 * 1000;   // 3 días
@@ -979,7 +979,9 @@
 
   /* ---------- plata ---------- */
   function vistaPlata() {
-    var vigentes = DATOS.ediciones.filter(function (e) { return e.vigente; });
+    // También el curso que ya empezó y se sigue pagando en cuotas (cobrando):
+    // cerró la inscripción, pero todavía hay plata por cobrar ahí.
+    var vigentes = DATOS.ediciones.filter(function (e) { return e.vigente || e.cobrando; });
     var r = DATOS.resumen;
     var t = DATOS.tikzet;
     var html =

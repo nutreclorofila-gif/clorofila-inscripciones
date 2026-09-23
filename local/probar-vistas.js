@@ -539,5 +539,43 @@ corridos++;
 if (cuantos === 4) console.log('  ok    se usa en los 3 lugares que traen datos (más su definición)');
 else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' veces, esperaba 4'); }
 
+
+// El curso que ya empezó y se sigue pagando en cuotas: cerró la inscripción, así
+// que no es vigente, pero hay plata por cobrar. Antes Plata solo miraba las
+// vigentes y esas cuotas no aparecían en ningún lado. Datos inventados.
+{
+  console.log('\n--- Plata muestra el curso que se sigue cobrando en cuotas ---');
+  const G = require('./cargar.js').cargar();
+  const H = ['nombre','email','celular','actividad','horario','medio','comprobante','monto','verif','fecha','Edición'];
+  const ed = 'Curso de cocina — Martes 19-21h';
+  const crudo = {
+    panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
+      ['Curso de cocina', ed, '15', '2', '13', 'Cerrado']],
+    panelFormulas: [['','','','','',''], ['','','', "=COUNTIF('Inscriptos Agosto 2026'!K:K;B2)", '','']],
+    hojas: { 'Inscriptos Agosto 2026': [H,
+      ['Carla Cuotas', 'carla@ejemplo.uy', '094000123', '', 'Martes', 'transferencia', '1', '4800', '', '', ed],
+      ['Dora Sinplan', 'dora@ejemplo.uy', '', '', 'Martes', 'transferencia', '2', '4800', '', '', ed]] },
+    extras: { 'Pagos en cuotas': [
+      ['Alumno','Email','Grupo','Cuota','Monto','Fecha de pago','Medio','Comprobante','Estado','Observaciones'],
+      ['Carla Cuotas', 'carla@ejemplo.uy', 'Martes', '1', '4800', '', '', '', 'Pagada', ''],
+      ['Carla Cuotas', 'carla@ejemplo.uy', 'Martes', '2', '4800', '', '', '', 'Pagada', '']] },
+    generadoEn: new Date(2026, 8, 23).toISOString()
+  };
+  const est = JSON.parse(JSON.stringify(G.paraElTelefono(G.construirEstado(crudo, new Date(2026, 8, 23)))));
+  const ui = cargarUI(est);
+  const h = ui.vistaPlata();
+  const deben = h.slice(h.indexOf('Falta que paguen'));
+  [
+    ['la edición aparece en "Por edición"', /Martes 19-21h/.test(h.slice(0, h.indexOf('Falta que paguen')))],
+    ['quien va por la segunda cuota figura en "Falta que paguen"', /Carla Cuotas/.test(deben) && /2 de 3 cuotas/.test(deben)],
+    ['quien no figura en la pestaña de cuotas no se lista como deudora', !/Dora Sinplan/.test(deben)],
+    ['el total de arriba cuenta esa cuota', /Falta cobrar <b>\$\s?4\.800/.test(h)]
+  ].forEach(([nombre, ok]) => {
+    corridos++;
+    if (ok) console.log('  ok    ' + nombre);
+    else { fallas++; console.log('  FALLA ' + nombre + '\n        ' + h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 400)); }
+  });
+}
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);
