@@ -314,6 +314,105 @@ console.log('\n--- Tarjeta con el Cupo sin cargar ---');
   else { fallas++; console.log('  FALLA la lista copiada quedó: ' + JSON.stringify(copiado)); }
 }
 
+// El uso de todos los días: escribirle a alguien desde donde aparece, ver a
+// quien espera y saber quién se anotó. Todo inventado, y pasado por el mismo
+// recorte que doGet, que es lo que de verdad llega al teléfono.
+console.log('\n--- Escribirle a la gente desde donde aparece ---');
+{
+  const { cargar } = require('./cargar.js');
+  const G = cargar();
+  const dd = (n) => (n < 10 ? '0' : '') + n;
+  const haceDias = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return dd(d.getDate()) + '/' + dd(d.getMonth() + 1) + '/' + d.getFullYear(); };
+  const ED = 'Taller de prueba — 20/12/2099';
+  const HH = ['nombre','email','celular','actividad','horario','medio','comprobante','monto','verif','fecha','Edición'];
+  const armar = (anotados) => G.paraElTelefono(G.construirEstado({
+    panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
+      ['Taller de prueba', ED, '12', String(anotados), '', 'Abierto']],
+    panelFormulas: [['','','','','',''], ['','','',"=COUNTIF('Inscriptos'!K:K;B2)",'','']],
+    hojas: { 'Inscriptos': [HH,
+      ['Carla Inventada', 'carla@ejemplo.com', '094000123', '', '', '', '', '', '', haceDias(2), ED],
+      ['Dario Inventado', 'dario@ejemplo.com', '', '', '', 'Transferencia', '', '2600', '', '(ver Tikzet)', ED]
+    ].concat(Array.from({ length: anotados - 2 }, (_, i) => ['Relleno' + i, 'r' + i + '@ejemplo.com', '', '', '', '', '', '2600', '', '', ED])) },
+    extras: { 'Lista de espera': [['nombre','email','celular','Espera para'],
+      ['Elsa Espera', 'elsa@ejemplo.com', '094000789', ED],
+      ['Fabio Espera', 'fabio@ejemplo.com', '094000456', 'curso de los jueves, el que viene']] }
+  }, new Date()));
+  const est = armar(2);
+  const ui = cargarUI(est);
+  const chequeo = (nombre, cond, detalle) => {
+    corridos++;
+    if (cond) console.log('  ok    ' + nombre);
+    else { fallas++; console.log('  FALLA ' + nombre + '\n        ' + detalle); }
+  };
+  const filas = (h) => h.match(/<div class="persona"[^>]*>/g) || [];
+  const claves = (h) => filas(h).map(f => (f.match(/data-quien="([^"]*)"/) || [])[1]);
+  const trozoDesde = (h, titulo) => {
+    const i = h.indexOf(titulo);
+    if (i === -1) return '';
+    const fin = h.indexOf('class="seccion"', i);
+    return h.slice(i, fin === -1 ? undefined : fin);
+  };
+
+  // En Plata, "Falta que paguen" es de donde sale el cobro: tocar a quien debe
+  // tiene que abrir su WhatsApp, sin pasar por Cupos a buscarlo.
+  const deben = trozoDesde(ui.vistaPlata(), 'Falta que paguen');
+  chequeo('en Plata, cada persona de "Falta que paguen" se puede tocar',
+    filas(deben).length > 0 && claves(deben).every(Boolean),
+    filas(deben).length + ' filas, sin clave: ' + claves(deben).filter(k => !k).length);
+  // En Gente se busca a quien escribió por WhatsApp: de ahí mismo se le contesta.
+  const gente = ui.vistaGente('');
+  chequeo('en Gente, cada persona se puede tocar',
+    filas(gente).length === 2 && claves(gente).every(Boolean),
+    filas(gente).length + ' filas, sin clave: ' + claves(gente).filter(k => !k).length);
+  const deCarla = claves(deben)[0];
+  chequeo('y es la misma clave que en Cupos: se abre en un lado y queda abierta en el otro',
+    !!deCarla && claves(gente).indexOf(deCarla) !== -1, 'Plata ' + deCarla + ' / Gente ' + claves(gente).join(','));
+  chequeo('sin tocar a nadie, no hay botones de contacto a la vista',
+    !/wa\.me/.test(ui.vistaPlata()) && !/wa\.me/.test(gente), 'aparecieron solos');
+  ui.abrirContacto(deCarla);
+  chequeo('al tocar a quien debe, aparece su WhatsApp en Plata',
+    /wa\.me\/59894000123/.test(ui.vistaPlata()), trozoDesde(ui.vistaPlata(), 'Falta que paguen').slice(0, 300));
+  chequeo('y también en Gente',
+    /wa\.me\/59894000123/.test(ui.vistaGente('carla')), ui.vistaGente('carla').slice(0, 300));
+
+  // La lista de espera: lo que no se pudo atar a una fecha se veía en ningún
+  // lado; lo que sí, solo adentro de su tarjeta.
+  const cupos = ui.vistaCupos();
+  chequeo('quien espera algo que no se pudo atar a una fecha aparece en Cupos',
+    /Fabio Espera/.test(cupos) && /curso de los jueves, el que viene/.test(cupos),
+    'no aparece: ' + cupos.slice(-400));
+  chequeo('quien espera una fecha concreta sigue adentro de su tarjeta, no en esa lista',
+    !/Elsa Espera/.test(cupos), 'se coló afuera de la tarjeta');
+  const suelta = claves(trozoDesde(cupos, 'Esperan lugar'))[0];
+  if (suelta) ui.abrirContacto(suelta);
+  chequeo('y se le puede escribir desde ahí',
+    !!suelta && /wa\.me\/59894000456/.test(ui.vistaCupos()), 'clave: ' + suelta);
+
+  // Con lugar libre y gente esperando, la tarjeta no puede decir lo mismo que
+  // cuando está llena: es el momento de escribirles.
+  const pie = (h) => (h.match(/class="pie">([\s\S]*?)<\/div>/) || [])[1] || '';
+  chequeo('con lugar y alguien esperando, la tarjeta dice que hay lugar',
+    /1 esperando, y hay lugar/.test(pie(cupos)), 'el pie quedó: ' + pie(cupos));
+  const llena = cargarUI(armar(12)).vistaCupos();
+  chequeo('llena, dice solo que espera',
+    /1 esperando lugar/.test(pie(llena)) && !/hay lugar/.test(pie(llena)), 'el pie quedó: ' + pie(llena));
+
+  // La fecha de inscripción: de la planilla, no de lo que recuerde el teléfono.
+  const conFecha = ui.persona({ nombre: 'X', estadoPago: 'completo', hoja: 'H', fila: 2, anotadoEl: '16/09/2026' });
+  const sinFecha = ui.persona({ nombre: 'X', estadoPago: 'completo', hoja: 'H', fila: 3, anotadoEl: null });
+  chequeo('la persona muestra cuándo se anotó, si la planilla lo dice',
+    /se anotó el 16\/09/.test(conFecha) && !/se anotó/.test(sinFecha), conFecha + ' / ' + sinFecha);
+  const porFecha = cargarUI(est, { porFecha: true, desde: null, sinFecha: 1,
+    gente: [{ nombre: 'Carla Inventada', edicion: ED }] }).avisoDeNovedades();
+  chequeo('sin nada guardado, el aviso sale por la fecha de la planilla y lo dice',
+    /Se anotó 1 persona en los últimos 7 días/.test(porFecha) && /según la planilla/.test(porFecha) &&
+    /Carla Inventada/.test(porFecha) && !/NaN|undefined|null/.test(porFecha) && montos(porFecha).length === 0,
+    porFecha);
+  chequeo('y avisa que hay anotados sin fecha, para no creer que la lista está completa',
+    /1 sin fecha/.test(porFecha), porFecha);
+}
+function montos(h) { return h.match(/\$\s?[\d.]+/g) || []; }
+
 // Las piezas se prueban sueltas; esto comprueba que estén enchufadas.
 console.log('\n--- Que las piezas estén conectadas ---');
 const fuente = fs.readFileSync(path.join(base, 'apps-script', 'Index.html'), 'utf8');

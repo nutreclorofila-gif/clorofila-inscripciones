@@ -227,6 +227,75 @@ console.log('\n--- Quien espera un taller que ya pasó ---');
     a2.length ? a2[0].detalle : '(sin alerta)');
 }
 
+console.log('\n--- Se liberó un lugar y hay gente esperando ---');
+// Importa porque el aviso de la lista de espera salía solo con la edición
+// llena, cuando no hay nada que hacer, y desaparecía justo cuando alguien
+// cancelaba: el momento de escribirle a quien espera. Datos inventados.
+{
+  const HH = ['nombre','email','celular','actividad','horario','medio','comprobante','monto','verif','fecha','Edición'];
+  const ED = 'Taller de prueba — 20/12/2099';
+  const f = (n) => [n, n.toLowerCase() + '@ejemplo.com', '', '', '', '', '', '2600', '', '', ED];
+  const armar = (anotados, esperan, estadoPanel) => api.construirEstado({
+    panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
+      ['Taller de prueba', ED, '12', String(anotados), String(12 - anotados), estadoPanel || 'Abierto']],
+    panelFormulas: [['','','','','',''], ['','','',"=COUNTIF('Inscriptos'!K:K;B2)",'','']],
+    hojas: { 'Inscriptos': [HH].concat(Array.from({ length: anotados }, (_, i) => f('Persona' + i))) },
+    extras: { 'Lista de espera': [['nombre','email','celular','Espera para']].concat(
+      esperan.map(n => [n, n.toLowerCase() + '@ejemplo.com', '', ED])) }
+  }, new Date(2026, 8, 9));
+  const deTipo = (est, t) => (est.alertas || []).filter(a => a.tipo === t);
+
+  const unaEspera = armar(11, ['Zulema']);
+  const c1 = deTipo(unaEspera, 'espera_con_lugar');
+  chequear('con un lugar libre y alguien esperando, avisa que hay que escribirle',
+    c1.length === 1 && c1[0].nivel === 'media' && /Zulema/.test(c1[0].texto) && /1 lugar\b/.test(c1[0].texto),
+    JSON.stringify(c1));
+  chequear('ese aviso no habla de plata (puede ir a cualquier lado)',
+    c1.length === 1 && c1[0].conPlata === false, JSON.stringify(c1));
+
+  const dos = armar(9, ['Zulema', 'Zacarías']);
+  const c2 = deTipo(dos, 'espera_con_lugar');
+  chequear('con dos esperando en la misma edición, UN solo aviso que los cuenta',
+    c2.length === 1 && /2 personas/.test(c2[0].texto) && /3 lugares/.test(c2[0].texto),
+    JSON.stringify(c2));
+
+  const llena = armar(12, ['Zulema']);
+  chequear('con la edición llena sigue el aviso de siempre y no el de "hay lugar"',
+    deTipo(llena, 'espera').length === 1 && deTipo(llena, 'espera_con_lugar').length === 0,
+    JSON.stringify(llena.alertas.map(a => a.tipo)));
+
+  const cerrada = armar(11, ['Zulema'], 'Cerrado');
+  chequear('si la edición está cerrada, no manda a escribirle',
+    deTipo(cerrada, 'espera_con_lugar').length === 0, JSON.stringify(cerrada.alertas.map(a => a.tipo)));
+}
+
+console.log('\n--- La fecha de inscripción que llega al teléfono ---');
+// La columna J la llena el Tally ("16/09/2026 10:00:00") o se escribe a mano
+// ("4/09/2026", "(ver Tikzet)"). Al teléfono va solo el día, ya entendido: el
+// texto crudo se queda en el servidor, y leerlo en el navegador con new Date()
+// daba el 9 de abril para "4/09/2026".
+{
+  const HH = ['nombre','email','celular','actividad','horario','medio','comprobante','monto','verif','fecha','Edición'];
+  const ED = 'Taller de prueba — 20/12/2099';
+  const fechas = ['16/09/2026 10:00:00', '4/9/2026', '(ver Tikzet)', '', '31/02/2026'];
+  const est = api.construirEstado({
+    panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
+      ['Taller de prueba', ED, '12', String(fechas.length), '', 'Abierto']],
+    panelFormulas: [['','','','','',''], ['','','',"=COUNTIF('Inscriptos'!K:K;B2)",'','']],
+    hojas: { 'Inscriptos': [HH].concat(fechas.map((x, i) =>
+      ['Persona' + i, 'p' + i + '@ejemplo.com', '', '', '', '', '', '2600', '', x, ED])) },
+    extras: {}
+  }, new Date(2026, 8, 20));
+  const dias = ((est.ediciones[0] || {}).personas || []).map(p => p.anotadoEl);
+  chequear('entiende la fecha del Tally y la escrita a mano, siempre día/mes',
+    JSON.stringify(dias) === JSON.stringify(['16/09/2026', '04/09/2026', null, null, null]),
+    'quedó: ' + JSON.stringify(dias));
+  const alTelefono = api.paraElTelefono(est);
+  const p0 = alTelefono.ediciones[0].personas[0];
+  chequear('al teléfono llega el día y no el texto de la columna',
+    p0.anotadoEl === '16/09/2026' && !('fecha' in p0), JSON.stringify(p0));
+}
+
 console.log('\n--- Si las pestañas se llaman con otras mayúsculas ---');
 // Importa porque: con comparación exacta, "Lista de Espera" hacía que esa vista
 // quedara vacía para siempre y la app no decía nada.
@@ -335,7 +404,7 @@ console.log('\n--- Lo que sale hacia el teléfono: solo lo que la pantalla usa -
   // Lo que la página SÍ usa tiene que llegar igual. hoja y fila son la clave con
   // la que persona() encuentra a alguien; mail y celular, los botones de contacto.
   const QUE_SI_SALEN = ['nombre', 'email', 'celular', 'whatsapp', 'horario', 'medioPago', 'monto', 'saldo',
-                        'estadoPago', 'veces', 'nota', 'hoja', 'fila'];
+                        'estadoPago', 'veces', 'nota', 'hoja', 'fila', 'anotadoEl'];
   const perdidos = [];
   if (recortado) {
     const orig = personasDe(completo), rec = personasDe(recortado);

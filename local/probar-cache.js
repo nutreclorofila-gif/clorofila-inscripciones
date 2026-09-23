@@ -16,7 +16,7 @@ const localStorage = {
 };
 const ctx = new Function('localStorage', trozo +
   '\nreturn {guardarCache,leerCache,borrarCache,guardarPin,pinGuardado,olvidarPin,olvidarTodo,VIDA_CACHE,' +
-  'compararEstados,quienesEstan,recibirEstado,verNovedades:()=>NOVEDADES};')(localStorage);
+  'compararEstados,quienesEstan,recibirEstado,fechaInscripcion,verNovedades:()=>NOVEDADES};')(localStorage);
 
 let fallas = 0, corridos = 0;
 function caso(nombre, esperado, obtenido) {
@@ -110,6 +110,42 @@ almacen = {};
 ctx.guardarCache(conGente([P('Ana')]), '511208');
 ctx.recibirEstado(conGente([P('Ana'), P('Caro')]), '511208');
 caso('y el estado nuevo igual queda guardado', true, !!ctx.leerCache('511208'));
+
+console.log('\n--- Sin nada guardado: quién se anotó según la planilla ---');
+// Importa porque la comparación necesita algo guardado: la primera vez, después
+// de Salir o después de tres días sin abrirla, no decía nada, que es justo
+// cuando más sirve. La planilla trae el día en que se anotó cada uno.
+const dd = (n) => (n < 10 ? '0' : '') + n;
+const haceDias = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return dd(d.getDate()) + '/' + dd(d.getMonth() + 1) + '/' + d.getFullYear(); };
+const Q = (nombre, cuando) => Object.assign(P(nombre), { anotadoEl: cuando });
+
+const f = ctx.fechaInscripcion('16/09/2026 10:00:00');
+caso('"16/09/2026 10:00:00" es el 16 de septiembre, no un mes 16', [2026, 8, 16], f ? [f.getFullYear(), f.getMonth(), f.getDate()] : null);
+const g = ctx.fechaInscripcion('4/09/2026');
+caso('"4/09/2026" es el 4 de septiembre, no el 9 de abril', [2026, 8, 4], g ? [g.getFullYear(), g.getMonth(), g.getDate()] : null);
+caso('"(ver Tikzet)" no es una fecha', null, ctx.fechaInscripcion('(ver Tikzet)'));
+caso('vacío no es una fecha', null, ctx.fechaInscripcion(''));
+caso('"31/02/2026" no existe', null, ctx.fechaInscripcion('31/02/2026'));
+
+almacen = {};
+ctx.recibirEstado(conGente([Q('Ana', haceDias(20)), Q('Beto', haceDias(2)), Q('Caro', haceDias(0)), Q('Dani', null)]), '511208');
+const nov = ctx.verNovedades() || {};
+caso('la primera vez avisa a los que se anotaron en la última semana', ['Beto', 'Caro'], (nov.gente || []).map(x => x.nombre).sort());
+caso('dice que lo sacó de la planilla', true, nov.porFecha === true);
+caso('y cuántos no tienen fecha', 1, nov.sinFecha);
+
+almacen = {};
+ctx.recibirEstado(conGente([Q('Ana', haceDias(20))]), '511208');
+caso('si nadie se anotó en la semana, no avisa nada', null, ctx.verNovedades());
+
+almacen = {};
+ctx.recibirEstado(conGente([Q('Beto', haceDias(2))], false), '511208');
+caso('tampoco por fecha avisa de una edición que ya pasó', null, ctx.verNovedades());
+
+almacen = {};
+ctx.guardarCache(conGente([Q('Beto', haceDias(2))]), '511208');
+ctx.recibirEstado(conGente([Q('Beto', haceDias(2))]), '511208');
+caso('con algo guardado manda la comparación: si no cambió nada, no avisa', null, ctx.verNovedades());
 
 console.log('\n--- Almacenamiento roto (modo privado, sitio bloqueado) ---');
 // Importa porque: si tirar una excepción rompe la app, Leo se queda sin números.

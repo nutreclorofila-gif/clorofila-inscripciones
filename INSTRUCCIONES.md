@@ -92,14 +92,17 @@ una alerta alta en vez de dejar de mostrar ediciones en silencio.
 
 | Solapa | Qué hay |
 |---|---|
-| **Cupos** | Una tarjeta por edición vigente con `anotados / cupo` en número grande, barra de ocupación, cobrado y cuántos deben. Se toca la tarjeta y se despliega la gente. Abajo, las ediciones que ya pasaron, colapsadas. |
+| **Cupos** | Una tarjeta por edición vigente con `anotados / cupo` en número grande, barra de ocupación, cobrado y cuántos deben. Se toca la tarjeta y se despliega la gente. Si hay gente esperando, el pie lo dice, y en verde *"esperando, y hay lugar"* cuando hay lugar libre. Abajo, las ediciones que ya pasaron, colapsadas, y la gente de la lista de espera que no se pudo atar a una fecha, con lo que escribió que quiere. |
 | **Plata** | Cobrado total de lo que viene, desglose por edición, lista de quién debe y cuánto, y el bloque de Tikzet. |
 | **Gente** | Todos los inscriptos con buscador por nombre, mail o celular, y su estado de pago. |
-| **Alertas** | Solo lo que necesita que alguien haga algo: descuadres, sobrecupo, pagos incompletos, Tikzet sin cargar. Si no hay nada, no hay nada. |
+| **Alertas** | Solo lo que necesita que alguien haga algo: descuadres, sobrecupo, pagos incompletos, Tikzet sin cargar, y *"Hay 2 lugares en … y Fulana está esperando"* cuando se libera lugar en una edición abierta con gente en la lista de espera (un aviso por edición). Si no hay nada, no hay nada. |
 
 Además:
 
-- **Tocar a una persona abre su contacto**: botón de WhatsApp y de mail. El celular se
+- **Tocar a una persona abre su contacto**: botón de WhatsApp y de mail. Funciona en la
+  tarjeta de Cupos, en *Falta que paguen* de Plata, en Gente y en la lista de espera, y lo
+  abierto en un lado queda abierto en los otros. En Alertas no: los avisos son de una
+  edición, no de una persona. El celular se
   normaliza a formato uruguayo (`099123456` → `598099123456`); si es un fijo o está
   incompleto **no se ofrece el botón**, para no abrir un chat con el número equivocado.
 - **Las ediciones se ordenan por fecha**, lo más próximo primero, con `ES HOY` /
@@ -263,6 +266,14 @@ Al abrirla, si se anotó alguien desde la última vez que la abriste, aparece ar
 *"Se anotaron 2 personas desde hace 6 h — Fulana, Mengano"*. Si no cambió nada, no aparece
 nada. Sin montos, como todo lo de la portada.
 
+Si en el teléfono no hay nada guardado con qué comparar (la primera vez, después de
+**Salir** o después de 3 días sin abrirla), usa la fecha de inscripción de la planilla
+(columna J): *"Se anotaron 3 personas en los últimos 7 días (según la planilla)"*. Las
+ventas de Tikzet dicen *(ver Tikzet)* en esa columna y no tienen fecha: el aviso dice
+cuántas quedaron afuera, para que la lista no parezca completa. La fecha se lee a mano
+como día/mes (`new Date("4/09/2026")` da 9 de abril). Cada persona en la tarjeta de Cupos
+muestra además *"se anotó el 16/09"* cuando la planilla lo dice.
+
 La comparación es **por mail** (o por nombre si no hay mail), nunca por número de fila:
 insertar una fila en la planilla correría todas las demás y la app diría que se anotaron
 doce personas de golpe.
@@ -276,9 +287,10 @@ del navegador lo lee.
 
 Por eso:
 - Llega **solo lo que la pantalla muestra**. El comprobante de cada pago (números de
-  operación o de cuenta, "mismo pago que…"), si está verificado, la fecha del formulario y
-  el monto tal como se escribió se quedan en el servidor, que los usa para sus cuentas y
-  sus alertas. Tampoco llegan el mail de las gift cards ni el de quién las usó, ni el mail
+  operación o de cuenta, "mismo pago que…"), si está verificado, el texto de la columna de
+  fecha y el monto tal como se escribió se quedan en el servidor, que los usa para sus
+  cuentas y sus alertas. De la fecha llega solo el día, ya entendido (`anotadoEl`,
+  *"16/09/2026"*), porque la pantalla lo muestra. Tampoco llegan el mail de las gift cards ni el de quién las usó, ni el mail
   y el monto de la gente que no ocupa cupo. El recorte lo hace `paraElTelefono()` en
   `Codigo.gs`, a la salida de `doGet`.
 - Vence a los **3 días**. Además de por privacidad, porque mostrar la plata de la semana

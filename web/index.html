@@ -285,10 +285,48 @@
     return aparecidos.length ? aparecidos : null;
   }
 
+  /**
+   * El día en que se anotó alguien, como Date, o null. Se lee a mano: new Date()
+   * toma "4/09/2026" como 9 de abril y "16/09/2026" no lo entiende. El servidor
+   * ya lo manda limpio ("16/09/2026"), pero en la columna J hay de todo, y las
+   * ventas de Tikzet dicen "(ver Tikzet)".
+   */
+  function fechaInscripcion(texto) {
+    var m = String(texto || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (!m) return null;
+    var dia = Number(m[1]), mes = Number(m[2]), anio = Number(m[3]);
+    var f = new Date(anio, mes - 1, dia);
+    if (f.getDate() !== dia || f.getMonth() !== mes - 1) return null;
+    return f;
+  }
+
+  /**
+   * Sin nada guardado con qué comparar (la primera vez, después de Salir, o
+   * después de tres días sin abrirla) no se decía nada, justo cuando más sirve
+   * saber qué entró. Ahí se usa la fecha de la planilla: quién se anotó en los
+   * últimos 7 días. Se cuenta también a quién le falta la fecha, para que la
+   * lista no parezca completa cuando no lo es.
+   */
+  function novedadesPorFecha(estado) {
+    var hoy = new Date();
+    var corte = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 6);
+    var gente = [], sinFecha = 0;
+    ((estado && estado.ediciones) || []).forEach(function (e) {
+      if (!e.vigente) return;
+      (e.personas || []).forEach(function (p) {
+        var f = fechaInscripcion(p.anotadoEl);
+        if (!f) { sinFecha++; return; }
+        if (f >= corte && f <= hoy) gente.push({ nombre: p.nombre, edicion: e.edicion });
+      });
+    });
+    return gente.length ? { gente: gente, desde: null, porFecha: true, sinFecha: sinFecha } : null;
+  }
+
   /** Un estado recién traído del servidor: compara, guarda y pinta. */
   function recibirEstado(estado, pin) {
     var antes = leerCache(pin);
-    NOVEDADES = antes ? { gente: compararEstados(antes.estado, estado), desde: antes.cuando } : null;
+    NOVEDADES = antes ? { gente: compararEstados(antes.estado, estado), desde: antes.cuando }
+                      : novedadesPorFecha(estado);
     if (NOVEDADES && !NOVEDADES.gente) NOVEDADES = null;
     guardarCache(estado, pin);
     DATOS = estado;
@@ -597,6 +635,11 @@
     var dd = function (x) { return (x < 10 ? '0' : '') + x; };
     return dd(d.getDate()) + '/' + dd(d.getMonth() + 1) + ' ' + dd(d.getHours()) + ':' + dd(d.getMinutes());
   }
+  /** "16/09", con cero adelante aunque en la planilla diga "4/9". */
+  function diaYMes(d) {
+    var dd = function (x) { return (x < 10 ? '0' : '') + x; };
+    return dd(d.getDate()) + '/' + dd(d.getMonth() + 1);
+  }
   /** "hoy", "mañana", "en 9 días" — para saber qué es lo más urgente sin pensar. */
   function cuandoEs(iso) {
     if (!iso) return null;
@@ -716,12 +759,23 @@
   function avisoDeNovedades() {
     if (!NOVEDADES || !NOVEDADES.gente || !NOVEDADES.gente.length) return '';
     var g = NOVEDADES.gente;
-    var min = Math.round((Date.now() - NOVEDADES.desde) / 60000);
-    var desde = min < 60 ? 'en la última hora'
-              : (min < 1440 ? ('desde hace ' + Math.round(min / 60) + ' h')
-              : ('desde hace ' + Math.round(min / 1440) + (Math.round(min / 1440) === 1 ? ' día' : ' días')));
+    var desde;
+    if (NOVEDADES.porFecha) {
+      desde = 'en los últimos 7 días (según la planilla)';
+    } else {
+      var min = Math.round((Date.now() - NOVEDADES.desde) / 60000);
+      desde = min < 60 ? 'en la última hora'
+            : (min < 1440 ? ('desde hace ' + Math.round(min / 60) + ' h')
+            : ('desde hace ' + Math.round(min / 1440) + (Math.round(min / 1440) === 1 ? ' día' : ' días')));
+    }
     var quienes = g.slice(0, 3).map(function (x) { return esc(x.nombre || 'alguien'); }).join(', ');
     if (g.length > 3) quienes += ' y ' + (g.length - 3) + ' más';
+    // Las ventas de Tikzet no traen fecha en la planilla: sin esto, la lista
+    // por fecha parece completa y le faltan justo esas.
+    if (NOVEDADES.porFecha && NOVEDADES.sinFecha) {
+      quienes += '. Hay ' + NOVEDADES.sinFecha + ' sin fecha en la planilla (las ventas de Tikzet no la traen), ' +
+        (NOVEDADES.sinFecha === 1 ? 'y no entra' : 'y no entran') + ' en esta cuenta.';
+    }
     return '<div class="aviso info nuevo"><div class="q">' +
       (g.length === 1 ? 'Se anotó 1 persona ' : 'Se anotaron ' + g.length + ' personas ') + desde +
       '</div><div class="p">' + quienes + '</div></div>';
@@ -808,6 +862,15 @@
             '</div><div class="sub">' + esc(f.edicion) + '</div></div></div>';
         }).join('');
     }
+    // La lista de espera que no se pudo atar a una fecha ("tapeo octubre" con
+    // dos tapeos en el mes). Se deja sin ligar a propósito, para no nombrar la
+    // edición equivocada, pero no se veía en ningún lado: solo se pintaba
+    // adentro de la tarjeta de su edición. Cada uno lleva lo que escribió.
+    var sueltos = (DATOS.espera || []).filter(function (x) { return !x.edicion; });
+    if (sueltos.length) {
+      html += '<div class="seccion">Esperan lugar, pero no sé para qué fecha (' + sueltos.length + ')</div>' +
+        sueltos.map(function (x, i) { return enEspera(x, 'esp-suelta-' + i); }).join('');
+    }
     return html;
   }
 
@@ -837,9 +900,12 @@
         '</div>' +
         '<div class="barra"><i class="' + clase + '" style="width:' + Math.min(pct, 100) + '%"></i></div>' +
         '<div class="pie">' +
+          // Con lugar libre no puede decir lo mismo que llena: es el momento de
+          // escribirles, y la alerta de "hay lugar" está en Alertas.
           (esperan.length
-            ? '<span style="color:var(--dorado);font-weight:600">' + esperan.length +
-              (esperan.length === 1 ? ' esperando lugar' : ' esperando lugar') + '</span>'
+            ? (e.quedan > 0
+              ? '<span style="color:var(--verde);font-weight:700">' + esperan.length + ' esperando, y hay lugar</span>'
+              : '<span style="color:var(--dorado);font-weight:600">' + esperan.length + ' esperando lugar</span>')
             : '') +
           // Sin montos: los importes de cada edición están en la solapa Plata.
           (e.pendientes.length ? '<span><b>' + e.pendientes.length + '</b> con el pago pendiente</span>' : '') +
@@ -862,7 +928,9 @@
 
   function persona(p, id) {
     var etiqueta = ETIQUETAS[p.estadoPago] + (p.estadoPago === 'parcial' ? ' ' + plata(p.saldo) : '');
-    var sub = [p.horario, p.medioPago, p.monto ? plata(p.monto) : ''].filter(Boolean).join(' · ');
+    var anotado = fechaInscripcion(p.anotadoEl);
+    var sub = [p.horario, p.medioPago, p.monto ? plata(p.monto) : '',
+               anotado ? 'se anotó el ' + diaYMes(anotado) : ''].filter(Boolean).join(' · ');
     var clave = id || (p.hoja + '#' + p.fila);
     return '<div class="persona" data-quien="' + esc(clave) + '"><div class="quien">' +
       '<div class="nom">' + esc(p.nombre || '(sin nombre)') +
@@ -904,11 +972,15 @@
     html += '<div class="seccion">Falta que paguen</div>';
     html += pendientes.length
       ? pendientes.map(function (x) {
-          return '<div class="persona"><div class="quien">' +
+          // Se toca y abre su WhatsApp, con la misma clave que en Cupos: antes
+          // para cobrarle había que ir a Cupos, desplegar la edición y buscarlo.
+          var clave = x.p.hoja + '#' + x.p.fila;
+          return '<div class="persona" data-quien="' + esc(clave) + '"><div class="quien">' +
             '<div class="nom">' + esc(x.p.nombre) + '</div>' +
             '<div class="sub">' + esc(x.e.subtitulo || x.e.edicion) + ' · ' + esc(x.p.nota || '') + '</div></div>' +
             '<span class="chip ' + x.p.estadoPago + '">' +
-              ETIQUETAS[x.p.estadoPago] + (x.p.saldo ? ' ' + plata(x.p.saldo) : '') + '</span></div>';
+              ETIQUETAS[x.p.estadoPago] + (x.p.saldo ? ' ' + plata(x.p.saldo) : '') + '</span></div>' +
+            (CONTACTOS[clave] ? contacto(x.p) : '');
         }).join('')
       : '<div class="vacio">Está todo cobrado.</div>';
 
@@ -993,11 +1065,15 @@
     return '<div class="seccion">' + lista.length + ' de ' + todas.length + '</div>' +
       (lista.length ? lista.map(function (x) {
         var etiqueta = ETIQUETAS[x.p.estadoPago] + (x.p.estadoPago === 'parcial' ? ' ' + plata(x.p.saldo) : '');
-        return '<div class="persona"><div class="quien">' +
+        // Acá se busca a quien escribió por WhatsApp: de acá mismo se le
+        // contesta. No se usa persona(), que sumaría monto y medio de pago.
+        var quien = x.p.hoja + '#' + x.p.fila;
+        return '<div class="persona" data-quien="' + esc(quien) + '"><div class="quien">' +
           '<div class="nom">' + esc(x.p.nombre || '(sin nombre)') + '</div>' +
           '<div class="sub">' + esc(x.e.titulo + ' · ' + (x.e.subtitulo || x.e.edicion) +
             (x.e.vigente ? '' : ' · ya pasó')) + '</div></div>' +
-          '<span class="chip ' + x.p.estadoPago + '">' + esc(etiqueta) + '</span></div>';
+          '<span class="chip ' + x.p.estadoPago + '">' + esc(etiqueta) + '</span></div>' +
+          (CONTACTOS[quien] ? contacto(x.p) : '');
       }).join('') : '<div class="vacio">No hay nadie con eso.</div>');
   }
 
