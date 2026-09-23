@@ -204,7 +204,7 @@ pruebas. Una prueba que nunca falla no prueba nada, y eso no se ve leyéndola.
 |---|---|
 | `local/probar.js` | Los conteos contra el Panel real, edición por edición. **12 de 12 cuadran.** |
 | `local/casos-limite.js` | 11 escenarios plausibles de la planilla que podrían romperla. |
-| `local/probar-lectura.js` | `leerPlanilla()` con un Sheets falso: qué pestañas lee y cuáles no. |
+| `local/probar-lectura.js` | `leerPlanilla()` con un Sheets falso: qué pestañas lee y cuáles no. Y que `doGet` no mande al teléfono comprobantes, mails ni montos que la pantalla no muestra. |
 | `local/probar-codigo.js` | Control estático de `Codigo.gs` **antes de pegarlo**: que parsee, que no llame funciones que no existen, que no vuelva a usar `SpreadsheetApp`, que no escriba en la planilla y que la página se siga sirviendo vacía. Verificado rompiendo el archivo a propósito: detecta los cuatro casos. |
 | `local/probar-pin.js` | Que sin el PIN correcto no salga nada, y el freno a los intentos. |
 | `local/probar-plata.js` | 16 casos de la lógica de plata: señas, precio del curso, montos raros, comprobantes repetidos, columna de verificación. |
@@ -257,6 +257,12 @@ no cifra lo guardado: quien tenga el teléfono desbloqueado y sepa mirar el alma
 del navegador lo lee.
 
 Por eso:
+- Llega **solo lo que la pantalla muestra**. El comprobante de cada pago (números de
+  operación o de cuenta, "mismo pago que…"), si está verificado, la fecha del formulario y
+  el monto tal como se escribió se quedan en el servidor, que los usa para sus cuentas y
+  sus alertas. Tampoco llegan el mail de las gift cards ni el de quién las usó, ni el mail
+  y el monto de la gente que no ocupa cupo. El recorte lo hace `paraElTelefono()` en
+  `Codigo.gs`, a la salida de `doGet`.
 - Vence a los **3 días**. Además de por privacidad, porque mostrar la plata de la semana
   pasada como si fuera de hoy es peor que no mostrar nada.
 - Hay un botón **Salir** arriba a la derecha, que borra el PIN y los datos del teléfono.

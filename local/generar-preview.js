@@ -28,7 +28,9 @@ function paraIncrustarEnScript(valor) {
 const comoJs = paraIncrustarEnScript;
 const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixture.json'), 'utf8'));
 const hoy = fixture.generadoEn ? new Date(fixture.generadoEn) : new Date(2026, 8, 9, 15, 30);
-const estado = G.construirEstado(fixture, hoy);
+// Recortado igual que en doGet: la vista previa tiene que ver lo mismo que el
+// teléfono, no el estado entero que solo existe dentro del servidor.
+const estado = G.paraElTelefono(G.construirEstado(fixture, hoy));
 
 function armar(estadoUsado, salida) {
   const html = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'Index.html'), 'utf8');
