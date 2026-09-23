@@ -27,6 +27,9 @@ URL_EN_USO=$(node local/generar-web.js --id)
 echo "=== 1/5  Verificando antes de subir nada ==="
 ./verificar.sh > /tmp/verificacion.txt 2>&1 || { echo "★ La verificación NO pasa. No subo nada."; tail -20 /tmp/verificacion.txt; exit 1; }
 tail -1 /tmp/verificacion.txt
+# publicar-pagina.sh corre verificar.sh por su cuenta; así sabe que este commit
+# ya pasó y no lo repite dos veces más (--revisar y la publicación).
+export VERIFICADO_EN=$(git rev-parse HEAD)
 # Si la página no se va a poder publicar, mejor enterarse antes de subir el
 # servidor: si no, quedan servidor nuevo y página vieja.
 local/publicar-pagina.sh --revisar
