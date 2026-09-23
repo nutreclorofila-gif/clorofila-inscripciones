@@ -107,5 +107,16 @@ console.log('\n--- Copiar la lista ---');
   caso('dice que copia solo los nombres', /solo los nombres/.test(bullet), bullet);
 }
 
+console.log('\n--- El PIN ---');
+// Pasó el 23/9: se eliminó ?configurar= del servidor y el documento siguió
+// enseñando a fijar el PIN por la URL, y que la página "se sirve vacía".
+caso('no enseña a fijar el PIN por la URL',
+  !/configurar=<pin>|volver a llamar a\s*`?\?configurar/.test(doc),
+  lineaCon(doc, /configurar=/));
+caso('dice que el PIN se fija con configurarPin() desde el editor',
+  /configurarPin\(\)/.test(parrafoCon(doc, /PIN_NUEVO/)), parrafoCon(doc, /PIN_NUEVO/).slice(0, 200));
+caso('no dice que el servidor sirve la página',
+  !/La página se sirve \*\*vacía\*\*/.test(doc), lineaCon(doc, /se sirve \*\*vac/));
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);

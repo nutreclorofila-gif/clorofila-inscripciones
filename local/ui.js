@@ -6,7 +6,7 @@ const base = path.join(__dirname, '..');
 
 function cargarUI(datos, novedades) {
   const html = fs.readFileSync(path.join(base, 'apps-script', 'Index.html'), 'utf8');
-  const js = html.split('<script>')[1].split('</script>')[0].replace('<?!= datosIniciales ?>', 'null');
+  const js = html.split('<script>')[1].split('</script>')[0];
 
   const nodo = () => ({
     textContent: '', value: '', disabled: false, dataset: {},

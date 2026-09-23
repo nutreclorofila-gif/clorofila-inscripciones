@@ -5,7 +5,7 @@ const base = path.join(__dirname, '..');
 
 // Se saca el JS de la página tal cual y se le da un localStorage de mentira.
 const html = fs.readFileSync(path.join(base, 'apps-script', 'Index.html'), 'utf8');
-const js = html.split('<script>')[1].split('</script>')[0].replace('<?!= datosIniciales ?>', 'null');
+const js = html.split('<script>')[1].split('</script>')[0];
 const trozo = js.slice(0, js.indexOf('/**\n   * Trae los datos del servidor'));
 
 let almacen = {};
