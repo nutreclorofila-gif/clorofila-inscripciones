@@ -34,7 +34,7 @@ var ID_PLANILLA = '1C3UfC__jr3F0x_XWp5lRvL47MLjQqOwTa9wURKuXZBQ';
  * gana, pierde o cambia un campo que la página lee. verificar.sh controla que
  * los dos números sean iguales.
  */
-var FORMA_ESTADO = 2;
+var FORMA_ESTADO = 3;
 
 /**
  * Precios de referencia. Solo se usan para calcular SALDO del curso de cocina,
@@ -820,6 +820,7 @@ function construirEstado(crudo, ahora) {
     }
 
     aplicarCuotas(ed, cuotas);
+    separarLoQueNoVencio(ed, hoy);
     calcularPlata(ed);
   });
 
@@ -852,6 +853,7 @@ function construirEstado(crudo, ahora) {
       libres: sumar(vigentes, 'quedan'),
       recaudado: sumar(vigentes, 'recaudado'),
       saldo: sumar(cobrando, 'saldo'),
+      porVencer: sumar(cobrando, 'porVencer'),
       pendientes: cobrando.reduce(function (a, e) { return a + e.pendientes.length; }, 0),
       enEspera: espera.length,
       giftSinUsar: gift.filter(function (g) { return !g.usada; }).length,
@@ -882,7 +884,8 @@ function construirEstado(crudo, ahora) {
  * hoja y fila se quedan: son la clave con la que la página encuentra a alguien.
  */
 var NO_VAN_AL_TELEFONO = {
-  persona:     ['comprobante', 'idPago', 'verificado', 'esTikzet', 'fecha', 'montoTexto', 'primerPago'],
+  persona:     ['comprobante', 'idPago', 'verificado', 'esTikzet', 'fecha', 'montoTexto', 'primerPago',
+                'planCuotas', 'aclaracion', 'aclaracionSuelta', 'cuotasHechas'],
   giftCard:    ['email', 'usadaPor'],
   fueraDeCupo: ['email', 'montoTexto', 'monto']
 };
@@ -895,6 +898,10 @@ function paraElTelefono(estado) {
     });
   };
   (copia.ediciones || []).forEach(function (ed) {
+    // Número de la transferencia y a nombre de quiénes: sirve para la alerta de
+    // comprobante repetido, que ya va armada. La página no lo usa, y quedaba
+    // guardado en el teléfono (hasta el 29/9).
+    delete ed.pagosCompartidos;
     sacar(ed.personas, NO_VAN_AL_TELEFONO.persona);
     sacar(ed.pendientes, NO_VAN_AL_TELEFONO.persona);
   });
@@ -1390,6 +1397,7 @@ function evaluarPago(f, ed) {
  */
 function cuentaDelCurso(p, cobrado, porVenir) {
   p.saldo = 0;
+  delete p.cuotasHechas;
   if (cobrado >= PRECIOS.cursoTotal) {
     p.estadoPago = 'completo';
     delete p.nota;
@@ -1401,6 +1409,7 @@ function cuentaDelCurso(p, cobrado, porVenir) {
     p.nota = 'Paga con un plan acordado, le falta ' + plata(p.saldo);
   } else if (cobrado % PRECIOS.cursoCuota === 0) {
     var hechas = cobrado / PRECIOS.cursoCuota;
+    p.cuotasHechas = hechas;
     p.saldo = PRECIOS.cursoCuota * (PRECIOS.cursoMeses - hechas);
     p.nota = 'Pagó ' + hechas + ' de ' + PRECIOS.cursoMeses + ' cuotas, le falta ' + plata(p.saldo);
   } else {
@@ -1476,17 +1485,21 @@ function aplicarCuotas(ed, cuotas) {
 
     p.monto = cobrado;
     p.cuotasPagadas = pagadas.length;
-    cuentaDelCurso(p, cobrado, porVenir.reduce(function (a, c) { return a + (c.monto || 0); }, 0));
-    if (sinMonto && p.nota) {
-      p.nota += ' (' + sinMonto + (sinMonto === 1 ? ' cuota pagada sin el monto escrito, se cuenta' :
+    var plan = porVenir.filter(function (c) { return c.monto; });
+    cuentaDelCurso(p, cobrado, plan.reduce(function (a, c) { return a + c.monto; }, 0));
+    if (plan.length) p.planCuotas = plan.map(function (c) { return { monto: c.monto, vence: c.vence }; });
+    if (sinMonto) {
+      p.aclaracion = ' (' + sinMonto + (sinMonto === 1 ? ' cuota pagada sin el monto escrito, se cuenta' :
         ' cuotas pagadas sin el monto escrito, se cuentan') + ' de ' + plata(PRECIOS.cursoCuota) + ')';
+      // Para separarLoQueNoVencio, que arma la nota de nuevo con frases enteras.
+      p.aclaracionSuelta = p.aclaracion.slice(2, -1);
+      if (p.nota) p.nota += p.aclaracion;
     }
 
     var proxima = porVenir.filter(function (c) { return c.vence; })
       .sort(function (a, b) { return fechaOrdenable(a.vence) < fechaOrdenable(b.vence) ? -1 : 1; })[0];
     if (proxima && p.estadoPago === 'parcial') {
       p.proximaCuota = { numero: proxima.numero, monto: proxima.monto, vence: proxima.vence };
-      p.nota += ' · la próxima vence el ' + proxima.vence.slice(0, 5);
     }
   });
 
@@ -1498,6 +1511,92 @@ function aplicarCuotas(ed, cuotas) {
     var enCuotas = ed.personas.filter(function (p) { return p.cuotasPagadas !== undefined && p.saldo > 0; });
     if (enCuotas.length) ed.cobrando = true;
   }
+}
+
+var NOMBRES_MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto',
+  'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+/**
+ * El 1.º del mes en que empezó el curso. Las ediciones nuevas lo dicen en el
+ * nombre ("Octubre 2026"); las de agosto no ("Martes 19-21h"), pero su pestaña
+ * sí: "Inscriptos Agosto 2026". null si no se puede saber.
+ */
+function inicioDelCurso(ed) {
+  if (ed.inicio) {
+    var i = new Date(ed.inicio);
+    return new Date(i.getFullYear(), i.getMonth(), 1);
+  }
+  var m = String((ed.regla && ed.regla.hoja) || '').toLowerCase()
+    .match(/(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\s+(\d{4})/);
+  return m ? new Date(Number(m[2]), MESES[m[1]], 1) : null;
+}
+
+/**
+ * Cuántas cuotas tendría que haber pagado hoy quien paga por mes: una por cada
+ * mes de curso que ya empezó. La primera se paga al inscribirse, así que antes
+ * de que arranque ya es una. Sin saber cuándo empezó, se exigen todas: mejor
+ * mostrar una deuda de más que esconder una.
+ */
+function cuotasExigibles(ed, hoy) {
+  var ini = inicioDelCurso(ed);
+  if (!ini) return PRECIOS.cursoMeses;
+  var meses = (hoy.getFullYear() - ini.getFullYear()) * 12 + hoy.getMonth() - ini.getMonth();
+  return Math.max(1, Math.min(PRECIOS.cursoMeses, meses + 1));
+}
+
+/**
+ * Separa lo que ya venció de lo que se paga más adelante.
+ *
+ * Quien paga por mes paga la segunda cuota en su segundo mes de curso: en
+ * septiembre, alguien del curso de octubre con la primera cuota paga está al
+ * día. Hasta el 29/9 la app lo ponía en "Falta que paguen" con $ 9.600 y una
+ * alerta, como si debiera. Ahora queda "al_dia", y lo que falta pagar más
+ * adelante va en p.falta, aparte de p.saldo (lo vencido).
+ *
+ * Con un plan acordado, mandan las fechas del plan: vence lo que tiene fecha de
+ * hoy o anterior, y lo que no tiene fecha (no se sabe cuándo, así que se
+ * cobra). Una seña sin plan se sigue debiendo entera: no hay cuotas de por medio.
+ */
+function separarLoQueNoVencio(ed, hoy) {
+  if (!ed.esCurso) return;
+  var dd = function (n) { return (n < 10 ? '0' : '') + n; };
+  var hoyOrdenable = hoy.getFullYear() + '-' + dd(hoy.getMonth() + 1) + '-' + dd(hoy.getDate());
+  var ini = inicioDelCurso(ed);
+  ed.personas.forEach(function (p) {
+    if (p.estadoPago !== 'parcial') return;
+    var falta = p.saldo, vencido, cuando, queToca;
+    var mesDe = function (n) { return ini ? NOMBRES_MES[(ini.getMonth() + n) % 12] : ''; };
+    if (p.planCuotas) {
+      vencido = p.planCuotas.filter(function (c) { return !c.vence || fechaOrdenable(c.vence) <= hoyOrdenable; })
+        .reduce(function (a, c) { return a + c.monto; }, 0);
+      var prox = p.proximaCuota;
+      var venceHoy = prox && fechaOrdenable(prox.vence) === hoyOrdenable;
+      cuando = prox ? 'la próxima vence el ' + prox.vence.slice(0, 5) : '';
+      queToca = plata(vencido) + (venceHoy ? ', que vence hoy' : '');
+    } else if (p.cuotasHechas !== undefined) {
+      var atrasadas = Math.max(0, cuotasExigibles(ed, hoy) - p.cuotasHechas);
+      vencido = atrasadas * PRECIOS.cursoCuota;
+      cuando = ini ? 'la próxima es en ' + mesDe(p.cuotasHechas) : '';
+      queToca = (atrasadas === 1 && ini ? 'la cuota de ' + mesDe(p.cuotasHechas) : atrasadas + ' cuotas') +
+        ' (' + plata(vencido) + ')';
+    } else {
+      return;
+    }
+    p.falta = falta;
+    p.saldo = vencido;
+    var cuenta = p.planCuotas ? 'Paga con un plan acordado' :
+      'Pagó ' + p.cuotasHechas + ' de ' + PRECIOS.cursoMeses + ' cuotas';
+    var total = 'En total faltan ' + plata(falta) + '.';
+    if (!vencido) {
+      p.estadoPago = 'al_dia';
+      p.nota = cuenta + ', está al día' + (cuando ? '; ' + cuando : '') + '. ' + total;
+    } else {
+      p.nota = cuenta + '; le toca pagar ' + queToca + '.' + (falta > vencido ? ' ' + total : '');
+    }
+    if (p.aclaracionSuelta) {
+      p.nota += ' ' + p.aclaracionSuelta.charAt(0).toUpperCase() + p.aclaracionSuelta.slice(1) + '.';
+    }
+  });
 }
 
 /** "29/09/2026" -> "2026-09-29", para poder comparar fechas como texto. */
@@ -1514,6 +1613,10 @@ function fechaOrdenable(dma) {
 function calcularPlata(ed) {
   ed.recaudado = ed.personas.reduce(function (acc, p) { return acc + (p.monto || 0); }, 0);
   ed.saldo = ed.personas.reduce(function (acc, p) { return acc + (p.saldo || 0); }, 0);
+  // Cuotas que todavía no vencieron: no es deuda, pero es plata que va a entrar.
+  ed.porVencer = ed.personas.reduce(function (acc, p) {
+    return acc + (p.falta ? p.falta - (p.saldo || 0) : 0);
+  }, 0);
 
   var porId = {};
   ed.personas.forEach(function (p) {
@@ -1539,6 +1642,9 @@ function calcularPlata(ed) {
   if (ed.cobrando) {
     ed.pendientes = ed.pendientes.filter(function (p) { return p.cuotasPagadas !== undefined && p.saldo > 0; });
     ed.saldo = ed.pendientes.reduce(function (acc, p) { return acc + (p.saldo || 0); }, 0);
+    ed.porVencer = ed.personas.reduce(function (acc, p) {
+      return acc + (p.cuotasPagadas !== undefined && p.falta ? p.falta - (p.saldo || 0) : 0);
+    }, 0);
   }
 }
 
@@ -2006,7 +2112,7 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
         nivel: 'alta', tipo: 'cuota_vencida', edicion: ed.edicion,
         texto: (p.nombre || 'Alguien') + ': cuota vencida',
         detalle: 'La cuota ' + (c.numero || '') + (c.monto ? ' de ' + plata(c.monto) : '') + ' venció el ' +
-                 c.vence + ' y en "Pagos en cuotas" no figura pagada. En total le falta ' + plata(p.saldo) + '.'
+                 c.vence + ' y en "Pagos en cuotas" no figura pagada. En total le falta ' + plata(p.falta || p.saldo) + '.'
       });
     });
   });

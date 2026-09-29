@@ -186,6 +186,14 @@ las suma a cada persona del curso:
   sin que la cuota figure pagada, sale una alerta alta.
 - De esa pestaña **no sale nada al teléfono** más que la cuenta: comprobante, medio y
   observaciones tienen números de cuenta y de operación.
+
+**Al día.** Quien paga por mes paga la segunda cuota en su segundo mes de curso, y la tercera
+en el tercero. Mientras tenga pagas las cuotas de los meses que ya empezaron (la primera se
+paga al inscribirse), figura **"Al día"**: no aparece en "Falta que paguen" ni en las alertas.
+El mes de inicio sale del nombre de la edición ("Octubre 2026") o, en las de agosto, de su
+pestaña ("Inscriptos Agosto 2026"); si no se puede saber, se le exigen todas las cuotas. Con
+un plan acordado mandan las fechas del plan. En Plata, **"Falta cobrar"** es solo lo que ya
+venció, y las cuotas que todavía no vencieron van aparte como **"Más adelante"**.
 - **No escribe nada en la planilla.** El único scope que pide es `spreadsheets.readonly`.
 
 ## Desplegar cambios
