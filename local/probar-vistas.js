@@ -557,8 +557,8 @@ else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' vece
       ['Dora Sinplan', 'dora@ejemplo.uy', '', '', 'Martes', 'transferencia', '2', '4800', '', '', ed]] },
     extras: { 'Pagos en cuotas': [
       ['Alumno','Email','Grupo','Cuota','Monto','Fecha de pago','Medio','Comprobante','Estado','Observaciones'],
-      ['Carla Cuotas', 'carla@ejemplo.uy', 'Martes', '1', '4800', '', '', '', 'Pagada', ''],
-      ['Carla Cuotas', 'carla@ejemplo.uy', 'Martes', '2', '4800', '', '', '', 'Pagada', '']] },
+      // Una sola cuota en septiembre, el segundo mes de un curso de agosto: le toca la segunda.
+      ['Carla Cuotas', 'carla@ejemplo.uy', 'Martes', '1', '4800', '', '', '', 'Pagada', '']] },
     generadoEn: new Date(2026, 8, 23).toISOString()
   };
   const est = JSON.parse(JSON.stringify(G.paraElTelefono(G.construirEstado(crudo, new Date(2026, 8, 23)))));
@@ -567,9 +567,16 @@ else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' vece
   const deben = h.slice(h.indexOf('Falta que paguen'));
   [
     ['la edición aparece en "Por edición"', /Martes 19-21h/.test(h.slice(0, h.indexOf('Falta que paguen')))],
-    ['quien va por la segunda cuota figura en "Falta que paguen"', /Carla Cuotas/.test(deben) && /2 de 3 cuotas/.test(deben)],
+    ['a quien le toca la segunda cuota figura en "Falta que paguen"', /Carla Cuotas/.test(deben) && /cuota de septiembre/.test(deben)],
     ['quien no figura en la pestaña de cuotas no se lista como deudora', !/Dora Sinplan/.test(deben)],
-    ['el total de arriba cuenta esa cuota', /Falta cobrar <b>\$\s?4\.800/.test(h)]
+    ['el total de arriba cuenta esa cuota', /Falta cobrar <b>\$\s?4\.800/.test(h)],
+    ['y la tercera, que no venció, va aparte como "más adelante"', /Más adelante <b>\$\s?4\.800/.test(h)],
+    ['quien está al día dice "Al día", no "undefined"', (() => {
+      const alDia = JSON.parse(JSON.stringify(est));
+      alDia.ediciones[0].personas.forEach(p => { if (p.nombre === 'Carla Cuotas') { p.estadoPago = 'al_dia'; p.saldo = 0; } });
+      const g = cargarUI(alDia).vistaGente('');
+      return /chip al_dia">Al día</.test(g) && !/undefined/.test(g);
+    })()]
   ].forEach(([nombre, ok]) => {
     corridos++;
     if (ok) console.log('  ok    ' + nombre);

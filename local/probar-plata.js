@@ -288,7 +288,7 @@ const persona1 = (monto) => armar('Curso de cocina — Noviembre 2026', 15, [{ n
 caso(
   'una cuota dice que pagó por cuotas, y cuántas le faltan',
   'la nota le dice a Leo si es una cuota o una seña: al revés, llama a quien no tiene que llamar',
-  () => { const p = persona1('4800'); return (p.estadoPago === 'parcial' && /^Pagó 1 de 3 cuotas/.test(p.nota) && p.saldo === 9600) || 'dio ' + p.estadoPago + ' / ' + p.nota; }
+  () => { const p = persona1('4800'); return (/^Pagó 1 de 3 cuotas/.test(p.nota) && p.falta === 9600) || 'dio ' + p.estadoPago + ' / ' + p.nota + ' / falta ' + p.falta; }
 );
 caso(
   'un monto que no es una cuota exacta es una seña contra el pago bonificado',
@@ -390,8 +390,8 @@ caso(
     const e = conCuotas(CURSO, [{ nombre: 'Ana', email: 'ana@ejemplo.uy', monto: '4800' }],
       [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '4800' }, { nombre: 'Ana', email: 'ana@ejemplo.uy', n: 2, monto: '4800' }]);
     const p = e.ediciones[0].personas[0];
-    return (p.monto === 9600 && p.saldo === 4800 && /2 de 3 cuotas/.test(p.nota) && e.ediciones[0].recaudado === 9600)
-      || 'monto ' + p.monto + ', saldo ' + p.saldo + ', nota ' + p.nota + ', cobrado ' + e.ediciones[0].recaudado;
+    return (p.monto === 9600 && p.falta === 4800 && /2 de 3 cuotas/.test(p.nota) && e.ediciones[0].recaudado === 9600)
+      || 'monto ' + p.monto + ', falta ' + p.falta + ', nota ' + p.nota + ', cobrado ' + e.ediciones[0].recaudado;
   }
 );
 caso(
@@ -400,7 +400,7 @@ caso(
   () => {
     const e = conCuotas(CURSO, [{ nombre: 'Ana', email: 'Ana@Ejemplo.uy ', monto: '4800' }],
       [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '4800' }, { nombre: 'Ana', email: ' ANA@ejemplo.uy', n: 2, monto: '4800' }]);
-    return e.ediciones[0].personas[0].saldo === 4800 || 'saldo ' + e.ediciones[0].personas[0].saldo;
+    return e.ediciones[0].personas[0].falta === 4800 || 'falta ' + e.ediciones[0].personas[0].falta;
   }
 );
 caso(
@@ -420,7 +420,7 @@ caso(
     const e = conCuotas(CURSO, [{ nombre: 'Ana', email: 'ana@ejemplo.uy', monto: '4800' }],
       [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '4800' }, { nombre: 'Ana', email: 'ana@ejemplo.uy', n: 2 }]);
     const p = e.ediciones[0].personas[0];
-    return (p.saldo === 4800 && /sin el monto escrito/.test(p.nota)) || p.saldo + ' / ' + p.nota;
+    return (p.falta === 4800 && /sin el monto escrito/.test(p.nota)) || p.falta + ' / ' + p.nota;
   }
 );
 caso(
@@ -432,7 +432,7 @@ caso(
        { nombre: 'Ana', email: 'ana@ejemplo.uy', n: 2, monto: '4100', estado: 'Pendiente', obs: 'VENCE EL 20/11/2026 según lo acordado' },
        { nombre: 'Ana', email: 'ana@ejemplo.uy', n: 3, monto: '5100', estado: 'Pendiente', obs: 'VENCE EL 30/11/2026' }]);
     const p = e.ediciones[0].personas[0];
-    return (p.saldo === 9200 && /plan acordado/.test(p.nota) && /20\/11/.test(p.nota)) || p.saldo + ' / ' + p.nota;
+    return (p.falta === 9200 && /plan acordado/.test(p.nota) && /20\/11/.test(p.nota)) || p.falta + ' / ' + p.nota;
   }
 );
 caso(
@@ -466,7 +466,7 @@ caso(
     const e = conCuotas('Curso de cocina — Martes 19-21h',
       [{ nombre: 'Ana', email: 'ana@ejemplo.uy', monto: '4800' }, { nombre: 'Beto', email: 'beto@ejemplo.uy', monto: '4800' }],
       [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '4800' }, { nombre: 'Ana', email: 'ana@ejemplo.uy', n: 2, monto: '4800' }],
-      'Cerrado');
+      'Cerrado', new Date(2027, 0, 10));   // enero: tercer mes de un curso de noviembre, ya le toca la tercera
     const ed = e.ediciones[0];
     if (ed.vigente) return 'la edición salió vigente; la prueba no prueba nada';
     if (!ed.cobrando) return 'no quedó marcada como cobrando';
@@ -491,7 +491,93 @@ caso(
     const e = conCuotas(CURSO, [{ nombre: 'Ana', email: 'ana@ejemplo.uy', monto: '4800' }],
       [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '4800', obs: 'cuenta 001234567 referencia ZZTOP' }]);
     const txt = JSON.stringify(G.paraElTelefono(e));
-    return (!/ZZTOP|001234567|99999|primerPago/.test(txt)) || 'se coló algo de la pestaña de cuotas';
+    return (!/ZZTOP|001234567|99999|primerPago|planCuotas|aclaracion|cuotasHechas/.test(txt)) || 'se coló algo de la pestaña de cuotas';
+  }
+);
+
+
+console.log('\n--- Al día: la cuota del mes que todavía no empezó no es deuda ---');
+// Quien paga por mes paga la segunda cuota en su segundo mes de curso. Hasta el
+// 29/9 la app ponía a todos los del curso de octubre con la primera cuota paga
+// en "Falta que paguen", con $ 9.600 y una alerta.
+const unaCuota = (hoy) => conCuotas(CURSO, [{ nombre: 'Ana', email: 'ana@ejemplo.uy', monto: '4800' }],
+  [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '4800' }], null, hoy);
+caso(
+  'antes de empezar, con la primera cuota paga, está al día',
+  'es el caso de todo el curso de octubre en septiembre: listarlos como deudores es mandarle a cobrar a gente que no debe nada',
+  () => {
+    const e = unaCuota(new Date(2026, 9, 20));
+    const p = e.ediciones[0].personas[0];
+    if (p.estadoPago !== 'al_dia' || p.saldo !== 0 || p.falta !== 9600) return p.estadoPago + ' / saldo ' + p.saldo + ' / falta ' + p.falta;
+    if (!/al día/.test(p.nota) || !/diciembre/.test(p.nota)) return 'la nota no dice que está al día ni cuándo es la próxima: ' + p.nota;
+    if (e.ediciones[0].pendientes.length || tipos(e, 'pago').length) return 'igual figura en pendientes o en alertas';
+    return (e.resumen.saldo === 0 && e.resumen.porVencer === 9600) || 'falta cobrar ' + e.resumen.saldo + ', más adelante ' + e.resumen.porVencer;
+  }
+);
+caso(
+  'en el primer mes de curso sigue al día',
+  'la primera cuota cubre el primer mes; la segunda recién se paga en el segundo',
+  () => { const p = unaCuota(new Date(2026, 10, 25)).ediciones[0].personas[0]; return p.estadoPago === 'al_dia' || p.estadoPago + ' / ' + p.nota; }
+);
+caso(
+  'en el segundo mes le toca la segunda cuota, y lo dice con el mes',
+  'desde ahí sí es plata que tiene que entrar: si no la pide la app, no la pide nadie',
+  () => {
+    const e = unaCuota(new Date(2026, 11, 3));
+    const p = e.ediciones[0].personas[0];
+    if (p.estadoPago !== 'parcial' || p.saldo !== 4800 || p.falta !== 9600) return p.estadoPago + ' / saldo ' + p.saldo + ' / falta ' + p.falta;
+    if (!/cuota de diciembre/.test(p.nota)) return 'no dice qué cuota le toca: ' + p.nota;
+    return (e.ediciones[0].pendientes.length === 1 && e.resumen.saldo === 4800 && e.resumen.porVencer === 4800)
+      || 'pendientes ' + e.ediciones[0].pendientes.length + ', falta ' + e.resumen.saldo + ', más adelante ' + e.resumen.porVencer;
+  }
+);
+caso(
+  'el curso de agosto, sin fecha en el nombre, cuenta los meses desde su pestaña',
+  'las ediciones de agosto se llaman "Martes 19-21h": sin la pestaña no se sabría cuándo empezaron',
+  () => {
+    const ed = { inicio: null, regla: { hoja: 'Inscriptos Agosto 2026' } };
+    const n = [G.cuotasExigibles(ed, new Date(2026, 7, 10)), G.cuotasExigibles(ed, new Date(2026, 8, 29)),
+               G.cuotasExigibles(ed, new Date(2026, 9, 5)), G.cuotasExigibles(ed, new Date(2027, 1, 1))];
+    return n.join(',') === '1,2,3,3' || 'agosto, septiembre, octubre y después dieron ' + n.join(',');
+  }
+);
+caso(
+  'si no se sabe cuándo empezó, se le exigen todas las cuotas',
+  'mejor una deuda de más a la vista que esconder una que existe',
+  () => G.cuotasExigibles({ inicio: null, regla: { hoja: 'Alumnos' } }, new Date(2026, 8, 1)) === 3 || 'no exigió las 3'
+);
+caso(
+  'con un plan acordado mandan las fechas: antes de la fecha está al día',
+  'la fecha la arregló él con la alumna; cobrarle antes sería pisar lo acordado',
+  () => {
+    const filas = [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '3000' },
+      { nombre: 'Ana', email: 'ana@ejemplo.uy', n: 2, monto: '4100', estado: 'Pendiente', obs: 'VENCE EL 20/11/2026' },
+      { nombre: 'Ana', email: 'ana@ejemplo.uy', n: 3, monto: '5100', estado: 'Pendiente', obs: 'VENCE EL 30/11/2026' }];
+    const gente = [{ nombre: 'Ana', email: 'ana@ejemplo.uy', monto: '3000' }];
+    const antes = conCuotas(CURSO, gente, filas, null, new Date(2026, 10, 19)).ediciones[0].personas[0];
+    if (antes.estadoPago !== 'al_dia' || !/20\/11/.test(antes.nota)) return 'el 19/11: ' + antes.estadoPago + ' / ' + antes.nota;
+    const ese = conCuotas(CURSO, gente, filas, null, new Date(2026, 10, 20)).ediciones[0].personas[0];
+    if (ese.estadoPago !== 'parcial' || ese.saldo !== 4100 || !/vence hoy/.test(ese.nota)) return 'el 20/11: ' + ese.estadoPago + ' / ' + ese.saldo + ' / ' + ese.nota;
+    const despues = conCuotas(CURSO, gente, filas, null, new Date(2026, 11, 1)).ediciones[0].personas[0];
+    return (despues.saldo === 9200 && despues.falta === 9200) || 'el 1/12: saldo ' + despues.saldo + ' / falta ' + despues.falta;
+  }
+);
+caso(
+  'una seña sin plan se sigue debiendo entera',
+  'no hay cuotas de por medio: no hay un "más adelante" que justifique no cobrarla',
+  () => { const p = persona1('3000'); return (p.estadoPago === 'parcial' && p.saldo === 9200) || p.estadoPago + ' / ' + p.saldo; }
+);
+caso(
+  'al teléfono no va el número de las transferencias compartidas',
+  'es el número de operación con los nombres de quienes pagaron; la página no lo usa y quedaba guardado en el celular',
+  () => {
+    const e = armar('Taller de tapeo — 20/11/2026', 12,
+      [{ nombre: 'A', monto: '2600', comprobante: 'Transferencia 555444333' }, { nombre: 'B', monto: '2600', comprobante: 'Transferencia 555444333' }]);
+    if (!e.ediciones[0].pagosCompartidos.length) return 'la prueba no armó un pago compartido; no prueba nada';
+    if (!tipos(e, 'comprobante_repetido').length) return 'se perdió la alerta, que sí tiene que seguir';
+    const tel = G.paraElTelefono(e);
+    return (tel.ediciones[0].pagosCompartidos === undefined && tel.alertas.some(a => a.tipo === 'comprobante_repetido'))
+      || 'pagosCompartidos sigue viajando al teléfono';
   }
 );
 
