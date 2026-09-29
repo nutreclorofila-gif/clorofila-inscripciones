@@ -79,7 +79,7 @@ const MUTACIONES = [
   ['la cuota avisa antes de vencer', CODIGO,
    'if (!c || fechaOrdenable(c.vence) >= corte) return;', 'if (!c) return;'],
   ['el primer pago viaja al teléfono', CODIGO,
-   "'montoTexto', 'primerPago']", "'montoTexto']"],
+   "'montoTexto', 'primerPago',", "'montoTexto',"],
   ['el curso que empezó lista como deudor a todos', CODIGO,
    'ed.pendientes = ed.pendientes.filter(function (p) { return p.cuotasPagadas !== undefined && p.saldo > 0; });', ''],
   ['el mail de las cuotas se compara tal cual', CODIGO,
