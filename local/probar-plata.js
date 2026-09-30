@@ -581,5 +581,58 @@ caso(
   }
 );
 
+
+console.log('\n--- Dos alumnas con el mismo mail ---');
+// Pasó el 30/9 con datos reales: dos alumnas anotadas con un solo mail (una pagó
+// por las dos). La cuota se ligaba solo por mail, así que a cada una se le
+// sumaba la cuota de la otra: "Pagó 2 de 3, al día" cuando era 1 de 3.
+caso(
+  'con el mail compartido, cada cuota se liga por el nombre',
+  'si no, a cada una se le suma lo que pagó la otra y la deuda real desaparece',
+  () => {
+    const e = conCuotas(CURSO,
+      [{ nombre: 'Rita Pérez', email: 'familia@ejemplo.uy', monto: '4800' }, { nombre: 'Sara Gómez', email: 'familia@ejemplo.uy', monto: '4800' }],
+      [{ nombre: 'Rita Pérez', email: 'familia@ejemplo.uy', n: 1, monto: '4800' },
+       { nombre: 'Sara Gómez', email: 'familia@ejemplo.uy', n: 1, monto: '4800' }]);
+    const ps = e.ediciones[0].personas;
+    const mal = ps.filter(p => p.cuotasPagadas !== 1 || p.monto !== 4800 || !/1 de 3 cuotas/.test(p.nota));
+    return !mal.length || mal.map(p => p.nombre + ': ' + p.cuotasPagadas + ' cuotas, ' + p.monto + ', ' + p.nota).join(' | ');
+  }
+);
+caso(
+  'el nombre puede estar más completo en una pestaña que en la otra',
+  '"Sara Gómez" en cuotas y "Sara Gómez Ruiz" en inscriptos son la misma; exigir el nombre idéntico dejaría la cuota suelta',
+  () => {
+    const e = conCuotas(CURSO,
+      [{ nombre: 'Rita Pérez', email: 'familia@ejemplo.uy', monto: '4800' }, { nombre: 'Sara Gómez Ruiz', email: 'familia@ejemplo.uy', monto: '4800' }],
+      [{ nombre: 'Rita Perez', email: 'familia@ejemplo.uy', n: 1, monto: '4800' },
+       { nombre: 'Sara Gómez', email: 'familia@ejemplo.uy', n: 1, monto: '4800' }]);
+    const ps = e.ediciones[0].personas;
+    if (ps.some(p => p.cuotasPagadas !== 1)) return ps.map(p => p.nombre + ': ' + p.cuotasPagadas).join(' | ');
+    return tipos(e, 'cuota_sin_inscripta').length === 0 || 'quedó una cuota suelta';
+  }
+);
+caso(
+  'con el mail compartido y un nombre que no es de ninguna, la cuota queda suelta y avisa',
+  'dársela a cualquiera de las dos inventa un pago; la alerta hace que alguien lo mire',
+  () => {
+    const e = conCuotas(CURSO,
+      [{ nombre: 'Rita Pérez', email: 'familia@ejemplo.uy', monto: '4800' }, { nombre: 'Sara Gómez', email: 'familia@ejemplo.uy', monto: '4800' }],
+      [{ nombre: 'Tomás López', email: 'familia@ejemplo.uy', n: 2, monto: '4800' }]);
+    const ps = e.ediciones[0].personas;
+    if (ps.some(p => p.cuotasPagadas !== undefined)) return 'se la dio a alguien';
+    return tipos(e, 'cuota_sin_inscripta').length === 1 || 'no avisó';
+  }
+);
+caso(
+  'con el mail de una sola persona, el nombre distinto no importa',
+  'el mail es lo estable; el nombre se escribe distinto cada vez y no puede romper lo que andaba',
+  () => {
+    const e = conCuotas(CURSO, [{ nombre: 'Rita Pérez', email: 'rita@ejemplo.uy', monto: '4800' }],
+      [{ nombre: 'Rita P.', email: 'rita@ejemplo.uy', n: 1, monto: '4800' }, { nombre: 'R. Pérez', email: 'rita@ejemplo.uy', n: 2, monto: '4800' }]);
+    return e.ediciones[0].personas[0].cuotasPagadas === 2 || 'cuotas: ' + e.ediciones[0].personas[0].cuotasPagadas;
+  }
+);
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);

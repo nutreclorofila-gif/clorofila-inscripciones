@@ -48,6 +48,12 @@ try {
 }
 
 const MUTACIONES = [
+  ['con el mail compartido se suman las cuotas de la otra', CODIGO,
+   'return usos[mail] < 2 || mismaPersona(c.nombre, p.nombre);', 'return true;'],
+  ['el nombre más largo en una pestaña deja la cuota suelta', CODIGO,
+   'return palabras.every(function (w) { return del_largo.indexOf(w) !== -1; });', 'return false;'],
+  ['una sola palabra alcanza para ligar un nombre', CODIGO,
+   '  if (palabras.length < 2) return false;\n', ''],
   ['nadie queda al día: la cuota futura es deuda', CODIGO,
    "      p.estadoPago = 'al_dia';\n", "      p.estadoPago = 'parcial';\n"],
   ['las cuotas exigibles no cuentan los meses', CODIGO,
