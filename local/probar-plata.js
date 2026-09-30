@@ -634,5 +634,18 @@ caso(
   }
 );
 
+caso(
+  'con el mail compartido, un nombre de una sola palabra no alcanza',
+  '"Sara" puede ser cualquiera: darle la cuota a la primera que se llame así es adivinar',
+  () => {
+    const e = conCuotas(CURSO,
+      [{ nombre: 'Rita Pérez', email: 'familia@ejemplo.uy', monto: '4800' }, { nombre: 'Sara Gómez', email: 'familia@ejemplo.uy', monto: '4800' }],
+      [{ nombre: 'Sara', email: 'familia@ejemplo.uy', n: 2, monto: '4800' }]);
+    const ps = e.ediciones[0].personas;
+    if (ps.some(p => p.cuotasPagadas !== undefined)) return 'se la dio a ' + ps.filter(p => p.cuotasPagadas !== undefined).map(p => p.nombre).join(', ');
+    return tipos(e, 'cuota_sin_inscripta').length === 1 || 'no avisó';
+  }
+);
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);
