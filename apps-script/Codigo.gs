@@ -1464,10 +1464,21 @@ function leerCuotas(filas) {
  */
 function aplicarCuotas(ed, cuotas) {
   if (!ed.esCurso || !cuotas || !cuotas.length) return;
+  // Mails que usan dos o más personas de la edición (una pagó por las dos). Con
+  // esos, el mail no dice de quién es la cuota: hasta el 30/9 a cada una se le
+  // sumaba la de la otra, y quedaban "al día" debiendo una cuota.
+  var usos = {};
+  ed.personas.forEach(function (p) {
+    var m = String(p.email || '').trim().toLowerCase();
+    if (m) usos[m] = (usos[m] || 0) + 1;
+  });
   ed.personas.forEach(function (p) {
     var mail = String(p.email || '').trim().toLowerCase();
     var suyas = cuotas.filter(function (c) {
-      if (c.email && mail) return c.email === mail;
+      if (c.email && mail) {
+        if (c.email !== mail) return false;
+        return usos[mail] < 2 || mismaPersona(c.nombre, p.nombre);
+      }
       return !!c.nombre && normalizarNombre(c.nombre) === normalizarNombre(p.nombre);
     });
     if (!suyas.length) return;
@@ -1511,6 +1522,22 @@ function aplicarCuotas(ed, cuotas) {
     var enCuotas = ed.personas.filter(function (p) { return p.cuotasPagadas !== undefined && p.saldo > 0; });
     if (enCuotas.length) ed.cobrando = true;
   }
+}
+
+/**
+ * Si dos nombres son de la misma persona: iguales sin acentos ni mayúsculas, o
+ * uno con todas las palabras del otro ("Sara Gómez" / "Sara Gómez Ruiz"). Con
+ * una sola palabra no alcanza: "Sara" puede ser cualquiera.
+ */
+function mismaPersona(a, b) {
+  var x = normalizarNombre(a), y = normalizarNombre(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  var corto = x.length <= y.length ? x : y, largo = corto === x ? y : x;
+  var palabras = corto.split(' ');
+  if (palabras.length < 2) return false;
+  var del_largo = largo.split(' ');
+  return palabras.every(function (w) { return del_largo.indexOf(w) !== -1; });
 }
 
 var NOMBRES_MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto',
