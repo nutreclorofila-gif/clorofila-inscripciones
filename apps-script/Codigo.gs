@@ -1583,11 +1583,26 @@ var NOMBRES_MES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio
  * nombre ("Octubre 2026"); las de agosto no ("Martes 19-21h"), pero su pestaña
  * sí: "Inscriptos Agosto 2026". null si no se puede saber.
  */
+/**
+ * Ediciones del curso cuyo nombre no dice cuándo empezaron. Desde octubre el
+ * nombre lleva el mes ("Octubre 2026"), pero las de agosto se llaman por el
+ * grupo. Antes el mes salía solo del nombre de su pestaña ("Inscriptos Agosto
+ * 2026"): al archivar esa pestaña se perdía y el cálculo de cuotas les exigía
+ * las tres. Una edición nueva sin mes en el nombre se agrega acá.
+ */
+var INICIO_DE_EDICIONES_SIN_FECHA = {
+  'curso de cocina — martes 19-21h': '2026-08',
+  'curso de cocina — miercoles 10-12h': '2026-08',
+  'curso de cocina — sabados quincenal': '2026-08'
+};
+
 function inicioDelCurso(ed) {
   if (ed.inicio) {
     var i = new Date(ed.inicio);
     return new Date(i.getFullYear(), i.getMonth(), 1);
   }
+  var fijo = INICIO_DE_EDICIONES_SIN_FECHA[normalizarNombre(ed.edicion)];
+  if (fijo) return new Date(Number(fijo.slice(0, 4)), Number(fijo.slice(5, 7)) - 1, 1);
   var m = String((ed.regla && ed.regla.hoja) || '').toLowerCase()
     .match(/(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\s+(\d{4})/);
   return m ? new Date(Number(m[2]), MESES[m[1]], 1) : null;
