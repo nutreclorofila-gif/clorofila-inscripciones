@@ -112,9 +112,9 @@ chequear('trae todas las pestañas en UNA sola llamada',
 chequear('con el Panel de hoy no dice que está lleno',
   crudo.panelLleno === false, 'panelLleno quedó ' + crudo.panelLleno);
 
-chequear('empareja las filas cortas hasta la columna K',
-  Object.values(crudo.hojas).every(f => f.every(x => x.length === 11)),
-  'la API recorta las celdas vacías del final; sin emparejar, la columna K a veces no existe');
+chequear('empareja las filas cortas hasta la columna N',
+  Object.values(crudo.hojas).every(f => f.every(x => x.length === 14)),
+  'la API recorta las celdas vacías del final; sin emparejar, la K (Edición) o la M (Alergias) a veces no existen');
 
 console.log('\n--- construirEstado() de punta a punta ---');
 // Cuántas ediciones hay sale del propio Panel del fixture, no de un número fijo:

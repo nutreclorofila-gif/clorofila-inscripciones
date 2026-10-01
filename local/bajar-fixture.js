@@ -82,7 +82,8 @@ const rellenar = (filas, ancho) =>
     (/^inscriptos /i.test(String(t).trim()) || nombradas.has(norm(t))));
 
   const hojas = {};
-  for (const h of aLeer) hojas[h] = rellenar(await leer(citar(h) + '!A:K', 'FORMATTED_VALUE'), 11);
+  // Hasta la N, igual que la app: de la L en adelante van las notas a mano.
+  for (const h of aLeer) hojas[h] = rellenar(await leer(citar(h) + '!A:N', 'FORMATTED_VALUE'), 14);
 
   // La lista de espera, las gift cards y los pagos en cuotas también, con el
   // mismo ancho que usa la app (hasta la N). Sin ellas la prueba con datos

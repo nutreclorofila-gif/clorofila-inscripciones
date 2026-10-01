@@ -647,5 +647,61 @@ caso(
   }
 );
 
+
+console.log('\n--- Restricciones alimentarias ---');
+// Pedido de Leo (1/10): que la app le avise de una restricción alimentaria para
+// el día del taller. Datos inventados. Columnas como la planilla real: L notas
+// a mano, M "Alergias" (la pregunta del formulario).
+const HR = H.concat(['', 'Alergias', '']);
+function conNotas(edicion, gente, hoy, estado) {
+  const crudo = {
+    panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
+      [edicion.split('—')[0].trim(), edicion, '12', String(gente.length), String(12 - gente.length), estado || 'Abierto']],
+    panelFormulas: [['','','','','',''], ['','','', "=COUNTIF('Inscriptos Noviembre 2026'!K:K;B2)", '','']],
+    hojas: { 'Inscriptos Noviembre 2026': [HR].concat(gente.map(g => fila({ ...g, edicion }).concat([g.nota || '', g.alergias || '', '']))) },
+    extras: {}
+  };
+  return G.construirEstado(crudo, hoy || new Date(2026, 10, 1));
+}
+const TAPEO = 'Taller de tapeo — 20/11/2026';
+caso(
+  'una restricción anotada a mano en la L es una alerta alta, con el nombre y sin el rótulo',
+  'es lo que hay que tener a mano al cocinar; si no aparece, nadie se acuerda el día del taller',
+  () => {
+    const a = tipos(conNotas(TAPEO, [{ nombre: 'Rita Pérez', monto: '2600', nota: 'RESTRICCIÓN: no puede comer maní (avisó por mail)' }]), 'restriccion');
+    if (a.length !== 1 || a[0].nivel !== 'alta') return 'esperaba 1 alerta alta, hubo ' + a.length;
+    return (/Rita Pérez: no puede comer maní/.test(a[0].detalle) && !/RESTRICCIÓN:/.test(a[0].detalle)) || a[0].detalle;
+  }
+);
+caso(
+  'la columna Alergias del formulario: "No" no avisa, cualquier otra respuesta sí',
+  'la llena cada persona al inscribirse; un "celíaca" ahí tiene que verse igual que una nota a mano',
+  () => {
+    const e = conNotas(TAPEO, [{ nombre: 'Rita', monto: '2600', alergias: 'No' }, { nombre: 'Sara', monto: '2600', alergias: 'ninguna' },
+      { nombre: 'Tita', monto: '2600', alergias: 'Soy celíaca' }]);
+    const a = tipos(e, 'restriccion');
+    return (a.length === 1 && /Tita: Soy celíaca/.test(a[0].detalle)) || a.map(x => x.detalle).join(' | ') || 'ninguna alerta';
+  }
+);
+caso(
+  'una nota de pago en la L no es una alerta ni viaja al teléfono',
+  'la L tiene cédulas y números de operación: mostrarlos como alerta los manda al celular',
+  () => {
+    const e = conNotas(TAPEO, [{ nombre: 'Rita', monto: '2600', nota: 'CI 12345678 - transferencia op. 998877665544' }]);
+    if (tipos(e, 'restriccion').length) return 'la tomó como restricción';
+    return !/12345678|998877665544/.test(JSON.stringify(G.paraElTelefono(e))) || 'la cédula viajó al teléfono';
+  }
+);
+caso(
+  'pasado el taller la alerta se va, aunque el Panel lo siga marcando Abierto',
+  'una alerta alta de un taller que ya fue tapa las que importan',
+  () => {
+    const gente = [{ nombre: 'Rita', monto: '2600', nota: 'RESTRICCIÓN: sin gluten' }];
+    const ese = tipos(conNotas(TAPEO, gente, new Date(2026, 10, 20, 9)), 'restriccion').length;
+    const despues = tipos(conNotas(TAPEO, gente, new Date(2026, 10, 21, 9), 'Abierto'), 'restriccion').length;
+    return (ese === 1 && despues === 0) || 'el día del taller ' + ese + ', el día después ' + despues;
+  }
+);
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);
