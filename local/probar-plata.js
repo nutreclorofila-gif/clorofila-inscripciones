@@ -678,9 +678,10 @@ caso(
   'la llena cada persona al inscribirse; un "celíaca" ahí tiene que verse igual que una nota a mano',
   () => {
     const e = conNotas(TAPEO, [{ nombre: 'Rita', monto: '2600', alergias: 'No' }, { nombre: 'Sara', monto: '2600', alergias: 'ninguna' },
-      { nombre: 'Tita', monto: '2600', alergias: 'Soy celíaca' }]);
+      { nombre: 'Tita', monto: '2600', alergias: 'Maní y nueces' }]);
+    // "Maní y nueces" no tiene ninguna palabra clave: avisa por estar en la columna de Alergias.
     const a = tipos(e, 'restriccion');
-    return (a.length === 1 && /Tita: Soy celíaca/.test(a[0].detalle)) || a.map(x => x.detalle).join(' | ') || 'ninguna alerta';
+    return (a.length === 1 && /Tita: Maní y nueces/.test(a[0].detalle)) || a.map(x => x.detalle).join(' | ') || 'ninguna alerta';
   }
 );
 caso(
