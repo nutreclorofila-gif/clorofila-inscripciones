@@ -266,11 +266,13 @@ function leerPlanilla() {
     if (real) { extrasALeer.push(real); nombreReal[real] = par[0]; }
   });
 
-  // Todo en UNA sola llamada: las de inscriptos (hasta la columna K) y las
-  // pestañas extra (hasta la N, que tienen más columnas).
+  // Todo en UNA sola llamada: las de inscriptos y las pestañas extra, todas
+  // hasta la N.
   var hojas = {};
   var extras = {};
-  var todas = aLeer.map(function (n) { return { nombre: n, rango: "'" + n.replace(/'/g, "''") + "'!A:K", ancho: 11, extra: false }; })
+  // Inscriptos hasta la N: de la L en adelante van las notas a mano (por
+  // ejemplo, una restricción alimentaria), que la app muestra como alerta.
+  var todas = aLeer.map(function (n) { return { nombre: n, rango: "'" + n.replace(/'/g, "''") + "'!A:N", ancho: 14, extra: false }; })
     .concat(extrasALeer.map(function (n) { return { nombre: n, rango: "'" + n.replace(/'/g, "''") + "'!A:N", ancho: 14, extra: true }; }));
 
   if (todas.length) {
@@ -885,7 +887,9 @@ function construirEstado(crudo, ahora) {
  */
 var NO_VAN_AL_TELEFONO = {
   persona:     ['comprobante', 'idPago', 'verificado', 'esTikzet', 'fecha', 'montoTexto', 'primerPago',
-                'planCuotas', 'aclaracion', 'aclaracionSuelta', 'cuotasHechas'],
+                'planCuotas', 'aclaracion', 'aclaracionSuelta', 'cuotasHechas',
+                // Ya viaja armada en su alerta; la página no la lee de la persona.
+                'restriccion'],
   giftCard:    ['email', 'usadaPor'],
   fueraDeCupo: ['email', 'montoTexto', 'monto']
 };
@@ -1178,6 +1182,9 @@ function aplanarInscriptos(hojas) {
       salida.columnasRaras.push({ hoja: nombreHoja, faltan: columnas.faltan });
     }
     var celda = function (f, campo) { return (f[col[campo]] || '').trim(); };
+    // La columna de alergias que trae el formulario (hoy la M, "Alergias").
+    var colAlergias = (filas[0] || []).map(function (c) { return normalizarNombre(c); })
+      .findIndex(function (c) { return /alergi|restricci/.test(c); });
     for (var i = 1; i < filas.length; i++) {
       var f = filas[i] || [];
       var nombre = celda(f, 'nombre');
@@ -1197,11 +1204,38 @@ function aplanarInscriptos(hojas) {
         montoTexto: celda(f, 'montoTexto'),
         verificado: celda(f, 'verificado'),
         fecha: celda(f, 'fecha'),
-        edicion: edicion
+        edicion: edicion,
+        restriccion: restriccionDe(f, colAlergias)
       });
     }
   });
   return salida;
+}
+
+/**
+ * Restricción alimentaria de alguien anotado. Es lo que Leo tiene que tener a
+ * mano el día del taller, y hasta el 1/10 la app no leía nada después de la K.
+ * Sale de dos lados:
+ *  - La columna "Alergias" del formulario: cualquier respuesta que no sea un
+ *    no ("No", "Ninguna", "-").
+ *  - Una nota a mano de la L en adelante que lo diga con todas las letras
+ *    ("RESTRICCIÓN: no puede comer pimienta"). La L tiene sobre todo notas de
+ *    pago con cédulas y números de operación: esas no son alertas y no salen.
+ */
+var SENIAS_DE_RESTRICCION = /restricci|alergi|al[eé]rgic|intoleran|cel[ií]ac|no[ ](?:puede|debe)[ ]comer|no[ ]come[ ]/i;
+var RESPUESTA_NEGATIVA = /^(?:no|ningun[oa]?|nada|-+|n\/a|no[ ]tengo[ ]?(?:ninguna)?|sin[ ](?:alergias|restricciones))\.?$/i;
+
+function restriccionDe(fila, colAlergias) {
+  var notas = [];
+  for (var j = 11; j < (fila || []).length; j++) {
+    var t = String(fila[j] == null ? '' : fila[j]).trim();
+    if (!t) continue;
+    var esLaDeAlergias = j === colAlergias;
+    if (esLaDeAlergias ? !RESPUESTA_NEGATIVA.test(t) : SENIAS_DE_RESTRICCION.test(t)) {
+      notas.push(t.replace(/^restricci[oó]n( alimentaria)?\s*:\s*/i, ''));
+    }
+  }
+  return notas.join(' · ');
 }
 
 /**
@@ -1331,6 +1365,7 @@ function evaluarPago(f, ed) {
     whatsapp: paraWhatsapp(f.celular),
     medioPago: f.medioPago, comprobante: f.comprobante, montoTexto: f.montoTexto,
     fecha: f.fecha, hoja: f.hoja, fila: f.fila, verificado: f.verificado,
+    restriccion: f.restriccion || '',
     anotadoEl: fechaDeInscripcion(f.fecha),
     esTikzet: /tikzet/i.test(f.medioPago + ' ' + f.comprobante),
     idPago: idDePago(f.comprobante)
@@ -2123,6 +2158,25 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
         detalle: 'Está al ' + Math.round(ed.ocupacion * 100) + '% del cupo.'
       });
     }
+  });
+
+  // h-bis) Restricción alimentaria de alguien anotado: alta, porque es lo que
+  //        hay que tener a mano al cocinar. Solo en ediciones vigentes: cuando
+  //        el taller pasa, deja de importar y la alerta se va sola.
+  var hoyCorte = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  ediciones.forEach(function (ed) {
+    // Vigente no alcanza: una edición marcada Abierto sigue vigente aunque el
+    // taller ya haya pasado, y la alerta quedaba colgada.
+    if (ed.fecha && new Date(ed.fecha) < hoyCorte) return;
+    ed.personas.forEach(function (p) {
+      if (!p.restriccion) return;
+      alertas.push({
+        nivel: 'alta', tipo: 'restriccion', edicion: ed.edicion,
+        texto: 'Restricción alimentaria en ' + ed.edicion,
+        detalle: (p.nombre || 'Alguien sin nombre cargado') + ': ' + p.restriccion +
+                 ' (' + p.hoja + ', fila ' + p.fila + ').'
+      });
+    });
   });
 
   // i) Cuotas del curso: una que venció sin figurar pagada, y una fila de

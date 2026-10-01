@@ -48,6 +48,16 @@ try {
 }
 
 const MUTACIONES = [
+  ['la restricción alimentaria no avisa', CODIGO,
+   "      if (!p.restriccion) return;\n      alertas.push({", "      if (true) return;\n      alertas.push({"],
+  ['la alerta de restricción sigue después del taller', CODIGO,
+   '    if (ed.fecha && new Date(ed.fecha) < hoyCorte) return;\n', ''],
+  ['un "No" en Alergias es una alerta', CODIGO,
+   'esLaDeAlergias ? !RESPUESTA_NEGATIVA.test(t) : SENIAS_DE_RESTRICCION.test(t)', 'esLaDeAlergias ? true : SENIAS_DE_RESTRICCION.test(t)'],
+  ['cualquier nota de la L es una alerta (cédulas al teléfono)', CODIGO,
+   'esLaDeAlergias ? !RESPUESTA_NEGATIVA.test(t) : SENIAS_DE_RESTRICCION.test(t)', 'true'],
+  ['no se lee la columna de Alergias', CODIGO,
+   ".findIndex(function (c) { return /alergi|restricci/.test(c); });", ".findIndex(function (c) { return false; });"],
   ['con el mail compartido se suman las cuotas de la otra', CODIGO,
    'return usos[mail] < 2 || mismaPersona(c.nombre, p.nombre);', 'return true;'],
   ['el nombre más largo en una pestaña deja la cuota suelta', CODIGO,
