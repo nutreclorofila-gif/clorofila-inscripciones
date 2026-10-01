@@ -48,6 +48,8 @@ try {
 }
 
 const MUTACIONES = [
+  ['agosto vuelve a depender del nombre de la pestaña', CODIGO,
+   '  if (fijo) return new Date(', '  if (false) return new Date('],
   ['la restricción alimentaria no avisa', CODIGO,
    "      if (!p.restriccion) return;\n      alertas.push({", "      if (true) return;\n      alertas.push({"],
   ['la alerta de restricción sigue después del taller', CODIGO,

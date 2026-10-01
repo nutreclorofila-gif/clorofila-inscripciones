@@ -704,5 +704,18 @@ caso(
   }
 );
 
+caso(
+  'las ediciones de agosto saben su mes aunque la pestaña cambie de nombre o se archive',
+  'se van a pasar al Archivo histórico; si el mes sale solo del nombre de la pestaña, el cálculo de cuotas les exige las tres',
+  () => {
+    const nombres = ['Curso de cocina — Martes 19-21h', 'Curso de cocina — Miércoles 10-12h', 'Curso de cocina — Sábados quincenal'];
+    const mal = nombres.filter(n => {
+      const i = G.inicioDelCurso({ edicion: n, inicio: null, regla: { hoja: 'Archivo — Agosto' } });
+      return !i || i.getFullYear() !== 2026 || i.getMonth() !== 7;
+    });
+    return !mal.length || 'sin mes de inicio: ' + mal.join(', ');
+  }
+);
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);
