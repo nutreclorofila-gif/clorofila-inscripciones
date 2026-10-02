@@ -67,7 +67,7 @@ var PRECIOS = {
 var FILAS_PANEL = 500;
 
 /** Pestañas que NO son ediciones y no cuentan en ningún cupo. */
-var HOJAS_IGNORADAS = ['Lista de espera', 'Gift Cards', 'Pagos en cuotas', 'Panel'];
+var HOJAS_IGNORADAS = ['Lista de espera', 'Gift Cards', 'Pagos en cuotas', 'Panel', 'Sin pestaña del mes (webhook)'];
 
 /** De acá salen todas las ediciones: sin esta pestaña la app no tiene nada que mostrar. */
 var HOJA_PANEL = 'Panel';
@@ -80,6 +80,13 @@ var HOJA_PANEL = 'Panel';
 var HOJA_ESPERA = 'Lista de espera';
 var HOJA_GIFT = 'Gift Cards';
 var HOJA_CUOTAS = 'Pagos en cuotas';
+
+/**
+ * Donde el webhook del formulario deja una inscripción cuando no existe la
+ * pestaña «Inscriptos [Mes] [Año]» de su edición. Ahí no cuenta en ningún cupo:
+ * cualquier fila que quede es alguien que pagó y hay que mover a mano.
+ */
+var HOJA_SIN_MES = 'Sin pestaña del mes (webhook)';
 
 /** Prefijos de la columna K que son intencionales, no errores de carga. */
 var PREFIJOS_INTENCIONALES = ['Reubicado', 'Lista de espera', 'Cancelado', 'Anulado', 'Gift card'];
@@ -261,7 +268,7 @@ function leerPlanilla() {
   // exigir mayúsculas exactas: "Gift cards" tiene que valer igual que "Gift Cards".
   var extrasALeer = [];
   var nombreReal = {};
-  [[HOJA_ESPERA, 'espera'], [HOJA_GIFT, 'gift'], [HOJA_CUOTAS, 'cuotas']].forEach(function (par) {
+  [[HOJA_ESPERA, 'espera'], [HOJA_GIFT, 'gift'], [HOJA_CUOTAS, 'cuotas'], [HOJA_SIN_MES, 'sinMes']].forEach(function (par) {
     var real = buscarHoja(titulos, par[0]);
     if (real) { extrasALeer.push(real); nombreReal[real] = par[0]; }
   });
@@ -835,7 +842,8 @@ function construirEstado(crudo, ahora) {
   var espera = leerEspera((crudo.extras || {})[HOJA_ESPERA], ediciones);
   marcarQuienYaSeAnoto(espera, ediciones);
   var gift = leerGiftCards((crudo.extras || {})[HOJA_GIFT]);
-  var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas, espera, gift, cuotas);
+  var sinMes = leerSinMes((crudo.extras || {})[HOJA_SIN_MES]);
+  var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas, espera, gift, cuotas, sinMes);
 
   return {
     forma: FORMA_ESTADO,
@@ -1034,6 +1042,17 @@ function ligarAEdicion(texto, ediciones) {
 }
 
 /** Gift cards: una vendida sin usar es plata cobrada y un lugar que se va a ocupar. */
+/** Filas con algo escrito en la pestaña de reserva del webhook (sin el encabezado). */
+function leerSinMes(filas) {
+  var res = [];
+  (filas || []).slice(1).forEach(function (f, i) {
+    var lleno = f.slice(0, 11).some(function (v) { return String(v || '').trim() !== ''; });
+    if (!lleno) return;
+    res.push({ fila: i + 2, nombre: String(f[0] || '').trim(), edicion: String(f[10] || '').trim() });
+  });
+  return res;
+}
+
 function leerGiftCards(filas) {
   var columnas = columnasDe(filas);
   var sinMonto = false;
@@ -1802,7 +1821,7 @@ function mediana(nums) {
   return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2;
 }
 
-function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, esperaGlobal, giftGlobal, cuotas) {
+function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, esperaGlobal, giftGlobal, cuotas, sinMes) {
   var alertas = [];
   // Una edición que ya pasó no se arregla: alertar sobre ella es solo ruido.
   var ediciones = todasLasEdiciones.filter(function (e) { return e.vigente; });
@@ -2227,6 +2246,17 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
                cs.map(function (c) { return c.fila; }).join(', ') + ') hay cuotas suyas, pero ninguna persona ' +
                'del curso tiene ese mail' + (cs[0].email ? '' : ' ni ese nombre') + '. Mientras tanto, esa plata ' +
                'no se suma en ningún lado. Revisá que el mail sea el mismo que en la pestaña de inscriptos.'
+    });
+  });
+
+  // j) Inscripciones que el formulario no pudo ubicar en la pestaña de su mes.
+  (sinMes || []).forEach(function (r) {
+    alertas.push({
+      nivel: 'alta', tipo: 'sin_pestana_mes', edicion: r.edicion,
+      texto: (r.nombre || 'Alguien') + ': inscripción sin pestaña del mes',
+      detalle: 'El formulario la dejó en la pestaña "' + HOJA_SIN_MES + '" (fila ' + r.fila + ')' +
+               (r.edicion ? ', para "' + r.edicion + '"' : '') + ', porque no existía la pestaña de su mes. ' +
+               'Ahí no cuenta en ningún cupo: hay que crear la pestaña «Inscriptos [Mes] [Año]» y mover la fila.'
     });
   });
 
