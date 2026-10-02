@@ -22,7 +22,7 @@ const fila = (o) => [o.nombre||'', o.email||'', '', '', o.horario||'', o.medio||
 const HOY = new Date(2026, 10, 1);   // 1 de noviembre de 2026
 
 // Arma un estado con una sola edición y la gente que se le pase.
-function armar(edicion, cupo, gente, formula, estado) {
+function armar(edicion, cupo, gente, formula, estado, extras) {
   const crudo = {
     panelValores: [
       ['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
@@ -33,7 +33,7 @@ function armar(edicion, cupo, gente, formula, estado) {
       ['','','', formula || "=COUNTIF('Inscriptos Noviembre 2026'!K:K;B2)", '','']
     ],
     hojas: { 'Inscriptos Noviembre 2026': [H].concat(gente.map(g => fila({ ...g, edicion }))) },
-    extras: {}
+    extras: extras || {}
   };
   return G.construirEstado(crudo, HOY);
 }
@@ -715,6 +715,38 @@ caso(
     });
     return !mal.length || 'sin mes de inicio: ' + mal.join(', ');
   }
+);
+
+
+console.log('\n--- Inscripciones que el formulario no pudo ubicar ---');
+const RESERVA = 'Sin pestaña del mes (webhook)';
+const HRES = ['nombre','email','celular','actividad','horario','medio de pago','número comprobante','monto abonado','pago verificado','fecha inscripción','Edición','','Alergias'];
+caso(
+  'una fila en la pestaña de reserva del formulario da alerta alta',
+  'el formulario la deja ahí cuando no existe la pestaña del mes; si nadie la ve, esa persona pagó y no figura en ningún cupo',
+  () => {
+    const e = armar('Curso de cocina — Diciembre 2026', 10, [], null, null,
+      { [RESERVA]: [HRES, ['Ana Prueba', 'ana@ejemplo.uy', '', 'Curso', '', '', '', '4800', '', '', 'Curso de cocina — Diciembre 2026', '', '']] });
+    const a = tipos(e, 'sin_pestana_mes');
+    if (a.length !== 1) return 'esperaba 1 alerta sin_pestana_mes, hay ' + a.length;
+    if (a[0].nivel !== 'alta') return 'esperaba nivel alta, es ' + a[0].nivel;
+    if (!/Ana Prueba/.test(a[0].texto + a[0].detalle)) return 'la alerta no dice a quién mover';
+    return /Sin pestaña del mes/.test(a[0].detalle) || 'la alerta no dice en qué pestaña está';
+  }
+);
+caso(
+  'la pestaña de reserva vacía (solo encabezado o filas en blanco) no da alerta',
+  'una vez movidas las filas, la pestaña queda y la alerta tiene que irse sola',
+  () => {
+    const e = armar('Curso de cocina — Diciembre 2026', 10, [], null, null,
+      { [RESERVA]: [HRES, HRES.map(() => '')] });
+    return tipos(e, 'sin_pestana_mes').length === 0 || 'alertó con la pestaña vacía';
+  }
+);
+caso(
+  'la pestaña de reserva no se cuenta como una edición',
+  'si se leyera como inscriptos, esa persona sumaría en un cupo sin que nadie la haya ubicado',
+  () => G.HOJAS_IGNORADAS.map(G.normalizarNombre).indexOf(G.normalizarNombre(RESERVA)) !== -1 || 'no está en HOJAS_IGNORADAS'
 );
 
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');

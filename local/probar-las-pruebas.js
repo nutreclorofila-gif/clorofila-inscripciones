@@ -48,6 +48,10 @@ try {
 }
 
 const MUTACIONES = [
+  ['la pestaña de reserva del formulario no alerta', CODIGO,
+   "    if (!lleno) return;\n    res.push(", "    if (true) return;\n    res.push("],
+  ['la pestaña de reserva se lee como una edición', CODIGO,
+   "'Panel', 'Sin pestaña del mes (webhook)'];", "'Panel'];"],
   ['agosto vuelve a depender del nombre de la pestaña', CODIGO,
    '  if (fijo) return new Date(', '  if (false) return new Date('],
   ['la restricción alimentaria no avisa', CODIGO,

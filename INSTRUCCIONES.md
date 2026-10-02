@@ -183,6 +183,15 @@ restricción alimentaria, sale una **alerta alta** en su edición hasta el día 
   Las demás notas de la L (cédulas, números de operación) no son alertas y no viajan al
   teléfono.
 
+## Inscripciones sin pestaña del mes
+
+Si alguien se inscribe en una edición y todavía no existe su pestaña «Inscriptos [Mes]
+[Año]», el webhook del formulario la deja en **«Sin pestaña del mes (webhook)»** y manda un
+mail. Esa pestaña no cuenta en ningún cupo. Mientras tenga alguna fila escrita, la app
+muestra una **alerta alta** con el nombre y la edición. Se arregla creando la pestaña del
+mes (mismo encabezado que las otras) y moviendo la fila; cuando la pestaña de reserva queda
+vacía, la alerta se va sola.
+
 ## Pagos en cuotas
 
 En la pestaña de inscriptos queda solo el primer pago. Las cuotas siguientes se anotan en
