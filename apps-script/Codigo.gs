@@ -2183,6 +2183,20 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
     });
   });
 
+  // h-cero) Lleno y el Estado sigue en Abierto. El Estado se escribe a mano en
+  //         el Panel: si nadie lo pasa a Cerrado, la venta sigue y se pasa del cupo.
+  abiertas.forEach(function (ed) {
+    if (ed.abierta && ed.cupo > 0 && ed.quedan === 0) {
+      alertas.push({
+        nivel: 'media', tipo: 'lleno_abierto', edicion: ed.edicion,
+        texto: ed.edicion + ': está lleno y sigue Abierto',
+        detalle: 'Anotados ' + ed.anotados + ' de ' + ed.cupo + '. En el Panel (fila ' + ed.filaPanel + ') el Estado ' +
+                 'sigue en Abierto: pasalo a Cerrado y cortá la venta (Tikzet en 0, formulario) para que no se ' +
+                 'anote nadie de más.'
+      });
+    }
+  });
+
   // h) Casi lleno (buena noticia, pero hay que actuar).
   abiertas.forEach(function (ed) {
     if (ed.cupo > 0 && ed.quedan > 0 && ed.ocupacion >= 0.7) {

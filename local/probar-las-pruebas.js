@@ -48,6 +48,8 @@ try {
 }
 
 const MUTACIONES = [
+  ['lleno y Abierto no alerta', CODIGO,
+   '    if (ed.abierta && ed.cupo > 0 && ed.quedan === 0) {', '    if (ed.abierta && ed.cupo > 0 && ed.quedan === -99) {'],
   ['la pestaña de reserva del formulario no alerta', CODIGO,
    "    if (!lleno) return;\n    res.push(", "    if (true) return;\n    res.push("],
   ['la pestaña de reserva se lee como una edición', CODIGO,

@@ -749,5 +749,28 @@ caso(
   () => G.HOJAS_IGNORADAS.map(G.normalizarNombre).indexOf(G.normalizarNombre(RESERVA)) !== -1 || 'no está en HOJAS_IGNORADAS'
 );
 
+
+console.log('\n--- Lleno pero el Panel lo sigue mostrando Abierto ---');
+const dos = [{ nombre: 'Uno Prueba', email: 'uno@ejemplo.uy', monto: '1000' }, { nombre: 'Dos Prueba', email: 'dos@ejemplo.uy', monto: '1000' }];
+caso(
+  'una edición llena con el Estado en Abierto da alerta',
+  'el Estado se escribe a mano: si nadie lo pasa a Cerrado, la venta sigue y se pasa del cupo',
+  () => {
+    const a = tipos(armar('Taller de tapeo — 16/11/2026', 2, dos, "=COUNTIF('Inscriptos Noviembre 2026'!K:K;B2)", 'Abierto'), 'lleno_abierto');
+    if (a.length !== 1) return 'esperaba 1 alerta lleno_abierto, hay ' + a.length;
+    return /Cerrado/.test(a[0].detalle) || 'la alerta no dice que hay que pasarlo a Cerrado';
+  }
+);
+caso(
+  'llena y Cerrada no da alerta',
+  'es el estado correcto: avisar ahí es ruido',
+  () => tipos(armar('Taller de tapeo — 16/11/2026', 2, dos, "=COUNTIF('Inscriptos Noviembre 2026'!K:K;B2)", 'Cerrado'), 'lleno_abierto').length === 0 || 'alertó con la edición cerrada'
+);
+caso(
+  'con lugares libres no da alerta de lleno',
+  'quedan lugares: que siga abierta es lo que corresponde',
+  () => tipos(armar('Taller de tapeo — 16/11/2026', 3, dos, "=COUNTIF('Inscriptos Noviembre 2026'!K:K;B2)", 'Abierto'), 'lleno_abierto').length === 0 || 'alertó con un lugar libre'
+);
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);
