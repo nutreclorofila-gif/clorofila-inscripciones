@@ -40,6 +40,17 @@ function instalar() {
   revisarVisitas();
 }
 
+/**
+ * Para autorizar desde el navegador: el editor abre el permiso en una ventana
+ * emergente que el navegador de Claude bloquea, y esta página (solo la ve el
+ * dueño) lo pide en la misma pestaña. Instala el activador y dice qué quedó.
+ */
+function doGet() {
+  instalar();
+  var n = ScriptApp.getProjectTriggers().length;
+  return ContentService.createTextOutput('Listo: avisos instalados (' + n + ' activador).');
+}
+
 /* ---------- lógica pura (se prueba en local/probar-avisos.js) ---------- */
 
 function sinTildes(s) {
