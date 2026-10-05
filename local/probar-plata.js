@@ -806,6 +806,11 @@ caso(
   () => tipos(conVisitas([['Visita Prueba', '', ED_V, '05/11/2026', '', '', '', '', '', '']]), 'pago_en_persona').length === 1 || 'no alertó con el estado vacío'
 );
 caso(
+  'un estado escrito de otra forma ("Confirmado") sigue como pendiente',
+  'solo Pagó, No vino o Cancelado cierran la visita: cualquier otra cosa no puede apagar el aviso',
+  () => tipos(conVisitas([['Visita Prueba', '', ED_V, '05/11/2026', '', '', 'Confirmado', '', '', '']]), 'pago_en_persona').length === 1 || 'no alertó con el estado Confirmado'
+);
+caso(
   'el día de hoy dice HOY',
   'el mismo día es cuando hay que estar en el estudio',
   () => {
