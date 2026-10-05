@@ -156,6 +156,24 @@
   details.rec > summary::after { content: ' ▸'; color: var(--tenue); }
   details.rec[open] > summary::after { content: ' ▾'; }
   details.rec .p { font-size: 13px; color: var(--tenue); padding-bottom: 6px; }
+  /* Responder un recordatorio desde el celu (Leo, 5/10). */
+  .responder {
+    border: 1px solid var(--linea); background: var(--papel); color: var(--verde);
+    border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 13px; font-weight: 600;
+    cursor: pointer; margin: 2px 0 8px;
+  }
+  .responder[disabled] { opacity: 0.5; }
+  .resp-txt {
+    display: block; width: 100%; box-sizing: border-box; min-height: 84px; margin: 2px 0 6px;
+    border: 1px solid var(--linea); border-radius: 10px; padding: 8px 10px;
+    background: var(--papel); color: var(--texto); font: inherit; font-size: 15px; resize: vertical;
+  }
+  .resp-btns { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+  .resp-btns .responder { margin: 0; }
+  .resp-btns .principal { background: var(--verde); color: var(--fondo); border-color: var(--verde); }
+  .resp-dicho { font-size: 13px; color: var(--texto); padding-bottom: 6px; }
+  .resp-mal { font-size: 13px; color: var(--rojo); padding-bottom: 6px; }
+  .resp-ok { font-size: 13px; color: var(--verde-claro); font-weight: 600; padding-bottom: 6px; }
 
   .seccion { margin: 24px 0 10px; font-size: 12px; color: var(--tenue);
              text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; }
@@ -248,6 +266,12 @@
   var CARGANDO = false;
   /** Por qué se está mostrando lo guardado en vez de lo nuevo, en palabras de Leo. */
   var MOTIVO_CACHE = '';
+  /** Responder un recordatorio: cuál se está escribiendo, el borrador y cómo salió. */
+  var RESPONDIENDO = null;
+  var BORRADOR = '';
+  var ENVIANDO = false;
+  var ERROR_RESP = '';
+  var LISTA_RESP = null;
 
   /**
    * La versión de la forma de los datos que esta página sabe leer. Tiene que ser
@@ -1152,7 +1176,8 @@
   function esRecordatorio(a) { return a.tipo === 'recordatorio'; }
   function esVisita(a) { return a.tipo === 'pago_en_persona'; }
   function esDelegado(a) { return a.tipo === 'recordatorio_delegado'; }
-  function esCargada(a) { return esRecordatorio(a) || esVisita(a) || esDelegado(a); }
+  function esRespondido(a) { return a.tipo === 'recordatorio_respondido'; }
+  function esCargada(a) { return esRecordatorio(a) || esVisita(a) || esDelegado(a) || esRespondido(a); }
 
   var GRUPOS = ['Atrasado', 'Hoy', 'Mañana', 'Sin fecha', 'Más adelante'];
   /** 0 atrasado · 1 hoy · 2 mañana · 3 sin fecha / día a confirmar · 4 más adelante. */
@@ -1212,8 +1237,9 @@
       return '<div class="vacio">No hay nada para revisar.<br>Los cupos, los pagos y Tikzet cierran.</div>';
     }
     var plegable = function (a) {
-      return '<details class="rec ' + a.nivel + '"><summary>' + esc(corto(a)) + '</summary>' +
-        '<div class="p">' + esc(a.detalle) + '</div></details>';
+      var abierto = a.clave && (a.clave === RESPONDIENDO || a.clave === LISTA_RESP);
+      return '<details class="rec ' + a.nivel + '"' + (abierto ? ' open' : '') + '><summary>' + esc(corto(a)) + '</summary>' +
+        '<div class="p">' + esc(a.detalle) + '</div>' + bloqueResponder(a) + '</details>';
     };
     var html = '';
     var visitas = DATOS.alertas.filter(esVisita);
@@ -1224,6 +1250,8 @@
         return '<div class="grupo-recs">' + x.nombre + '</div>' + x.items.map(plegable).join('');
       }).join('');
     }
+    var resp = DATOS.alertas.filter(esRespondido);
+    if (resp.length) html += '<div class="seccion">Ya respondiste: lo hace Claude (' + resp.length + ')</div>' + resp.map(plegable).join('');
     var deleg = DATOS.alertas.filter(esDelegado);
     if (deleg.length) html += '<div class="seccion">Lo están haciendo las sesiones (' + deleg.length + ')</div>' + deleg.map(plegable).join('');
     var resto = DATOS.alertas.filter(function (a) { return !esCargada(a); });
@@ -1231,6 +1259,69 @@
       resto.map(aviso).join('');
     return html;
   }
+  /**
+   * Debajo de cada recordatorio: el botón para contestarlo desde el celu, o el
+   * cuadro para escribir si es el que se está contestando. Lo que se escribe lo
+   * leen las sesiones de Claude y lo hacen (Leo, 5/10: «decir que Paula puede
+   * hacer octubre y noviembre, y que Claude lo sepa»).
+   */
+  function bloqueResponder(a) {
+    if (!a.clave || !(esRecordatorio(a) || esRespondido(a))) return '';
+    var k = esc(a.clave);
+    if (RESPONDIENDO === a.clave) {
+      return '<textarea class="resp-txt" id="respTxt" maxlength="1000" placeholder="Qué hay que hacer. Ej.: sí, puede octubre y noviembre; avisale.">' +
+        esc(BORRADOR) + '</textarea>' +
+        (ERROR_RESP ? '<div class="resp-mal">' + esc(ERROR_RESP) + '</div>' : '') +
+        '<div class="resp-btns"><button class="responder principal" type="button" data-enviar="' + k + '"' + (ENVIANDO ? ' disabled' : '') + '>' +
+        (ENVIANDO ? 'Enviando…' : 'Enviar') + '</button>' +
+        '<button class="salir" type="button" data-cancelar="1"' + (ENVIANDO ? ' disabled' : '') + '>Cancelar</button></div>';
+    }
+    return (LISTA_RESP === a.clave && esRespondido(a) ? '<div class="resp-ok">Guardada ✓ Claude la va a leer.</div>' : '') +
+      '<button class="responder" type="button" data-responder="' + k + '">' +
+      (esRespondido(a) ? 'Cambiar la respuesta' : 'Responder') + '</button>';
+  }
+
+  /** Manda la respuesta. Va por POST: el texto no viaja en la dirección. */
+  var ESPERA_RESPUESTA = 30 * 1000;
+  function enviarRespuesta(clave, texto) {
+    var pin = pinGuardado();
+    var terminado = false;
+    ENVIANDO = true;
+    ERROR_RESP = '';
+    pintarPanel();
+    function fin(d) {
+      if (terminado) return;
+      terminado = true;
+      clearTimeout(corte);
+      ENVIANDO = false;
+      if (pinGuardado() !== pin) return;
+      if (d && d.ok && d.estado) {
+        RESPONDIENDO = null;
+        BORRADOR = '';
+        LISTA_RESP = clave;
+        recibirEstado(d.estado, pin);
+        pintarTodo();
+        return;
+      }
+      var m = (d && d.error) || 'No se pudo guardar.';
+      if (pinRechazado(m)) { pinGuardadoNoSirve(); return; }
+      ERROR_RESP = m + ' Lo que escribiste sigue acá.';
+      pintarPanel();
+    }
+    var corte = setTimeout(function () { fin({ ok: false, error: 'Google no contestó a tiempo. Probá de nuevo.' }); }, ESPERA_RESPUESTA);
+    var sinContestar = function () {
+      return { ok: false, error: navigator.onLine === false ? 'El teléfono está sin señal.' : 'No llegó respuesta de Google. Probá de nuevo.' };
+    };
+    fetch(API, { method: 'POST', credentials: 'omit',
+                 body: JSON.stringify({ pin: pin, accion: 'responder', clave: clave, texto: texto }) })
+      .then(function (r) {
+        return r.text().then(function (t) {
+          try { return JSON.parse(t); } catch (x) { return { ok: false, error: 'Google no mandó la respuesta esperada. Probá de nuevo.' }; }
+        }, sinContestar);
+      }, sinContestar)
+      .then(fin);
+  }
+
   function aviso(a) {
     return '<div class="aviso ' + a.nivel + '"><div class="q">' + esc(a.texto) + '</div>' +
       '<div class="p">' + esc(a.detalle) + '</div></div>';
@@ -1261,7 +1352,45 @@
     window.scrollTo(0, 0);
   });
 
+  document.getElementById('panel').addEventListener('input', function (ev) {
+    if (ev.target.id === 'respTxt') BORRADOR = ev.target.value;
+  });
+
   document.getElementById('panel').addEventListener('click', function (ev) {
+    var responder = ev.target.closest('[data-responder]');
+    if (responder) {
+      RESPONDIENDO = responder.dataset.responder;
+      var ya = DATOS.alertas.filter(function (x) { return esRespondido(x) && x.clave === RESPONDIENDO; })[0];
+      BORRADOR = ya ? ya.respuesta || '' : '';
+      ERROR_RESP = '';
+      LISTA_RESP = null;
+      pintarPanel();
+      var t = document.getElementById('respTxt');
+      if (t) t.focus();
+      return;
+    }
+    if (ev.target.closest('[data-cancelar]')) {
+      if (ENVIANDO) return;
+      RESPONDIENDO = null;
+      BORRADOR = '';
+      ERROR_RESP = '';
+      pintarPanel();
+      return;
+    }
+    var enviar = ev.target.closest('[data-enviar]');
+    if (enviar) {
+      if (ENVIANDO) return;
+      var txt = document.getElementById('respTxt');
+      BORRADOR = txt ? txt.value : BORRADOR;
+      if (!BORRADOR.trim() && !DATOS.alertas.some(function (x) { return esRespondido(x) && x.clave === enviar.dataset.enviar; })) {
+        ERROR_RESP = 'Escribí algo antes de enviar.';
+        pintarPanel();
+        return;
+      }
+      enviarRespuesta(enviar.dataset.enviar, BORRADOR);
+      return;
+    }
+
     var ir = ev.target.closest('[data-ir]');
     if (ir) {
       SOLAPA = ir.dataset.ir;
