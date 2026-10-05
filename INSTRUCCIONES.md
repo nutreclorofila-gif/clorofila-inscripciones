@@ -220,6 +220,15 @@ Hora, Detalle, Estado (Pendiente / Hecho / Cancelado), Quién lo cargó, Cargado
   (lo que viene a pagar y lo de hoy primero) y el resto como cantidad.
 - Por mail (proyecto `avisos/`): uno al cargarlo, y entra en el resumen diario de las 9
   junto con los pagos en persona; uno si pasó la fecha y sigue Pendiente.
+- **Responder desde el celu** (5/10): cada recordatorio Pendiente tiene un botón «Responder».
+  La respuesta se guarda en las propiedades del script (`respuesta:<Qué normalizado>`), NO en
+  la planilla; la app sigue con permiso de solo lectura. Va por POST (`doPost`), con el PIN.
+  Lo respondido sale de «Pendientes» y pasa a «Ya respondiste: lo hace Claude». Las sesiones
+  la leen con `node local/respuestas.js`, la hacen y ponen Hecho: ahí la respuesta se borra
+  sola (cada envío limpia las de filas que ya no están Pendiente). Texto vacío = borrarla.
+- **Quién la mantiene al día:** la rutina Check inscripciones (paso 7e) ejecuta las respuestas,
+  cierra lo que ya tiene evidencia de resuelto y carga lo nuevo; Seguimiento y la sesión de
+  auditoría cierran sus filas en el momento.
 
 ## Pagos en cuotas
 
@@ -245,7 +254,8 @@ El mes de inicio sale del nombre de la edición ("Octubre 2026") o, en las de ag
 pestaña ("Inscriptos Agosto 2026"); si no se puede saber, se le exigen todas las cuotas. Con
 un plan acordado mandan las fechas del plan. En Plata, **"Falta cobrar"** es solo lo que ya
 venció, y las cuotas que todavía no vencieron van aparte como **"Más adelante"**.
-- **No escribe nada en la planilla.** El único scope que pide es `spreadsheets.readonly`.
+- **No escribe nada en la planilla.** El único scope que pide es `spreadsheets.readonly`. Lo único que guarda
+  son las respuestas a los recordatorios, en las propiedades del script (ver Recordatorios).
 
 ## Desplegar cambios
 
