@@ -134,6 +134,13 @@
   .aviso .q { font-size: 15px; font-weight: 600; }
   .aviso.nuevo { border-color: var(--verde); }
   .aviso .p { font-size: 13px; color: var(--tenue); margin-top: 3px; }
+  .aviso.recs { cursor: pointer; }
+  .lista-recs { margin: 6px 0 0; padding-left: 18px; font-size: 14px; }
+  .lista-recs li { margin: 3px 0; }
+  details.rec { border-left: 4px solid var(--linea); padding: 2px 0 2px 10px; margin-bottom: 8px; }
+  details.rec.alta { border-left-color: var(--rojo); }
+  details.rec > summary { color: var(--texto); font-size: 15px; padding: 6px 0; }
+  details.rec .p { font-size: 13px; color: var(--tenue); padding-bottom: 6px; }
 
   .seccion { margin: 24px 0 10px; font-size: 12px; color: var(--tenue);
              text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; }
@@ -875,8 +882,11 @@
     var pasadas = DATOS.ediciones.filter(function (e) { return !e.vigente; });
     var html = '';
 
-    var urgentes = DATOS.alertas.filter(function (a) { return a.nivel === 'alta'; });
+    // Los recordatorios van juntos en UNA tarjeta compacta (solo el título): el
+    // 5/10 hubo 12 alertas altas y la portada era una pared roja.
+    var urgentes = DATOS.alertas.filter(function (a) { return a.nivel === 'alta' && a.tipo !== 'recordatorio'; });
     if (urgentes.length) html += urgentes.map(avisoSinPlata).join('');
+    html += tarjetaRecordatorios();
 
     if (!vigentes.length) html += '<div class="vacio">No hay ninguna edición abierta ni por venir.</div>';
     else html += vigentes.map(tarjeta).join('');
@@ -1117,12 +1127,49 @@
       }).join('') : '<div class="vacio">No hay nadie con eso.</div>');
   }
 
+  /* ---------- recordatorios ---------- */
+  function esRecordatorio(a) { return a.tipo === 'recordatorio'; }
+
+  /** Lo atrasado primero, después HOY, MAÑANA, y al final lo que no tiene fecha. */
+  function urgencia(a) {
+    var t = a.texto || '';
+    return /se hizo\?$/.test(t) ? 0 : /— HOY/.test(t) ? 1 : /— MAÑANA/.test(t) ? 2 : /— sin fecha$/.test(t) ? 4 : 3;
+  }
+  function porUrgencia(lista) {
+    return lista.map(function (a, i) { return { a: a, i: i }; })
+      .sort(function (x, y) { return urgencia(x.a) - urgencia(y.a) || x.i - y.i; })
+      .map(function (x) { return x.a; });
+  }
+
+  /** Portada: los urgentes en una lista de títulos; el resto, solo cuántos. */
+  function tarjetaRecordatorios() {
+    var recs = DATOS.alertas.filter(esRecordatorio);
+    if (!recs.length) return '';
+    var urg = porUrgencia(recs.filter(function (a) { return a.nivel === 'alta'; }));
+    var luego = recs.length - urg.length;
+    var sinMontos = function (t) { return String(t || '').replace(/\$\s?[\d.,]+/g, '$…'); };
+    return '<div class="aviso ' + (urg.length ? 'alta' : 'media') + ' recs" data-ir="alertas">' +
+      '<div class="q">Para hacer' + (urg.length ? ' (' + urg.length + ')' : '') + '</div>' +
+      (urg.length ? '<ul class="lista-recs">' + urg.map(function (a) {
+        return '<li>' + esc(sinMontos(a.texto)) + '</li>';
+      }).join('') + '</ul>' : '') +
+      '<div class="p">' + (luego ? luego + ' más adelante. ' : '') + 'Tocá para ver el detalle.</div></div>';
+  }
+
   /* ---------- alertas ---------- */
   function vistaAlertas() {
     if (!DATOS.alertas.length) {
       return '<div class="vacio">No hay nada para revisar.<br>Los cupos, los pagos y Tikzet cierran.</div>';
     }
-    return DATOS.alertas.map(aviso).join('');
+    var recs = porUrgencia(DATOS.alertas.filter(esRecordatorio));
+    var html = DATOS.alertas.filter(function (a) { return !esRecordatorio(a); }).map(aviso).join('');
+    if (recs.length) {
+      html += '<div class="seccion">Recordatorios (' + recs.length + ')</div>' + recs.map(function (a) {
+        return '<details class="rec ' + a.nivel + '"><summary>' + esc(a.texto) + '</summary>' +
+          '<div class="p">' + esc(a.detalle) + '</div></details>';
+      }).join('');
+    }
+    return html;
   }
   function aviso(a) {
     return '<div class="aviso ' + a.nivel + '"><div class="q">' + esc(a.texto) + '</div>' +
@@ -1155,6 +1202,15 @@
   });
 
   document.getElementById('panel').addEventListener('click', function (ev) {
+    var ir = ev.target.closest('[data-ir]');
+    if (ir) {
+      SOLAPA = ir.dataset.ir;
+      pintarSolapas();
+      pintarPanel();
+      window.scrollTo(0, 0);
+      return;
+    }
+
     var copiar = ev.target.closest('[data-copiar]');
     if (copiar) {
       var ed = DATOS.ediciones.filter(function (x) { return x.id === copiar.dataset.copiar; })[0];

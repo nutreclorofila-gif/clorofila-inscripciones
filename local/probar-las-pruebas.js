@@ -48,6 +48,12 @@ try {
 }
 
 const MUTACIONES = [
+  ['los recordatorios vuelven a ser tarjetas sueltas en la portada', INDEX,
+   "return a.nivel === 'alta' && a.tipo !== 'recordatorio'; });", "return a.nivel === 'alta'; });"],
+  ['la portada muestra el detalle de los recordatorios', INDEX,
+   "return '<li>' + esc(sinMontos(a.texto)) + '</li>';", "return '<li>' + esc(sinMontos(a.texto)) + ' ' + esc(a.detalle) + '</li>';"],
+  ['en Alertas los recordatorios vuelven a ser tarjetas', INDEX,
+   "DATOS.alertas.filter(function (a) { return !esRecordatorio(a); }).map(aviso)", "DATOS.alertas.map(aviso)"],
   ['el grupo sin confirmar no sale en el título', CODIGO,
    "      if (grupo) texto += ' — '", "      if (false) texto += ' — '"],
   ['el recordatorio pendiente no alerta', CODIGO,

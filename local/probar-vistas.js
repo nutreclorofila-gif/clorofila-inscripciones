@@ -584,5 +584,45 @@ else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' vece
   });
 }
 
+// Muchos recordatorios no pueden llenar la portada de tarjetas rojas: el 5/10
+// hubo 12 alertas altas y Leo dijo «quedó con muchísimas alertas la app».
+{
+  console.log('\n--- Muchos recordatorios: una sola tarjeta compacta ---');
+  const { cargar } = require('./cargar.js');
+  const G = cargar();
+  const HREC = ['Qué','Para cuándo','Hora','Detalle','Estado','Quién lo cargó','Cargado el'];
+  const recs = [];
+  for (let i = 1; i <= 9; i++) recs.push(['Cosa de prueba número ' + i, i <= 5 ? '05/10/2026' : '', '', 'Detalle largo de la cosa ' + i, 'Pendiente', '', '']);
+  recs.push(['Cosa para más adelante', '20/10/2026', '', 'Detalle', 'Pendiente', '', '']);
+  const crudo = {
+    panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'], ['Curso de cocina', 'Curso de cocina — Octubre 2026', '15', '0', '15', 'Abierto']],
+    panelFormulas: [['','','','','',''], ['','','',"=COUNTIF('Inscriptos Octubre 2026'!K:K;B2)",'','']],
+    hojas: { 'Inscriptos Octubre 2026': [['nombre','email','celular','actividad','horario','medio','comprobante','monto','verif','fecha','Edición']] },
+    extras: { 'Recordatorios': [HREC].concat(recs),
+              'Pagos en persona': [['Nombre','Canal','Edición','Día acordado','Hora','Monto','Estado','Tally','Notas','Cargado el'],
+                                   ['Visita Prueba', '', 'Curso de cocina — Octubre 2026', '', '', '', 'Pendiente', '', '', '']] }
+  };
+  const est = JSON.parse(JSON.stringify(G.paraElTelefono(G.construirEstado(crudo, new Date(2026, 9, 5, 10)))));
+  const ui = cargarUI(est);
+  const c = ui.vistaCupos(), a = ui.vistaAlertas();
+  const tarjetas = (h) => (h.match(/class="aviso /g) || []).length;
+  [
+    ['la portada muestra los recordatorios en UNA tarjeta, no en 9', tarjetas(c) <= 2],
+    ['la portada nombra cada recordatorio urgente', [1,2,3,4,5,6,7,8,9].every(i => c.includes('Cosa de prueba número ' + i))],
+    ['la portada no muestra el detalle de los recordatorios', !c.includes('Detalle largo de la cosa')],
+    ['la portada avisa cuántos hay para más adelante', /1 más adelante/.test(c)],
+    ['en la portada lo de HOY va antes que lo que no tiene fecha', c.indexOf('Cosa de prueba número 5') < c.indexOf('Cosa de prueba número 6') && (() => {
+      const e2 = JSON.parse(JSON.stringify(est)); e2.alertas.reverse();
+      const c2 = cargarUI(e2).vistaCupos(); return c2.indexOf('número 1 —') < c2.indexOf('número 9 —'); })()],
+    ['la visita al estudio sigue con su tarjeta propia', /Visita Prueba viene al estudio/.test(c)],
+    ['en Alertas cada recordatorio tiene su detalle, plegado', (a.match(/<details class="rec/g) || []).length === 10 && a.includes('Detalle largo de la cosa 3')],
+    ['en Alertas los recordatorios no son tarjetas grandes', tarjetas(a) <= 2]
+  ].forEach(([nombre, ok]) => {
+    corridos++;
+    if (ok) console.log('  ok    ' + nombre);
+    else { fallas++; console.log('  FALLA ' + nombre + '\n        cupos: ' + tarjetas(c) + ' tarjetas; alertas: ' + tarjetas(a)); }
+  });
+}
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);
