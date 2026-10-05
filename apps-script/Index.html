@@ -13,14 +13,14 @@
     --crema: #F5F0E8;
     --verde: #2D4A3E;
     --verde-claro: #5C7A67;
-    --dorado: #A98F5C;
+    --dorado: #7D6838;
     --linea: #E2DBCB;
     --fondo: #FAFAF7;
     --papel: #FFFFFF;
     --texto: #23281F;
-    --tenue: #7A7A70;
+    --tenue: #6B6B62;
     --rojo: #B03A32;
-    --ambar: #9A6B1E;
+    --ambar: #87591A;
     --ambar-fondo: #FDF4E0;
     --rojo-fondo: #FBEBE9;
     --verde-fondo: #EAF0EC;
@@ -54,6 +54,7 @@
   .refrescar {
     border: 1px solid var(--linea); background: var(--papel); color: var(--texto);
     border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px; cursor: pointer;
+    min-height: 44px;
   }
   .refrescar:active { transform: scale(0.97); }
   /* El hueco es grande a propósito: Actualizar se toca todo el tiempo y Salir
@@ -62,7 +63,7 @@
   /* Salir se usa una vez cada tanto: que no le pelee el lugar a Actualizar. */
   .salir {
     border: none; background: none; color: var(--tenue); font: inherit; font-size: 13px;
-    padding: 10px 4px; min-width: 44px; cursor: pointer;
+    padding: 10px 4px; min-width: 44px; min-height: 44px; cursor: pointer;
     text-decoration: underline; text-underline-offset: 3px;
   }
   .salir:active { opacity: 0.6; }
@@ -73,7 +74,7 @@
   .total { background: var(--crema); border-radius: 14px; padding: 10px 8px; text-align: center; }
   .total .n { font-size: 26px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
   .total .n.chico { font-size: 19px; }
-  .total .r { font-size: 11px; color: var(--tenue); text-transform: uppercase; letter-spacing: 0.04em; }
+  .total .r { font-size: 12px; color: var(--tenue); text-transform: uppercase; letter-spacing: 0.04em; }
 
   /* --- solapas --- */
   nav { display: flex; gap: 6px; margin: 12px 0 16px; overflow-x: auto; scrollbar-width: none; }
@@ -81,12 +82,14 @@
   .solapa {
     flex: 0 0 auto; border: none; background: var(--crema); color: var(--texto);
     border-radius: 999px; padding: 9px 15px; font: inherit; font-size: 14px; cursor: pointer;
+    min-height: 44px;
   }
   .solapa[aria-selected="true"] { background: var(--verde); color: var(--fondo); font-weight: 600; }
   .globo {
     display: inline-block; min-width: 19px; margin-left: 6px; padding: 0 5px;
-    border-radius: 999px; background: var(--rojo); color: #fff;
-    font-size: 11px; font-weight: 700; line-height: 19px; text-align: center;
+    /* var(--papel) y no blanco: en modo oscuro el rojo es claro y el blanco encima daba 2,5 de contraste. */
+    border-radius: 999px; background: var(--rojo); color: var(--papel);
+    font-size: 12px; font-weight: 700; line-height: 19px; text-align: center;
   }
   .solapa[aria-selected="true"] .globo { background: var(--fondo); color: var(--verde); }
 
@@ -123,7 +126,7 @@
   .persona .quien { min-width: 0; flex: 1; }
   .persona .nom { font-size: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .persona .sub { font-size: 12px; color: var(--tenue); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .chip { flex: 0 0 auto; font-size: 11.5px; font-weight: 600; padding: 4px 9px; border-radius: 999px; white-space: nowrap; }
+  .chip { flex: 0 0 auto; font-size: 12px; font-weight: 600; padding: 4px 9px; border-radius: 999px; white-space: nowrap; }
   .chip.completo { background: var(--verde-fondo); color: var(--verde); }
   .chip.al_dia   { background: var(--verde-fondo); color: var(--verde); }
   .chip.cubierto { background: var(--crema); color: var(--tenue); }
@@ -143,7 +146,7 @@
           padding: 8px 12px 6px; margin-bottom: 12px; cursor: pointer; }
   .pend-cab { display: flex; justify-content: space-between; align-items: center;
               font-size: 13px; font-weight: 600; margin-bottom: 2px; }
-  .pend-n { background: var(--rojo); color: var(--papel); border-radius: 999px; font-size: 11px;
+  .pend-n { background: var(--rojo); color: var(--papel); border-radius: 999px; font-size: 12px;
             min-width: 20px; text-align: center; padding: 1px 6px; }
   .pend-fila { display: flex; align-items: center; gap: 7px; font-size: 13px; padding: 3px 0;
                border-top: 1px solid var(--linea); }
@@ -151,12 +154,13 @@
   .punto { width: 7px; height: 7px; border-radius: 50%; background: var(--tenue); flex: none; }
   .punto.alta { background: var(--rojo); }
   .pend-t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .pend-c { font-size: 11px; color: var(--tenue); flex: none; }
+  .pend-c { font-size: 12px; color: var(--tenue); flex: none; }
   .pend-pie { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--tenue); padding-top: 4px; }
-  .grupo-recs { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--tenue); margin: 10px 0 2px; }
-  details.rec { border-left: 4px solid var(--linea); padding: 2px 0 2px 10px; margin-bottom: 8px; }
+  .grupo-recs { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--tenue); margin: 10px 0 2px; }
+  details.rec { border-left: 4px solid var(--linea); padding: 0 0 0 10px; margin-bottom: 4px; }
   details.rec.alta { border-left-color: var(--rojo); }
-  details.rec > summary { color: var(--texto); font-size: 14px; padding: 4px 0; }
+  /* 44 px de alto: con 28 px se tocaba el renglón de al lado (revisión del 5/10). */
+  details.rec > summary { color: var(--texto); font-size: 14px; padding: 12px 0; min-height: 44px; box-sizing: border-box; }
   details.rec > summary::after { content: ' ▸'; color: var(--tenue); }
   details.rec[open] > summary::after { content: ' ▾'; }
   details.rec .p { font-size: 13px; color: var(--tenue); padding-bottom: 6px; }
@@ -164,7 +168,7 @@
   .responder {
     border: 1px solid var(--linea); background: var(--papel); color: var(--verde);
     border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 13px; font-weight: 600;
-    cursor: pointer; margin: 2px 0 8px;
+    cursor: pointer; margin: 2px 0 8px; min-height: 44px;
   }
   .responder[disabled] { opacity: 0.5; }
   .resp-txt {
@@ -181,7 +185,7 @@
 
   .seccion { margin: 24px 0 10px; font-size: 12px; color: var(--tenue);
              text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; }
-  details > summary { cursor: pointer; list-style: none; color: var(--tenue); font-size: 14px; padding: 10px 0; }
+  details > summary { cursor: pointer; list-style: none; color: var(--tenue); font-size: 14px; padding: 12px 0; min-height: 44px; box-sizing: border-box; }
   details > summary::-webkit-details-marker { display: none; }
   .vacio { color: var(--tenue); font-size: 15px; padding: 26px 4px; text-align: center; }
   .buscador {
@@ -209,7 +213,7 @@
   }
   .veces {
     display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px;
-    background: var(--crema); color: var(--dorado); font-size: 11px; font-weight: 700;
+    background: var(--crema); color: var(--dorado); font-size: 12px; font-weight: 700;
     vertical-align: middle;
   }
   .espera-chip { background: var(--crema); color: var(--tenue); }

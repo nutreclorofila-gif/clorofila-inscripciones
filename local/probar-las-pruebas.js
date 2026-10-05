@@ -48,6 +48,9 @@ try {
 }
 
 const MUTACIONES = [
+  ['el gris vuelve al de antes, con contraste flojo', INDEX, "    --tenue: #6B6B62;\n", "    --tenue: #7A7A70;\n"],
+  ['el numerito vuelve a blanco', INDEX, "background: var(--rojo); color: var(--papel);\n    font-size: 12px;", "background: var(--rojo); color: #fff;\n    font-size: 12px;"],
+  ['los renglones de Alertas vuelven a 28 px', INDEX, "padding: 12px 0; min-height: 44px; box-sizing: border-box; }\n  details.rec > summary::after", "padding: 4px 0; }\n  details.rec > summary::after"],
   ['los acompañantes vuelven a amontonarse arriba', INDEX,
    "return m ? m[1] + ' \\uffff' : n;", "return n;"],
   ['los números de los anulados viajan al teléfono', CODIGO,

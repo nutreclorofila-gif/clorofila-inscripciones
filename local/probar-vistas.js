@@ -730,5 +730,37 @@ else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' vece
   else { fallas++; console.log('  FALLA el acompañante queda debajo de quien lo trae\n        ' + [i('Bea Prueba'), i('Zoe Prueba'), i('Acompañante sin nombre de Zoe Prueba')]); }
 }
 
+// Revisión de diseño del 5/10: contraste AA (4,5) en los dos modos y 44 px para el dedo.
+{
+  console.log('\n--- Contraste y tamaño táctil ---');
+  const claro = {}, oscuro = {};
+  const root = fuente.match(/:root\s*\{([^}]*)\}/)[1];
+  const dark = fuente.match(/@media \(prefers-color-scheme: dark\)\s*\{\s*:root[^{]*\{([^}]*)\}/)[1];
+  root.replace(/--([\w-]+):\s*(#[0-9A-Fa-f]{6})/g, (m, k, v) => { claro[k] = v; });
+  Object.assign(oscuro, claro);
+  dark.replace(/--([\w-]+):\s*(#[0-9A-Fa-f]{6})/g, (m, k, v) => { oscuro[k] = v; });
+  const lum = (h) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255)
+    .map(v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4))
+    .reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const pares = [['tenue', 'fondo'], ['tenue', 'papel'], ['tenue', 'crema'], ['ambar', 'ambar-fondo'], ['dorado', 'crema'],
+                 ['texto', 'papel'], ['papel', 'rojo'], ['rojo', 'papel']];
+  const flojos = [];
+  [['claro', claro], ['oscuro', oscuro]].forEach(([modo, t]) => pares.forEach(([c, f]) => {
+    const r = ratio(t[c], t[f]); if (r < 4.5) flojos.push(modo + ' ' + c + '/' + f + ' ' + r.toFixed(2));
+  }));
+  const toques = ['.solapa {', '.refrescar {', 'details.rec > summary {', '.responder {', 'details > summary {'];
+  const sinAlto = toques.filter(sel => { const i = fuente.indexOf('  ' + sel); return i < 0 || !/min-height:\s*44px/.test(fuente.slice(i, fuente.indexOf('}', i))); });
+  [
+    ['todos los textos secundarios pasan el contraste en los dos modos', flojos.length === 0, flojos.join(', ')],
+    ['el numerito rojo no usa blanco fijo (en modo oscuro el rojo es claro)', /\.globo \{[^}]*color: var\(--papel\)/.test(fuente), ''],
+    ['lo que se toca mide al menos 44 px de alto', sinAlto.length === 0, sinAlto.join(', ')]
+  ].forEach(([nombre, ok, det]) => {
+    corridos++;
+    if (ok) console.log('  ok    ' + nombre);
+    else { fallas++; console.log('  FALLA ' + nombre + '\n        ' + det); }
+  });
+}
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);
