@@ -1074,7 +1074,7 @@ function leerRecordatorios(filas) {
       fila: i + 2, que: que, dia: dia,
       fecha: p ? new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0])) : null,
       hora: String(f[2] || '').trim(), detalle: String(f[3] || '').trim(),
-      estado: /^hech|^cancel|^anul/.test(e) ? 'cerrado' : 'pendiente',
+      estado: /^hech|^cancel|^anul/.test(e) ? 'cerrado' : /^deleg/.test(e) ? 'delegado' : 'pendiente',
       quien: String(f[5] || '').trim()
     });
   });
@@ -2381,6 +2381,15 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
   // l) Recordatorios. Alta si es para hoy o mañana, si pasó o si no tiene fecha
   //    (sin fecha no hay otro momento en que aparezca); media si falta más.
   (recordatorios || []).forEach(function (r) {
+    // Delegado: lo está haciendo otra sesión. No es de Leo: va aparte, sin urgencia.
+    if (r.estado === 'delegado') {
+      alertas.push({
+        nivel: 'info', tipo: 'recordatorio_delegado', edicion: '', texto: r.que,
+        detalle: (r.detalle ? r.detalle.replace(/[.\s]+$/, '') + '. ' : '') + 'Cuando esté, la sesión pone Hecho. ' +
+                 'En la pestaña "' + HOJA_RECORDATORIOS + '", fila ' + r.fila + '.'
+      });
+      return;
+    }
     if (r.estado !== 'pendiente') return;
     var dias = r.fecha ? Math.round((r.fecha - hoyDia) / 86400000) : null;
     var cuando = dias === null ? 'sin fecha'

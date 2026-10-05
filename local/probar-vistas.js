@@ -608,16 +608,18 @@ else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' vece
   const tarjetas = (h) => (h.match(/class="aviso /g) || []).length;
   [
     ['la portada muestra los recordatorios en UNA tarjeta, no en 9', tarjetas(c) <= 2],
-    ['la portada nombra cada recordatorio de hoy', [1,2,3,4,5].every(i => c.includes('Cosa de prueba número ' + i))],
+    ['la portada muestra a lo sumo 4 renglones', (c.match(/class="pend-fila"/g) || []).length === 4],
+    ['los renglones son de una línea (se cortan con …)', /\.pend-t \{[^}]*text-overflow: ellipsis/.test(fuente)],
+    ['la portada dice cuántos más hay para hoy', /\+2 hoy/.test(c)],
     ['lo sin fecha en la portada va solo como cantidad', !c.includes('Cosa de prueba número 7') && /4 sin fecha/.test(c)],
     ['la portada no muestra el detalle de los recordatorios', !c.includes('Detalle largo de la cosa')],
-    ['la portada avisa cuántos hay para más adelante', /1 más adelante/.test(c)],
-    ['el título cuenta todos los recordatorios', /Para hacer \(10\)/.test(c)],
+    ['la portada avisa cuántos hay para más adelante', /1 después/.test(c)],
+    ['la tarjeta cuenta todos los pendientes', /pend-n">11</.test(c)],
     ['en Alertas lo de HOY va antes que lo que no tiene fecha', a.indexOf('Cosa de prueba número 5') < a.indexOf('Cosa de prueba número 6') && (() => {
       const e2 = JSON.parse(JSON.stringify(est)); e2.alertas.reverse();
       const a2 = cargarUI(e2).vistaAlertas(); return a2.indexOf('número 1<') < a2.indexOf('número 9<'); })()],
-    ['la visita al estudio va en su propia tarjeta, separada de los recordatorios', /Vienen a pagar al estudio \(1\)[\s\S]*Visita Prueba viene al estudio[\s\S]*Para hacer/.test(c)],
-    ['los recordatorios de la portada van bajo "Hoy"', /grupo-recs">Hoy</.test(c)],
+    ['la visita al estudio va primero', /pend-fila[\s\S]*?Visita Prueba viene al estudio a pagar<[\s\S]*Cosa de prueba número 1/.test(c)],
+    ['cada renglón de la portada dice cuándo', /pend-c">hoy</.test(c) && /pend-c">a pagar</.test(c)],
     ['dentro de "Hoy" no se repite "— HOY" en cada línea', !/número 1 — HOY/.test(c)],
     ['en Alertas los recordatorios también van agrupados', /grupo-recs">Hoy</.test(a) && /grupo-recs">Más adelante</.test(a)],
     ['en Alertas cada recordatorio y la visita tienen su detalle, plegado', (a.match(/<details class="rec/g) || []).length === 11 && a.includes('Detalle largo de la cosa 3')],

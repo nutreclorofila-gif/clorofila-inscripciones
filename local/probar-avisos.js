@@ -98,5 +98,9 @@ caso('si el grupo está sin confirmar, el asunto del mail lo dice',
     const r = A.queAvisar([H, f], a10, { visto: { 'ana prueba|curso de cocina — octubre 2026 (grupo sin confirmar: jueves 10-12h o miercoles 19-21h)': true } });
     return /GRUPO SIN CONFIRMAR: jueves 10-12h o miércoles 19-21h\?/.test((r.mails[0] || {}).asunto) || JSON.stringify(r.mails.map(m => m.asunto)); });
 
+caso('un recordatorio Delegado no le llega a Leo',
+  'lo está haciendo otra sesión: Leo pidió que le quede solo lo que tiene que decidir él',
+  () => A.queAvisar([H], a10, {}, [HR, R('Algo delegado', '01/11/2026', 'Delegado')]).mails.length === 0 || 'avisó algo Delegado');
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 process.exit(fallas ? 1 : 0);

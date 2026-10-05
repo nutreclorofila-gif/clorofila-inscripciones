@@ -63,7 +63,7 @@ function sinTildes(s) {
 
 function estadoDe(texto) {
   var e = sinTildes(texto);
-  return !e || /^pend/.test(e) ? 'pendiente' : /^pag/.test(e) ? 'pago' : /^hech/.test(e) ? 'hecho'
+  return !e || /^pend/.test(e) ? 'pendiente' : /^pag/.test(e) ? 'pago' : /^hech/.test(e) ? 'hecho' : /^deleg/.test(e) ? 'delegado'
        : /^no vin/.test(e) ? 'no_vino' : /^cancel|^anul/.test(e) ? 'cancelado' : 'pendiente';
 }
 

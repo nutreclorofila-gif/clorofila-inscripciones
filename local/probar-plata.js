@@ -935,6 +935,15 @@ caso(
   () => tipos(conRec([['Uno', '01/11/2026', '', '', 'Hecho', '', ''], ['Dos', '01/11/2026', '', '', 'Cancelado', '', '']]), 'recordatorio').length === 0 || 'alertó algo resuelto'
 );
 caso(
+  'un recordatorio Delegado no es de Leo: sale aparte, como info',
+  'Leo pidió que le quede solo lo que tiene que decidir él; lo de las sesiones no puede competir con eso',
+  () => {
+    const e = conRec([['Algo delegado', '01/11/2026', '', 'Lo hace: Seguimiento', 'Delegado', '', '']]);
+    const d = tipos(e, 'recordatorio_delegado');
+    return (tipos(e, 'recordatorio').length === 0 && d.length === 1 && d[0].nivel === 'info') || JSON.stringify(e.alertas.map(a => a.tipo + ':' + a.nivel));
+  }
+);
+caso(
   'la pestaña de recordatorios no se cuenta como una edición',
   'no es gente anotada',
   () => G.HOJAS_IGNORADAS.map(G.normalizarNombre).indexOf(G.normalizarNombre(REC)) !== -1 || 'no está en HOJAS_IGNORADAS'
