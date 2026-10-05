@@ -713,7 +713,7 @@ else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' vece
   let c = '';
   try { c = cargarUI(est).vistaCupos(); } catch (e) { c = 'ERROR ' + e.message; }
   corridos++;
-  if (/<details><summary>1 anotado que no ocupa cupo[^<]*<\/summary>[\s\S]*Persona Anulada[\s\S]*<\/details>/.test(c)) console.log('  ok    los anulados van plegados, con la cantidad');
+  if (/<details><summary>1 anotado que no ocupa cupo[^<]*<\/summary>(?:(?!<\/details>)[\s\S])*Persona Anulada/.test(c)) console.log('  ok    los anulados van plegados, con la cantidad');
   else { fallas++; console.log('  FALLA los anulados van plegados, con la cantidad\n        ' + c.slice(0, 300)); }
 }
 
