@@ -92,5 +92,11 @@ caso('varias cosas nuevas juntas van en un solo mail',
   () => { const r = A.queAvisar([H, V('Ana Prueba', '05/11/2026'), V('Otra Prueba', '')], a8, {}, [HR, R('Algo', ''), R('Otra cosa', '06/11/2026')]);
     return (r.mails.length === 1 && /^4 cosas nuevas: /.test(r.mails[0].asunto) && /Otra cosa/.test(r.mails[0].cuerpo)) || JSON.stringify(r.mails.map(m => m.asunto)); });
 
+caso('si el grupo está sin confirmar, el asunto del mail lo dice',
+  'lo que hay que decidir es el grupo, y el asunto es lo que se ve en la notificación',
+  () => { const f = V('Ana Prueba', ''); f[2] = 'Curso de cocina — Octubre 2026 (grupo SIN confirmar: jueves 10-12h o miércoles 19-21h)';
+    const r = A.queAvisar([H, f], a10, { visto: { 'ana prueba|curso de cocina — octubre 2026 (grupo sin confirmar: jueves 10-12h o miercoles 19-21h)': true } });
+    return /GRUPO SIN CONFIRMAR: jueves 10-12h o miércoles 19-21h\?/.test((r.mails[0] || {}).asunto) || JSON.stringify(r.mails.map(m => m.asunto)); });
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 process.exit(fallas ? 1 : 0);

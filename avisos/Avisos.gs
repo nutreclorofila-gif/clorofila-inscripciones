@@ -72,6 +72,12 @@ function fechaDe(texto) {
   return m ? { fecha: new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])), dia: m[1] + '/' + m[2] } : { fecha: null, dia: '' };
 }
 
+/** " — GRUPO SIN CONFIRMAR: jueves o miércoles?" si la edición lo dice; si no, nada. */
+function grupoSinConfirmar(edicion) {
+  var g = (String(edicion || '').match(/\(([^)]*sin confirmar[^)]*)\)/i) || [])[1];
+  return g ? ' — ' + g.replace(/^grupo sin confirmar/i, 'GRUPO SIN CONFIRMAR') + '?' : '';
+}
+
 /** "Pagos en persona": Nombre, Canal, Edición, Día, Hora, Monto, Estado, Tally, Notas, Cargado el. */
 function leerFilas(filas) {
   var res = [];
@@ -80,7 +86,7 @@ function leerFilas(filas) {
     if (!nombre) return;
     var d = fechaDe(f[3]);
     res.push({
-      tipo: 'visita', fila: i + 2, nombre: nombre, titulo: nombre + ' viene al estudio a pagar',
+      tipo: 'visita', fila: i + 2, nombre: nombre, titulo: nombre + ' viene al estudio a pagar' + grupoSinConfirmar(f[2]),
       edicion: String(f[2] || '').trim(), fecha: d.fecha, dia: d.dia, hora: String(f[4] || '').trim(),
       monto: String(f[5] || '').trim(), estado: estadoDe(f[6]), notas: String(f[8] || '').trim(),
       clave: sinTildes(nombre) + '|' + sinTildes(f[2])

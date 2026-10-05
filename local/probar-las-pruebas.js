@@ -48,6 +48,8 @@ try {
 }
 
 const MUTACIONES = [
+  ['el grupo sin confirmar no sale en el título', CODIGO,
+   "      if (grupo) texto += ' — '", "      if (false) texto += ' — '"],
   ['el recordatorio pendiente no alerta', CODIGO,
    "    if (r.estado !== 'pendiente') return;", "    return;"],
   ['el recordatorio de la semana que viene sale como alta', CODIGO,

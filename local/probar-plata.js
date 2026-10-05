@@ -880,6 +880,21 @@ caso(
 );
 
 
+caso(
+  'si el grupo está sin confirmar, el título lo dice con las opciones',
+  'lo que Leo tiene que decidir es el grupo: si solo se ve "día a confirmar", parece que falta nada más el día',
+  () => {
+    const a = tipos(conVisitas([['Visita Prueba', '', 'Curso de cocina — Noviembre 2026 (grupo SIN confirmar: jueves 10-12h o miércoles 19-21h)', '', '', '', 'Pendiente', '', '', '']]), 'pago_en_persona');
+    return (a.length === 1 && /GRUPO SIN CONFIRMAR: jueves 10-12h o miércoles 19-21h\?/.test(a[0].texto)) || (a[0] || {}).texto;
+  }
+);
+caso(
+  'con el grupo confirmado el título no habla de grupo',
+  'decir "sin confirmar" cuando está confirmado confunde',
+  () => { const a = tipos(conVisitas([['Visita Prueba', '', ED_V, '', '', '', 'Pendiente', '', '', '']]), 'pago_en_persona');
+    return (a.length === 1 && !/GRUPO/.test(a[0].texto)) || a[0].texto; }
+);
+
 console.log('\n--- Recordatorios ---');
 const REC = 'Recordatorios';
 const HREC = ['Qué','Para cuándo','Hora','Detalle','Estado','Quién lo cargó','Cargado el'];

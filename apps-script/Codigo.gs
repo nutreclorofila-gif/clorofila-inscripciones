@@ -2353,6 +2353,10 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
           ? v.nombre + ': tenía que venir a pagar el ' + v.dia.slice(0, 5) + ' — ¿vino?'
           : v.nombre + ' viene al estudio a pagar — ' + cuando + (v.hora ? ' a las ' + v.hora : '');
       }
+      // Si la edición dice "sin confirmar", lo que hay que decidir es el grupo,
+      // no solo el día: tiene que estar en el título, que es lo que se ve.
+      var grupo = (v.edicion.match(/\(([^)]*sin confirmar[^)]*)\)/i) || [])[1];
+      if (grupo) texto += ' — ' + grupo.replace(/^grupo sin confirmar/i, 'GRUPO SIN CONFIRMAR') + '?';
       alertas.push({
         nivel: 'alta', tipo: 'pago_en_persona', edicion: v.edicion,
         texto: texto,
