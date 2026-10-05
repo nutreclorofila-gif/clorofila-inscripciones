@@ -49,11 +49,15 @@ try {
 
 const MUTACIONES = [
   ['los recordatorios vuelven a ser tarjetas sueltas en la portada', INDEX,
-   "return a.nivel === 'alta' && a.tipo !== 'recordatorio'; });", "return a.nivel === 'alta'; });"],
+   "return a.nivel === 'alta' && !esCargada(a); });", "return a.nivel === 'alta'; });"],
   ['la portada muestra el detalle de los recordatorios', INDEX,
-   "return '<li>' + esc(sinMontos(a.texto)) + '</li>';", "return '<li>' + esc(sinMontos(a.texto)) + ' ' + esc(a.detalle) + '</li>';"],
+   "x.items.map(function (a) { return '<li>' + esc(corto(a)) + '</li>'; })", "x.items.map(function (a) { return '<li>' + esc(corto(a)) + ' ' + esc(a.detalle) + '</li>'; })"],
   ['en Alertas los recordatorios vuelven a ser tarjetas', INDEX,
-   "DATOS.alertas.filter(function (a) { return !esRecordatorio(a); }).map(aviso)", "DATOS.alertas.map(aviso)"],
+   "var resto = DATOS.alertas.filter(function (a) { return !esCargada(a); });", "var resto = DATOS.alertas;"],
+  ['los recordatorios dejan de agruparse por cuándo', INDEX,
+   "lista.forEach(function (a) { g[urgencia(a)].items.push(a); });", "lista.forEach(function (a) { g[3].items.push(a); });"],
+  ['"— HOY" se repite en cada línea', INDEX,
+   ".replace(/ — (HOY|MAÑANA)( a las (.+))?$/,", ".replace(/ — (NUNCA)( a las (.+))?$/,"],
   ['el grupo sin confirmar no sale en el título', CODIGO,
    "      if (grupo) texto += ' — '", "      if (false) texto += ' — '"],
   ['el recordatorio pendiente no alerta', CODIGO,

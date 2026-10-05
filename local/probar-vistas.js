@@ -613,9 +613,12 @@ else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' vece
     ['la portada avisa cuántos hay para más adelante', /1 más adelante/.test(c)],
     ['en la portada lo de HOY va antes que lo que no tiene fecha', c.indexOf('Cosa de prueba número 5') < c.indexOf('Cosa de prueba número 6') && (() => {
       const e2 = JSON.parse(JSON.stringify(est)); e2.alertas.reverse();
-      const c2 = cargarUI(e2).vistaCupos(); return c2.indexOf('número 1 —') < c2.indexOf('número 9 —'); })()],
-    ['la visita al estudio sigue con su tarjeta propia', /Visita Prueba viene al estudio/.test(c)],
-    ['en Alertas cada recordatorio tiene su detalle, plegado', (a.match(/<details class="rec/g) || []).length === 10 && a.includes('Detalle largo de la cosa 3')],
+      const c2 = cargarUI(e2).vistaCupos(); return c2.indexOf('número 1<') < c2.indexOf('número 9<'); })()],
+    ['la visita al estudio va en su propia tarjeta, separada de los recordatorios', /Vienen a pagar al estudio \(1\)[\s\S]*Visita Prueba viene al estudio[\s\S]*Para hacer/.test(c)],
+    ['los recordatorios de la portada van agrupados: Hoy y Sin fecha', /grupo-recs">Hoy<[\s\S]*grupo-recs">Sin fecha</.test(c)],
+    ['dentro de "Hoy" no se repite "— HOY" en cada línea', !/número 1 — HOY/.test(c)],
+    ['en Alertas los recordatorios también van agrupados', /grupo-recs">Hoy</.test(a) && /grupo-recs">Más adelante</.test(a)],
+    ['en Alertas cada recordatorio y la visita tienen su detalle, plegado', (a.match(/<details class="rec/g) || []).length === 11 && a.includes('Detalle largo de la cosa 3')],
     ['en Alertas los recordatorios no son tarjetas grandes', tarjetas(a) <= 2]
   ].forEach(([nombre, ok]) => {
     corridos++;

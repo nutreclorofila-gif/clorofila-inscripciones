@@ -137,6 +137,7 @@
   .aviso.recs { cursor: pointer; }
   .lista-recs { margin: 6px 0 0; padding-left: 18px; font-size: 14px; }
   .lista-recs li { margin: 3px 0; }
+  .grupo-recs { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--tenue); margin: 10px 0 2px; }
   details.rec { border-left: 4px solid var(--linea); padding: 2px 0 2px 10px; margin-bottom: 8px; }
   details.rec.alta { border-left-color: var(--rojo); }
   details.rec > summary { color: var(--texto); font-size: 15px; padding: 6px 0; }
@@ -886,9 +887,9 @@
 
     // Los recordatorios van juntos en UNA tarjeta compacta (solo el título): el
     // 5/10 hubo 12 alertas altas y la portada era una pared roja.
-    var urgentes = DATOS.alertas.filter(function (a) { return a.nivel === 'alta' && a.tipo !== 'recordatorio'; });
+    var urgentes = DATOS.alertas.filter(function (a) { return a.nivel === 'alta' && !esCargada(a); });
+    html += tarjetaVisitas() + tarjetaRecordatorios();
     if (urgentes.length) html += urgentes.map(avisoSinPlata).join('');
-    html += tarjetaRecordatorios();
 
     if (!vigentes.length) html += '<div class="vacio">No hay ninguna edición abierta ni por venir.</div>';
     else html += vigentes.map(tarjeta).join('');
@@ -1129,33 +1130,57 @@
       }).join('') : '<div class="vacio">No hay nadie con eso.</div>');
   }
 
-  /* ---------- recordatorios ---------- */
+  /* ---------- recordatorios y pagos en persona ---------- */
+  // Las alertas que carga la gente (no las que calcula la app): van agrupadas por
+  // cuándo hay que hacerlas, con títulos cortos. El 5/10 hubo 12 alertas altas
+  // sueltas y Leo dijo «quedó con muchísimas alertas» y «tiene que quedar más
+  // organizado».
   function esRecordatorio(a) { return a.tipo === 'recordatorio'; }
+  function esVisita(a) { return a.tipo === 'pago_en_persona'; }
+  function esCargada(a) { return esRecordatorio(a) || esVisita(a); }
 
-  /** Lo atrasado primero, después HOY, MAÑANA, y al final lo que no tiene fecha. */
+  var GRUPOS = ['Atrasado', 'Hoy', 'Mañana', 'Sin fecha', 'Más adelante'];
+  /** 0 atrasado · 1 hoy · 2 mañana · 3 sin fecha / día a confirmar · 4 más adelante. */
   function urgencia(a) {
     var t = a.texto || '';
-    return /se hizo\?$/.test(t) ? 0 : /— HOY/.test(t) ? 1 : /— MAÑANA/.test(t) ? 2 : /— sin fecha$/.test(t) ? 4 : 3;
+    return /se hizo\?$|¿vino\?$/.test(t) ? 0 : /— HOY/.test(t) ? 1 : /— MAÑANA/.test(t) ? 2
+         : /— sin fecha$|— día a confirmar/.test(t) ? 3 : 4;
   }
-  function porUrgencia(lista) {
-    return lista.map(function (a, i) { return { a: a, i: i }; })
-      .sort(function (x, y) { return urgencia(x.a) - urgencia(y.a) || x.i - y.i; })
-      .map(function (x) { return x.a; });
+  /** El título sin el "— HOY" del final, que ya lo dice el subtítulo del grupo. */
+  function corto(a) {
+    var t = String(a.texto || '').replace(/\$\s?[\d.,]+/g, '$…');
+    if (!esRecordatorio(a)) return t;
+    return t.replace(/ — (HOY|MAÑANA)( a las (.+))?$/, function (m, d, x, h) { return h ? ' (' + h + ')' : ''; })
+            .replace(/ — sin fecha$/, '');
+  }
+  function agrupar(lista) {
+    var g = GRUPOS.map(function (n) { return { nombre: n, items: [] }; });
+    lista.forEach(function (a) { g[urgencia(a)].items.push(a); });
+    return g.filter(function (x) { return x.items.length; });
   }
 
-  /** Portada: los urgentes en una lista de títulos; el resto, solo cuántos. */
+  /** Portada: dos tarjetas compactas, solo títulos. El detalle está en Alertas. */
+  function tarjetaVisitas() {
+    var v = DATOS.alertas.filter(esVisita);
+    if (!v.length) return '';
+    return '<div class="aviso alta recs" data-ir="alertas"><div class="q">Vienen a pagar al estudio (' + v.length + ')</div>' +
+      '<ul class="lista-recs">' + v.map(function (a) { return '<li>' + esc(corto(a)) + '</li>'; }).join('') + '</ul>' +
+      '<div class="p">Tocá para ver el detalle.</div></div>';
+  }
   function tarjetaRecordatorios() {
     var recs = DATOS.alertas.filter(esRecordatorio);
     if (!recs.length) return '';
-    var urg = porUrgencia(recs.filter(function (a) { return a.nivel === 'alta'; }));
-    var luego = recs.length - urg.length;
-    var sinMontos = function (t) { return String(t || '').replace(/\$\s?[\d.,]+/g, '$…'); };
-    return '<div class="aviso ' + (urg.length ? 'alta' : 'media') + ' recs" data-ir="alertas">' +
-      '<div class="q">Para hacer' + (urg.length ? ' (' + urg.length + ')' : '') + '</div>' +
-      (urg.length ? '<ul class="lista-recs">' + urg.map(function (a) {
-        return '<li>' + esc(sinMontos(a.texto)) + '</li>';
-      }).join('') + '</ul>' : '') +
-      '<div class="p">' + (luego ? luego + ' más adelante. ' : '') + 'Tocá para ver el detalle.</div></div>';
+    var grupos = agrupar(recs);
+    var luego = grupos.filter(function (x) { return x.nombre === 'Más adelante'; })[0];
+    var cerca = grupos.filter(function (x) { return x.nombre !== 'Más adelante'; });
+    var total = cerca.reduce(function (n, x) { return n + x.items.length; }, 0);
+    return '<div class="aviso ' + (total ? 'alta' : 'media') + ' recs" data-ir="alertas">' +
+      '<div class="q">Para hacer' + (total ? ' (' + total + ')' : '') + '</div>' +
+      cerca.map(function (x) {
+        return '<div class="grupo-recs">' + x.nombre + '</div><ul class="lista-recs">' +
+          x.items.map(function (a) { return '<li>' + esc(corto(a)) + '</li>'; }).join('') + '</ul>';
+      }).join('') +
+      '<div class="p">' + (luego ? luego.items.length + ' más adelante. ' : '') + 'Tocá para ver el detalle.</div></div>';
   }
 
   /* ---------- alertas ---------- */
@@ -1163,14 +1188,22 @@
     if (!DATOS.alertas.length) {
       return '<div class="vacio">No hay nada para revisar.<br>Los cupos, los pagos y Tikzet cierran.</div>';
     }
-    var recs = porUrgencia(DATOS.alertas.filter(esRecordatorio));
-    var html = DATOS.alertas.filter(function (a) { return !esRecordatorio(a); }).map(aviso).join('');
+    var plegable = function (a) {
+      return '<details class="rec ' + a.nivel + '"><summary>' + esc(corto(a)) + '</summary>' +
+        '<div class="p">' + esc(a.detalle) + '</div></details>';
+    };
+    var html = '';
+    var visitas = DATOS.alertas.filter(esVisita);
+    if (visitas.length) html += '<div class="seccion">Vienen a pagar al estudio (' + visitas.length + ')</div>' + visitas.map(plegable).join('');
+    var recs = DATOS.alertas.filter(esRecordatorio);
     if (recs.length) {
-      html += '<div class="seccion">Recordatorios (' + recs.length + ')</div>' + recs.map(function (a) {
-        return '<details class="rec ' + a.nivel + '"><summary>' + esc(a.texto) + '</summary>' +
-          '<div class="p">' + esc(a.detalle) + '</div></details>';
+      html += '<div class="seccion">Para hacer (' + recs.length + ')</div>' + agrupar(recs).map(function (x) {
+        return '<div class="grupo-recs">' + x.nombre + '</div>' + x.items.map(plegable).join('');
       }).join('');
     }
+    var resto = DATOS.alertas.filter(function (a) { return !esCargada(a); });
+    if (resto.length) html += (visitas.length || recs.length ? '<div class="seccion">Revisar en la planilla (' + resto.length + ')</div>' : '') +
+      resto.map(aviso).join('');
     return html;
   }
   function aviso(a) {
