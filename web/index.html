@@ -1309,7 +1309,7 @@
       pintarPanel();
     }
     var corte = setTimeout(function () { fin({ ok: false, error: 'Google no contestó a tiempo. Probá de nuevo.' }); }, ESPERA_RESPUESTA);
-    var sinRespuesta = function () {
+    var sinContestar = function () {
       return { ok: false, error: navigator.onLine === false ? 'El teléfono está sin señal.' : 'No llegó respuesta de Google. Probá de nuevo.' };
     };
     fetch(API, { method: 'POST', credentials: 'omit',
@@ -1317,8 +1317,8 @@
       .then(function (r) {
         return r.text().then(function (t) {
           try { return JSON.parse(t); } catch (x) { return { ok: false, error: 'Google no mandó la respuesta esperada. Probá de nuevo.' }; }
-        }, sinRespuesta);
-      }, sinRespuesta)
+        }, sinContestar);
+      }, sinContestar)
       .then(fin);
   }
 
