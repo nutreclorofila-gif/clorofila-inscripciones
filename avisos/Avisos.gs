@@ -136,13 +136,19 @@ function queAvisar(filas, ahora, estado, filasRec) {
     .filter(function (v) { return v.estado === 'pendiente'; });
   var mails = [];
 
+  // Lo nuevo va en UN mail: si se cargan varias cosas juntas, un mail por cada
+  // una es una ráfaga que se termina ignorando.
   var nuevas = pend.filter(function (v) { return !est.visto[v.clave]; });
-  nuevas.forEach(function (v) {
-    mails.push(v.tipo === 'visita'
-      ? { asunto: 'Pago en persona: ' + v.nombre, cuerpo: 'Se cargó una visita para pagar en el estudio:\n\n' + linea(v, hoy) }
-      : { asunto: 'Recordatorio: ' + v.titulo, cuerpo: 'Se cargó un recordatorio:\n\n' + linea(v, hoy) });
-    est.visto[v.clave] = true;
-  });
+  if (nuevas.length === 1) {
+    var v1 = nuevas[0];
+    mails.push(v1.tipo === 'visita'
+      ? { asunto: 'Pago en persona: ' + v1.nombre, cuerpo: 'Se cargó una visita para pagar en el estudio:\n\n' + linea(v1, hoy) }
+      : { asunto: 'Recordatorio: ' + v1.titulo, cuerpo: 'Se cargó un recordatorio:\n\n' + linea(v1, hoy) });
+  } else if (nuevas.length > 1) {
+    mails.push({ asunto: nuevas.length + ' cosas nuevas: ' + nuevas.map(function (v) { return v.titulo; }).join('; '),
+                 cuerpo: 'Se cargaron:\n\n' + nuevas.map(function (v) { return linea(v, hoy); }).join('\n\n') });
+  }
+  nuevas.forEach(function (v) { est.visto[v.clave] = true; });
 
   pend.forEach(function (v) {
     if (v.fecha && v.fecha < hoy && !est.vencida[v.clave] && !nuevas.some(function (n) { return n.clave === v.clave; })) {

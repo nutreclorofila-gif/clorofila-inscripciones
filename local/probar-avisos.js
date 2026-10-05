@@ -87,5 +87,10 @@ caso('un recordatorio con la fecha pasada avisa una vez',
     const r2 = A.queAvisar([H], new Date(2026, 10, 1, 11), r1.estado, [HR, R('Pagar el alquiler', '30/10/2026')]);
     return (r1.mails.length === 1 && /^Pasó la fecha/.test(r1.mails[0].asunto) && r2.mails.length === 0) || `${r1.mails.length}/${r2.mails.length}`; });
 
+caso('varias cosas nuevas juntas van en un solo mail',
+  'se cargaron 13 de golpe el 4/10: 13 mails en la misma hora es ruido',
+  () => { const r = A.queAvisar([H, V('Ana Prueba', '05/11/2026'), V('Otra Prueba', '')], a8, {}, [HR, R('Algo', ''), R('Otra cosa', '06/11/2026')]);
+    return (r.mails.length === 1 && /^4 cosas nuevas: /.test(r.mails[0].asunto) && /Otra cosa/.test(r.mails[0].cuerpo)) || JSON.stringify(r.mails.map(m => m.asunto)); });
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 process.exit(fallas ? 1 : 0);
