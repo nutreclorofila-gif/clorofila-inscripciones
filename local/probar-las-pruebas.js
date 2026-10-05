@@ -54,6 +54,8 @@ const MUTACIONES = [
    "x.items.map(function (a) { return '<li>' + esc(corto(a)) + '</li>'; })", "x.items.map(function (a) { return '<li>' + esc(corto(a)) + ' ' + esc(a.detalle) + '</li>'; })"],
   ['en Alertas los recordatorios vuelven a ser tarjetas', INDEX,
    "var resto = DATOS.alertas.filter(function (a) { return !esCargada(a); });", "var resto = DATOS.alertas;"],
+  ['lo sin fecha vuelve a listarse entero en la portada', INDEX,
+   "return ['Atrasado', 'Hoy', 'Mañana'].indexOf(x.nombre) !== -1;", "return x.nombre !== 'Más adelante';"],
   ['los recordatorios dejan de agruparse por cuándo', INDEX,
    "lista.forEach(function (a) { g[urgencia(a)].items.push(a); });", "lista.forEach(function (a) { g[3].items.push(a); });"],
   ['"— HOY" se repite en cada línea', INDEX,

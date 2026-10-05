@@ -134,13 +134,18 @@
   .aviso .q { font-size: 15px; font-weight: 600; }
   .aviso.nuevo { border-color: var(--verde); }
   .aviso .p { font-size: 13px; color: var(--tenue); margin-top: 3px; }
-  .aviso.recs { cursor: pointer; }
-  .lista-recs { margin: 6px 0 0; padding-left: 18px; font-size: 14px; }
-  .lista-recs li { margin: 3px 0; }
-  .grupo-recs { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--tenue); margin: 10px 0 2px; }
+  /* Tarjetas de recordatorios: compactas, para que una lista larga no tape la portada. */
+  .aviso.recs { cursor: pointer; padding: 9px 12px; }
+  .aviso.recs .q { font-size: 14px; }
+  .aviso.recs .p { font-size: 12px; margin-top: 4px; }
+  .lista-recs { margin: 2px 0 0; padding-left: 16px; font-size: 13px; line-height: 1.3; }
+  .lista-recs li { margin: 1px 0; }
+  .grupo-recs { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--tenue); margin: 6px 0 0; }
   details.rec { border-left: 4px solid var(--linea); padding: 2px 0 2px 10px; margin-bottom: 8px; }
   details.rec.alta { border-left-color: var(--rojo); }
-  details.rec > summary { color: var(--texto); font-size: 15px; padding: 6px 0; }
+  details.rec > summary { color: var(--texto); font-size: 14px; padding: 4px 0; }
+  details.rec > summary::after { content: ' ▸'; color: var(--tenue); }
+  details.rec[open] > summary::after { content: ' ▾'; }
   details.rec .p { font-size: 13px; color: var(--tenue); padding-bottom: 6px; }
 
   .seccion { margin: 24px 0 10px; font-size: 12px; color: var(--tenue);
@@ -1170,17 +1175,23 @@
   function tarjetaRecordatorios() {
     var recs = DATOS.alertas.filter(esRecordatorio);
     if (!recs.length) return '';
+    // En la portada, la lista entera solo de lo que tiene día (atrasado, hoy,
+    // mañana); lo sin fecha y lo de más adelante, solo cuántos: el resto está en
+    // Alertas, a un toque.
     var grupos = agrupar(recs);
-    var luego = grupos.filter(function (x) { return x.nombre === 'Más adelante'; })[0];
-    var cerca = grupos.filter(function (x) { return x.nombre !== 'Más adelante'; });
-    var total = cerca.reduce(function (n, x) { return n + x.items.length; }, 0);
-    return '<div class="aviso ' + (total ? 'alta' : 'media') + ' recs" data-ir="alertas">' +
-      '<div class="q">Para hacer' + (total ? ' (' + total + ')' : '') + '</div>' +
-      cerca.map(function (x) {
+    var conDia = grupos.filter(function (x) { return ['Atrasado', 'Hoy', 'Mañana'].indexOf(x.nombre) !== -1; });
+    var cuantos = function (n) { var g = grupos.filter(function (x) { return x.nombre === n; })[0]; return g ? g.items.length : 0; };
+    var resto = [];
+    if (cuantos('Sin fecha')) resto.push(cuantos('Sin fecha') + ' sin fecha');
+    if (cuantos('Más adelante')) resto.push(cuantos('Más adelante') + ' más adelante');
+    var urg = conDia.reduce(function (n, x) { return n + x.items.length; }, 0);
+    return '<div class="aviso ' + (urg || cuantos('Sin fecha') ? 'alta' : 'media') + ' recs" data-ir="alertas">' +
+      '<div class="q">Para hacer (' + recs.length + ')</div>' +
+      conDia.map(function (x) {
         return '<div class="grupo-recs">' + x.nombre + '</div><ul class="lista-recs">' +
           x.items.map(function (a) { return '<li>' + esc(corto(a)) + '</li>'; }).join('') + '</ul>';
       }).join('') +
-      '<div class="p">' + (luego ? luego.items.length + ' más adelante. ' : '') + 'Tocá para ver el detalle.</div></div>';
+      '<div class="p">' + (resto.length ? 'Además: ' + resto.join(' y ') + '. ' : '') + 'Tocá para ver todo.</div></div>';
   }
 
   /* ---------- alertas ---------- */
