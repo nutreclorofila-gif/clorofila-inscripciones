@@ -192,6 +192,20 @@ muestra una **alerta alta** con el nombre y la edición. Se arregla creando la p
 mes (mismo encabezado que las otras) y moviendo la fila; cuando la pestaña de reserva queda
 vacía, la alerta se va sola.
 
+## Pagos en persona
+
+Cuando alguien queda en pasar por el estudio a pagar en mano, se carga una fila en la
+pestaña **«Pagos en persona»** de la Master: Nombre, Canal, Edición, Día acordado
+(dd/mm/aaaa), Hora, Monto, Estado, Tally, Notas, Cargado el.
+
+- Mientras el Estado sea **Pendiente** (o esté vacío), la app muestra una **alerta alta**
+  arriba de todo en la portada, con el día: «viene a pagar HOY / MAÑANA / el dd/mm», o
+  «sin día acordado». Si el día pasó y sigue Pendiente, avisa que no se marcó.
+- Al cobrar: Estado = **Pagó**. Si la persona todavía no aparece anotada en su edición,
+  sale una alerta media «falta el Tally», que se va sola cuando se anota (o con Sí en Tally).
+- **No vino** o **Cancelado** cierran la visita sin alerta.
+- La pestaña nunca cuenta como edición ni ocupa cupo.
+
 ## Pagos en cuotas
 
 En la pestaña de inscriptos queda solo el primer pago. Las cuotas siguientes se anotan en

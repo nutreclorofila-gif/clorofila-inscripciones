@@ -48,6 +48,16 @@ try {
 }
 
 const MUTACIONES = [
+  ['la visita pendiente no alerta', CODIGO,
+   "    if (v.estado === 'pendiente') {", "    if (v.estado === 'nunca') {"],
+  ['la visita no dice HOY', CODIGO,
+   "cuando = dias === 0 ? 'HOY'", "cuando = dias === 99 ? 'HOY'"],
+  ['pagó en persona sin Tally no alerta', CODIGO,
+   "    if (v.estado === 'pago' && !v.tally", "    if (v.estado === 'nunca' && !v.tally"],
+  ['la visita anotada igual pide el Tally', CODIGO,
+   "!filas.some(function (f) { return mismaPersona(f.nombre, v.nombre); })", "true"],
+  ['el estado vacío no cuenta como pendiente', CODIGO,
+   "var estado = !e || /^pend/.test(e)", "var estado = /^pend/.test(e)"],
   ['lleno y Abierto no alerta', CODIGO,
    '    if (ed.abierta && ed.cupo > 0 && ed.quedan === 0) {', '    if (ed.abierta && ed.cupo > 0 && ed.quedan === -99) {'],
   ['la pestaña de reserva del formulario no alerta', CODIGO,

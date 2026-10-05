@@ -67,7 +67,7 @@ var PRECIOS = {
 var FILAS_PANEL = 500;
 
 /** Pestañas que NO son ediciones y no cuentan en ningún cupo. */
-var HOJAS_IGNORADAS = ['Lista de espera', 'Gift Cards', 'Pagos en cuotas', 'Panel', 'Sin pestaña del mes (webhook)'];
+var HOJAS_IGNORADAS = ['Lista de espera', 'Gift Cards', 'Pagos en cuotas', 'Panel', 'Sin pestaña del mes (webhook)', 'Pagos en persona'];
 
 /** De acá salen todas las ediciones: sin esta pestaña la app no tiene nada que mostrar. */
 var HOJA_PANEL = 'Panel';
@@ -87,6 +87,15 @@ var HOJA_CUOTAS = 'Pagos en cuotas';
  * cualquier fila que quede es alguien que pagó y hay que mover a mano.
  */
 var HOJA_SIN_MES = 'Sin pestaña del mes (webhook)';
+
+/**
+ * Quien queda en pasar por el estudio a pagar en mano. Lo carga la sesión que
+ * contesta los mensajes, una fila por visita: Nombre, Canal, Edición, Día
+ * acordado (dd/mm/aaaa), Hora, Monto, Estado (Pendiente / Pagó / No vino /
+ * Cancelado), Tally (Sí), Notas, Cargado el. Si queda solo en el chat, Leo no
+ * se entera de que alguien viene con la plata.
+ */
+var HOJA_VISITAS = 'Pagos en persona';
 
 /** Prefijos de la columna K que son intencionales, no errores de carga. */
 var PREFIJOS_INTENCIONALES = ['Reubicado', 'Lista de espera', 'Cancelado', 'Anulado', 'Gift card'];
@@ -268,7 +277,7 @@ function leerPlanilla() {
   // exigir mayúsculas exactas: "Gift cards" tiene que valer igual que "Gift Cards".
   var extrasALeer = [];
   var nombreReal = {};
-  [[HOJA_ESPERA, 'espera'], [HOJA_GIFT, 'gift'], [HOJA_CUOTAS, 'cuotas'], [HOJA_SIN_MES, 'sinMes']].forEach(function (par) {
+  [[HOJA_ESPERA, 'espera'], [HOJA_GIFT, 'gift'], [HOJA_CUOTAS, 'cuotas'], [HOJA_SIN_MES, 'sinMes'], [HOJA_VISITAS, 'visitas']].forEach(function (par) {
     var real = buscarHoja(titulos, par[0]);
     if (real) { extrasALeer.push(real); nombreReal[real] = par[0]; }
   });
@@ -843,7 +852,8 @@ function construirEstado(crudo, ahora) {
   marcarQuienYaSeAnoto(espera, ediciones);
   var gift = leerGiftCards((crudo.extras || {})[HOJA_GIFT]);
   var sinMes = leerSinMes((crudo.extras || {})[HOJA_SIN_MES]);
-  var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas, espera, gift, cuotas, sinMes);
+  var visitas = leerVisitas((crudo.extras || {})[HOJA_VISITAS]);
+  var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas, espera, gift, cuotas, sinMes, visitas);
 
   return {
     forma: FORMA_ESTADO,
@@ -1042,6 +1052,29 @@ function ligarAEdicion(texto, ediciones) {
 }
 
 /** Gift cards: una vendida sin usar es plata cobrada y un lugar que se va a ocupar. */
+/** Las visitas de "Pagos en persona" con nombre (sin el encabezado). */
+function leerVisitas(filas) {
+  var res = [];
+  (filas || []).slice(1).forEach(function (f, i) {
+    var nombre = String(f[0] || '').trim();
+    if (!nombre) return;
+    var dia = fechaDeInscripcion(f[3]);
+    var e = normalizarNombre(f[6]);
+    var estado = !e || /^pend/.test(e) ? 'pendiente' : /^pag/.test(e) ? 'pago'
+               : /^no vin/.test(e) ? 'no_vino' : /^cancel|^anul/.test(e) ? 'cancelado' : 'pendiente';
+    var p = dia ? dia.split('/') : null;
+    res.push({
+      fila: i + 2, nombre: nombre, edicion: String(f[2] || '').trim(),
+      dia: dia, fecha: p ? new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0])) : null,
+      hora: String(f[4] || '').trim(),
+      monto: Number(String(f[5] || '').replace(/[^\d]/g, '')) || 0,
+      estado: estado, tally: /^s[ií]/i.test(String(f[7] || '').trim()),
+      notas: String(f[8] || '').trim()
+    });
+  });
+  return res;
+}
+
 /** Filas con algo escrito en la pestaña de reserva del webhook (sin el encabezado). */
 function leerSinMes(filas) {
   var res = [];
@@ -1821,7 +1854,7 @@ function mediana(nums) {
   return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2;
 }
 
-function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, esperaGlobal, giftGlobal, cuotas, sinMes) {
+function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, esperaGlobal, giftGlobal, cuotas, sinMes, visitas) {
   var alertas = [];
   // Una edición que ya pasó no se arregla: alertar sobre ella es solo ruido.
   var ediciones = todasLasEdiciones.filter(function (e) { return e.vigente; });
@@ -2272,6 +2305,44 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
                (r.edicion ? ', para "' + r.edicion + '"' : '') + ', porque no existía la pestaña de su mes. ' +
                'Ahí no cuenta en ningún cupo: hay que crear la pestaña «Inscriptos [Mes] [Año]» y mover la fila.'
     });
+  });
+
+  // k) Pagos en persona. Alta mientras esté Pendiente, para que quede arriba en
+  //    la portada; el título dice el día (HOY / MAÑANA) y nunca montos, que la
+  //    portada taparía. Cuando pagó y no figura anotada, falta el Tally.
+  var hoyDia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  (visitas || []).forEach(function (v) {
+    var donde = 'En la pestaña "' + HOJA_VISITAS + '", fila ' + v.fila + '.';
+    if (v.estado === 'pendiente') {
+      var cuando, texto;
+      if (!v.fecha) {
+        texto = v.nombre + ' viene a pagar en persona (sin día acordado)';
+      } else {
+        var dias = Math.round((v.fecha - hoyDia) / 86400000);
+        cuando = dias === 0 ? 'HOY' : dias === 1 ? 'MAÑANA' : 'el ' + v.dia.slice(0, 5);
+        texto = dias < 0
+          ? v.nombre + ': tenía que venir a pagar el ' + v.dia.slice(0, 5) + ' y sigue Pendiente'
+          : v.nombre + ' viene a pagar en persona ' + cuando + (v.hora ? ' a las ' + v.hora : '');
+      }
+      alertas.push({
+        nivel: 'alta', tipo: 'pago_en_persona', edicion: v.edicion,
+        texto: texto,
+        detalle: (v.edicion ? 'Para "' + v.edicion + '". ' : '') +
+                 (v.monto ? 'Trae ' + plata(v.monto) + '. ' : '') +
+                 (v.notas ? v.notas + '. ' : '') +
+                 'Cuando pague, poné Pagó en Estado (o No vino). ' + donde
+      });
+      return;
+    }
+    if (v.estado === 'pago' && !v.tally && !filas.some(function (f) { return mismaPersona(f.nombre, v.nombre); })) {
+      alertas.push({
+        nivel: 'media', tipo: 'pago_sin_tally', edicion: v.edicion,
+        texto: v.nombre + ' pagó en persona y falta el Tally',
+        detalle: 'Sin el formulario no figura en la pestaña de inscriptos ni ocupa su lugar' +
+                 (v.edicion ? ' en "' + v.edicion + '"' : '') + '. Pedile que lo complete; cuando aparezca anotada, ' +
+                 'la alerta se va sola (o poné Sí en la columna Tally). ' + donde
+      });
+    }
   });
 
   // Se marca sola: la portada no muestra el detalle de las que hablan de plata.

@@ -772,5 +772,107 @@ caso(
   () => tipos(armar('Taller de tapeo — 16/11/2026', 3, dos, "=COUNTIF('Inscriptos Noviembre 2026'!K:K;B2)", 'Abierto'), 'lleno_abierto').length === 0 || 'alertó con un lugar libre'
 );
 
+
+console.log('\n--- Pagos en persona (visitas al estudio) ---');
+const VIS = 'Pagos en persona';
+const HV = ['Nombre','Canal','Edición','Día acordado','Hora','Monto','Estado','Tally','Notas','Cargado el'];
+const ED_V = 'Curso de cocina — Noviembre 2026';
+const conVisitas = (filasV, gente) => armar(ED_V, 15, gente || [], null, null, { [VIS]: [HV].concat(filasV) });
+// HOY es 1/11/2026
+caso(
+  'una visita pendiente da alerta alta con el día y la hora en el título',
+  'si alguien viene a pagar en mano y Leo no se entera, se pierde la venta: tiene que estar arriba en la portada',
+  () => {
+    const a = tipos(conVisitas([['Visita Prueba', 'WhatsApp', ED_V, '03/11/2026', '18:00', '4800', 'Pendiente', '', '', '01/11/2026']]), 'pago_en_persona');
+    if (a.length !== 1) return 'esperaba 1 alerta pago_en_persona, hay ' + a.length;
+    if (a[0].nivel !== 'alta') return 'esperaba alta, es ' + a[0].nivel;
+    if (!/Visita Prueba/.test(a[0].texto) || !/03\/11/.test(a[0].texto) || !/18:00/.test(a[0].texto)) return 'el título no dice quién, qué día y a qué hora: ' + a[0].texto;
+    if (/\$/.test(a[0].texto)) return 'el título tiene montos y la portada lo taparía';
+    return /\$ 4\.800/.test(a[0].detalle) || 'el detalle no dice cuánto trae: ' + a[0].detalle;
+  }
+);
+caso(
+  'una visita pendiente sin día acordado también alerta, y lo dice',
+  'el caso real: queda en pasar cuando se mejore, sin fecha',
+  () => {
+    const a = tipos(conVisitas([['Visita Prueba', 'WhatsApp', ED_V, '', '', '', 'Pendiente', '', '', '']]), 'pago_en_persona');
+    if (a.length !== 1) return 'esperaba 1, hay ' + a.length;
+    return /sin d[ií]a/i.test(a[0].texto) || 'no avisa que falta acordar el día: ' + a[0].texto;
+  }
+);
+caso(
+  'el estado vacío cuenta como pendiente',
+  'quien carga la fila puede olvidarse de escribir el estado',
+  () => tipos(conVisitas([['Visita Prueba', '', ED_V, '05/11/2026', '', '', '', '', '', '']]), 'pago_en_persona').length === 1 || 'no alertó con el estado vacío'
+);
+caso(
+  'el día de hoy dice HOY',
+  'el mismo día es cuando hay que estar en el estudio',
+  () => {
+    const a = tipos(conVisitas([['Visita Prueba', '', ED_V, '01/11/2026', '19:00', '', 'Pendiente', '', '', '']]), 'pago_en_persona');
+    return (a.length === 1 && /hoy/i.test(a[0].texto)) || 'no dice hoy: ' + (a[0] || {}).texto;
+  }
+);
+caso(
+  'el día anterior dice MAÑANA',
+  'el recordatorio del día anterior es el que permite organizarse',
+  () => {
+    const a = tipos(conVisitas([['Visita Prueba', '', ED_V, '02/11/2026', '19:00', '', 'Pendiente', '', '', '']]), 'pago_en_persona');
+    return (a.length === 1 && /mañana/i.test(a[0].texto)) || 'no dice mañana: ' + (a[0] || {}).texto;
+  }
+);
+caso(
+  'si el día ya pasó y sigue Pendiente, avisa que no se marcó',
+  'o no vino o pagó y nadie lo anotó: las dos cosas hay que resolverlas',
+  () => {
+    const a = tipos(conVisitas([['Visita Prueba', '', ED_V, '30/10/2026', '19:00', '', 'Pendiente', '', '', '']]), 'pago_en_persona');
+    return (a.length === 1 && /ten[ií]a que venir/i.test(a[0].texto)) || 'no avisa del día vencido: ' + (a[0] || {}).texto;
+  }
+);
+caso(
+  'Pagó, No vino y Cancelado no dan alerta de visita',
+  'cuando se resolvió, la alerta se tiene que ir sola',
+  () => {
+    const e = conVisitas([
+      ['Uno Prueba', '', ED_V, '03/11/2026', '', '', 'Pagó', 'Sí', '', ''],
+      ['Dos Prueba', '', ED_V, '03/11/2026', '', '', 'No vino', '', '', ''],
+      ['Tres Prueba', '', ED_V, '03/11/2026', '', '', 'Cancelado', '', '', '']]);
+    return tipos(e, 'pago_en_persona').length === 0 || 'alertó una visita resuelta';
+  }
+);
+caso(
+  'pagó en persona y no está anotada: avisa que falta el Tally',
+  'sin el Tally no entra en la pestaña de inscriptos y no ocupa su lugar en el cupo',
+  () => {
+    const a = tipos(conVisitas([['Visita Prueba', '', ED_V, '03/11/2026', '', '4800', 'Pagó', '', '', '']]), 'pago_sin_tally');
+    if (a.length !== 1) return 'esperaba 1 alerta pago_sin_tally, hay ' + a.length;
+    return /Tally/.test(a[0].texto) || 'el título no habla del Tally';
+  }
+);
+caso(
+  'pagó y ya está anotada en la edición: no pide el Tally',
+  'si ya completó el formulario, pedirlo de nuevo es ruido',
+  () => tipos(conVisitas([['Visita Prueba', '', ED_V, '03/11/2026', '', '4800', 'Pagó', '', '', '']],
+    [{ nombre: 'Visita Prueba', email: 'v@ejemplo.uy', monto: '4800' }]), 'pago_sin_tally').length === 0 || 'pidió el Tally a alguien ya anotado'
+);
+caso(
+  'pagó y la columna Tally dice Sí: no pide el Tally',
+  'quien carga la fila puede marcarlo a mano',
+  () => tipos(conVisitas([['Visita Prueba', '', ED_V, '03/11/2026', '', '4800', 'Pagó', 'Sí', '', '']]), 'pago_sin_tally').length === 0 || 'pidió el Tally con la columna en Sí'
+);
+caso(
+  'filas vacías y el encabezado solo no alertan',
+  'la pestaña empieza vacía',
+  () => {
+    const e = conVisitas([HV.map(() => '')]);
+    return tipos(e, 'pago_en_persona').length + tipos(e, 'pago_sin_tally').length === 0 || 'alertó sin visitas';
+  }
+);
+caso(
+  'la pestaña de visitas no se cuenta como una edición',
+  'si se leyera como inscriptos, una visita ocuparía cupo antes de pagar',
+  () => G.HOJAS_IGNORADAS.map(G.normalizarNombre).indexOf(G.normalizarNombre(VIS)) !== -1 || 'no está en HOJAS_IGNORADAS'
+);
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);
