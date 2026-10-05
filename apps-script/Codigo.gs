@@ -105,6 +105,16 @@ var HOJA_VISITAS = 'Pagos en persona';
  */
 var HOJA_RECORDATORIOS = 'Recordatorios';
 
+/**
+ * Las respuestas de Leo a los recordatorios, escritas desde la app (pedido suyo,
+ * 5/10/2026: «decir que Paula puede hacer octubre y noviembre, y que Claude lo
+ * sepa»). Van a las propiedades del script y NO a la planilla: la app tiene
+ * permiso de solo lectura sobre la planilla y así sigue. Las sesiones de Claude
+ * las leen con local/respuestas.js, hacen lo que dicen y ponen Hecho.
+ */
+var PROP_RESPUESTA = 'respuesta:';
+var MAX_LARGO_RESPUESTA = 1000;
+
 /** Prefijos de la columna K que son intencionales, no errores de carga. */
 var PREFIJOS_INTENCIONALES = ['Reubicado', 'Lista de espera', 'Cancelado', 'Anulado', 'Gift card'];
 
@@ -181,6 +191,68 @@ function doGet(e) {
   return ContentService.createTextOutput(
     'Clorofila — Inscripciones. Esta dirección solo responde a la app; ' +
     'no muestra nada por sí sola.');
+}
+
+/**
+ * Lo único que la app escribe: la respuesta de Leo a un recordatorio. Pide el
+ * PIN igual que la lectura, y solo toca las propiedades del script (nunca la
+ * planilla). Va por POST para que el texto no viaje en la dirección. Devuelve
+ * el estado nuevo, así la app lo muestra sin otro pedido.
+ */
+function doPost(e) {
+  var salida;
+  try {
+    var d = {};
+    try { d = JSON.parse((e && e.postData && e.postData.contents) || '{}'); } catch (x) {}
+    verificarPin(d.pin);
+    if (d.accion !== 'responder') throw new Error('La app pidió algo que el servidor no hace.');
+    var crudo = leerPlanilla();
+    var props = PropertiesService.getScriptProperties();
+    var cambio = cambioDeRespuesta(leerRecordatorios((crudo.extras || {})[HOJA_RECORDATORIOS]),
+                                   crudo.respuestas, d.clave, d.texto, new Date());
+    cambio.borrar.forEach(function (k) { props.deleteProperty(PROP_RESPUESTA + k); });
+    if (cambio.guardar) props.setProperty(PROP_RESPUESTA + cambio.clave, JSON.stringify(cambio.guardar));
+    crudo.respuestas = leerRespuestas();
+    salida = { ok: true, estado: paraElTelefono(construirEstado(crudo)) };
+  } catch (err) {
+    salida = { ok: false, error: explicarError(err) };
+  }
+  return ContentService
+    .createTextOutput(JSON.stringify(salida))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/** Las respuestas guardadas: { clave del recordatorio: {texto, cuando} }. */
+function leerRespuestas() {
+  var todas = PropertiesService.getScriptProperties().getProperties();
+  var res = {};
+  Object.keys(todas).forEach(function (k) {
+    if (k.indexOf(PROP_RESPUESTA) !== 0) return;
+    try { res[k.slice(PROP_RESPUESTA.length)] = JSON.parse(todas[k]); } catch (x) {}
+  });
+  return res;
+}
+
+/**
+ * Qué guardar y qué borrar. Solo se responde un recordatorio que sigue
+ * Pendiente en la planilla; el texto vacío borra la respuesta. De paso se
+ * borran las de recordatorios que ya no están pendientes (Hecho, Cancelado,
+ * borrados), para que no queden guardadas para siempre.
+ */
+function cambioDeRespuesta(recordatorios, guardadas, clave, texto, ahora) {
+  var t = String(texto === null || texto === undefined ? '' : texto)
+    .replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').trim();
+  if (t.length > MAX_LARGO_RESPUESTA) {
+    throw new Error('La respuesta es muy larga: el máximo son ' + MAX_LARGO_RESPUESTA + ' letras.');
+  }
+  var pendientes = {};
+  (recordatorios || []).forEach(function (r) { if (r.estado === 'pendiente') pendientes[r.clave] = true; });
+  if (!clave || !pendientes[clave]) {
+    throw new Error('Ese recordatorio ya no está pendiente en la planilla: alguien lo cambió. Tocá Actualizar.');
+  }
+  var borrar = Object.keys(guardadas || {}).filter(function (k) { return !pendientes[k]; });
+  if (!t) borrar.push(clave);
+  return { clave: clave, guardar: t ? { texto: t, cuando: ahora.toISOString() } : null, borrar: borrar };
 }
 
 
@@ -319,6 +391,7 @@ function leerPlanilla() {
     panelFormulas: formulas,
     hojas: hojas,
     extras: extras,
+    respuestas: leerRespuestas(),
     generadoEn: new Date().toISOString()
   };
 }
@@ -861,7 +934,7 @@ function construirEstado(crudo, ahora) {
   var gift = leerGiftCards((crudo.extras || {})[HOJA_GIFT]);
   var sinMes = leerSinMes((crudo.extras || {})[HOJA_SIN_MES]);
   var visitas = leerVisitas((crudo.extras || {})[HOJA_VISITAS]);
-  var recordatorios = leerRecordatorios((crudo.extras || {})[HOJA_RECORDATORIOS]);
+  var recordatorios = leerRecordatorios((crudo.extras || {})[HOJA_RECORDATORIOS], crudo.respuestas);
   var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas, espera, gift, cuotas, sinMes, visitas, recordatorios);
 
   return {
@@ -1061,8 +1134,12 @@ function ligarAEdicion(texto, ediciones) {
 }
 
 /** Gift cards: una vendida sin usar es plata cobrada y un lugar que se va a ocupar. */
-/** Los recordatorios con algo en "Qué" (sin el encabezado). */
-function leerRecordatorios(filas) {
+/**
+ * Los recordatorios con algo en "Qué" (sin el encabezado). La clave es el Qué
+ * normalizado, no la fila: las filas se corren si alguien inserta una arriba.
+ * respuestas: las que Leo escribió desde la app (ver PROP_RESPUESTA).
+ */
+function leerRecordatorios(filas, respuestas) {
   var res = [];
   (filas || []).slice(1).forEach(function (f, i) {
     var que = String(f[0] || '').trim();
@@ -1075,8 +1152,12 @@ function leerRecordatorios(filas) {
       fecha: p ? new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0])) : null,
       hora: String(f[2] || '').trim(), detalle: String(f[3] || '').trim(),
       estado: /^hech|^cancel|^anul/.test(e) ? 'cerrado' : /^deleg/.test(e) ? 'delegado' : 'pendiente',
-      quien: String(f[5] || '').trim()
+      quien: String(f[5] || '').trim(),
+      clave: normalizarNombre(que)
     });
+    var r = res[res.length - 1];
+    var resp = (respuestas || {})[r.clave];
+    if (r.estado === 'pendiente' && resp && resp.texto) r.respuesta = resp;
   });
   return res;
 }
@@ -2391,12 +2472,25 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
       return;
     }
     if (r.estado !== 'pendiente') return;
+    // Leo ya contestó desde la app: deja de ser suyo hasta que una sesión lo haga.
+    if (r.respuesta) {
+      var c = new Date(r.respuesta.cuando);
+      var dosDig = function (n) { return (n < 10 ? '0' : '') + n; };
+      alertas.push({
+        nivel: 'info', tipo: 'recordatorio_respondido', edicion: '', texto: r.que, clave: r.clave,
+        respuesta: r.respuesta.texto, fila: r.fila, quien: r.quien,
+        detalle: 'Respondiste' + (isNaN(c) ? '' : ' el ' + dosDig(c.getDate()) + '/' + dosDig(c.getMonth() + 1) +
+                 ' a las ' + dosDig(c.getHours()) + ':' + dosDig(c.getMinutes())) + ': «' + r.respuesta.texto + '». ' +
+                 'Claude lo lee y lo hace; cuando esté, pone Hecho. En la pestaña "' + HOJA_RECORDATORIOS + '", fila ' + r.fila + '.'
+      });
+      return;
+    }
     var dias = r.fecha ? Math.round((r.fecha - hoyDia) / 86400000) : null;
     var cuando = dias === null ? 'sin fecha'
                : dias < 0 ? 'era para el ' + r.dia.slice(0, 5) + ', ¿se hizo?'
                : (dias === 0 ? 'HOY' : dias === 1 ? 'MAÑANA' : 'el ' + r.dia.slice(0, 5)) + (r.hora ? ' a las ' + r.hora : '');
     alertas.push({
-      nivel: dias === null || dias <= 1 ? 'alta' : 'media', tipo: 'recordatorio', edicion: '',
+      nivel: dias === null || dias <= 1 ? 'alta' : 'media', tipo: 'recordatorio', edicion: '', clave: r.clave,
       texto: r.que + ' — ' + cuando,
       detalle: (r.detalle ? r.detalle.replace(/[.\s]+$/, '') + '. ' : '') +
                (r.quien ? 'Lo cargó: ' + r.quien + '. ' : '') +

@@ -536,8 +536,10 @@ const fuente = fs.readFileSync(path.join(base, 'apps-script', 'Index.html'), 'ut
 });
 const cuantos = (fuente.match(/recibirEstado\(/g) || []).length;
 corridos++;
-if (cuantos === 4) console.log('  ok    se usa en los 3 lugares que traen datos (más su definición)');
-else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' veces, esperaba 4'); }
+// 4 lugares traen datos: entrar con el PIN, la apertura, Actualizar y Responder (que
+// devuelve el estado nuevo). Más la definición: 5.
+if (cuantos === 5) console.log('  ok    se usa en los 4 lugares que traen datos (más su definición)');
+else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' veces, esperaba 5'); }
 
 
 // El curso que ya empezó y se sigue pagando en cuotas: cerró la inscripción, así
@@ -628,6 +630,43 @@ else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' vece
     corridos++;
     if (ok) console.log('  ok    ' + nombre);
     else { fallas++; console.log('  FALLA ' + nombre + '\n        cupos: ' + tarjetas(c) + ' tarjetas; alertas: ' + tarjetas(a)); }
+  });
+}
+
+// Responder un recordatorio desde el celu (Leo, 5/10: «decir que Paula puede
+// hacer octubre y noviembre, y que Claude lo sepa»).
+{
+  console.log('\n--- Responder recordatorios desde la app ---');
+  const { cargar } = require('./cargar.js');
+  const G = cargar();
+  const HREC = ['Qué','Para cuándo','Hora','Detalle','Estado','Quién lo cargó','Cargado el'];
+  const crudo = {
+    panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'], ['Curso de cocina', 'Curso de cocina — Octubre 2026', '15', '0', '15', 'Abierto']],
+    panelFormulas: [['','','','','',''], ['','','',"=COUNTIF('Inscriptos Octubre 2026'!K:K;B2)",'','']],
+    hojas: { 'Inscriptos Octubre 2026': [['nombre','email','celular','actividad','horario','medio','comprobante','monto','verif','fecha','Edición']] },
+    extras: { 'Recordatorios': [HREC,
+      ['Decidir si Prueba puede ir', '05/10/2026', '', 'Preguntó por mensaje', 'Pendiente', 'Seguimiento', ''],
+      ['Decidir otra cosa', '05/10/2026', '', 'Detalle', 'Pendiente', '', ''],
+      ['Algo delegado', '', '', 'Lo hace: auditoría', 'Delegado', '', '']] },
+    respuestas: { 'decidir si prueba puede ir': { texto: 'Sí <b>puede</b> octubre y noviembre', cuando: '2026-10-05T14:00:00.000Z' } }
+  };
+  const est = JSON.parse(JSON.stringify(G.paraElTelefono(G.construirEstado(crudo, new Date(2026, 9, 5, 10)))));
+  const ui = cargarUI(est);
+  const c = ui.vistaCupos(), a = ui.vistaAlertas();
+  const seccionResp = a.split('Ya respondiste')[1] || '';
+  [
+    ['cada recordatorio pendiente tiene su botón Responder', /data-responder="decidir otra cosa">Responder</.test(a)],
+    ['lo ya respondido va en su sección, con la respuesta a la vista', /Ya respondiste: lo hace Claude \(1\)/.test(a) && seccionResp.includes('Decidir si Prueba puede ir')],
+    ['lo ya respondido se puede corregir', /data-responder="decidir si prueba puede ir">Cambiar la respuesta</.test(a)],
+    ['la respuesta se muestra escapada, no como HTML', a.includes('&lt;b&gt;puede&lt;/b&gt;') && !a.includes('<b>puede</b>')],
+    ['lo delegado no se responde desde acá', !/data-responder="algo delegado"/.test(a)],
+    ['lo respondido no cuenta en Pendientes de la portada', /pend-n">1</.test(c) && !/pend-t">Decidir si Prueba/.test(c)],
+    ['la respuesta va por POST, no en la dirección', /method: 'POST'/.test(fuente) && !/accion=responder/.test(fuente)],
+    ['si falla, lo escrito no se pierde', /Lo que escribiste sigue acá/.test(fuente)]
+  ].forEach(([nombre, ok]) => {
+    corridos++;
+    if (ok) console.log('  ok    ' + nombre);
+    else { fallas++; console.log('  FALLA ' + nombre); }
   });
 }
 

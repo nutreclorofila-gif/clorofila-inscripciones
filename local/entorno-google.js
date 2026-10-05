@@ -10,7 +10,9 @@ function crear({ sheetsFalso } = {}) {
     PropertiesService: {
       getScriptProperties: () => ({
         getProperty: k => (props.has(k) ? props.get(k) : null),
-        setProperty: (k, v) => props.set(k, v)
+        setProperty: (k, v) => props.set(k, v),
+        deleteProperty: k => props.delete(k),
+        getProperties: () => Object.fromEntries(props)
       })
     },
     CacheService: {

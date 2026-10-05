@@ -17,7 +17,7 @@ const llamadas = [];
 let nombreEspera = 'Lista de espera', nombreGift = 'Gift Cards', nombrePanel = 'Panel';
 const titulos = () => [
   'Clorofila — Master contactos 2026 v5 DEFINITIVO', nombrePanel, nombreEspera,
-  nombreGift, 'Curso Octubre 2026', 'Tapeo 07-08-2026',
+  nombreGift, 'Curso Octubre 2026', 'Tapeo 07-08-2026', 'Recordatorios',
   ...Object.keys(fixture.hojas)
 ].filter(Boolean);
 
@@ -53,6 +53,13 @@ const Sheets = {
               ['Beto Espera','beto@ejemplo.com','','Otro taller que no existe']
             ]};
           }
+          if (igual(nombre, 'Recordatorios')) {
+            return { values: [
+              ['Qué','Para cuándo','Hora','Detalle','Estado','Quién lo cargó','Cargado el'],
+              ['Decidir algo de prueba','','','Detalle inventado','Pendiente','Prueba',''],
+              ['Algo ya hecho','','','','Hecho','','']
+            ]};
+          }
           if (igual(nombre, nombreGift)) {
             return { values: [
               ['nombre','de','email','monto','usada'],
@@ -67,7 +74,12 @@ const Sheets = {
   }
 };
 
-const sandbox = { Sheets, SpreadsheetApp: undefined, HtmlService: {}, Utilities: {}, console };
+// Las respuestas de Leo a los recordatorios viven en las propiedades del script.
+const PropertiesService = { getScriptProperties: () => ({ getProperties: () => ({
+  'PIN_HASH': 'no es una respuesta',
+  'respuesta:decidir algo': JSON.stringify({ texto: 'sí', cuando: '2026-10-05T14:00:00.000Z' })
+}) }) };
+const sandbox = { Sheets, PropertiesService, SpreadsheetApp: undefined, HtmlService: {}, Utilities: {}, console };
 const src = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'Codigo.gs'), 'utf8');
 const decl = (src.match(/^(?:function|var)\s+([A-Za-z_$][\w$]*)/gm) || [])
   .map(l => l.replace(/^(?:function|var)\s+/, ''));
@@ -84,6 +96,10 @@ const chequear = (nombre, cond, detalle) => {
 console.log('\n--- leerPlanilla() con la API de Sheets ---');
 const crudo = api.leerPlanilla();
 const leidas = Object.keys(crudo.hojas);
+
+chequear('trae las respuestas de Leo y nada más de las propiedades del script',
+  JSON.stringify(crudo.respuestas) === JSON.stringify({ 'decidir algo': { texto: 'sí', cuando: '2026-10-05T14:00:00.000Z' } }),
+  JSON.stringify(crudo.respuestas));
 
 chequear('nunca llama a SpreadsheetApp',
   !/SpreadsheetApp\s*\./.test(src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*/g, '')),
@@ -465,6 +481,26 @@ console.log('\n--- Lo que sale hacia el teléfono: solo lo que la pantalla usa -
   chequear('doGet manda la versión de la forma del estado',
     r.ok === true && typeof r.estado.forma === 'number' && r.estado.forma === G4.FORMA_ESTADO,
     'forma: ' + (r.ok ? r.estado.forma : r.error));
+  // Responder un recordatorio desde la app (doPost), de punta a punta.
+  {
+    const rec = (r.ok ? r.estado.alertas : []).filter(a => a.tipo === 'recordatorio')[0];
+    const post = (cuerpo) => JSON.parse(G4.doPost({ postData: { contents: JSON.stringify(cuerpo) } }).getContent());
+    const guardadas = () => Object.keys(s4.PropertiesService.getScriptProperties().getProperties()).filter(k => /^respuesta:/.test(k));
+    chequear('hay un recordatorio pendiente para probar la respuesta', !!(rec && rec.clave), 'sin recordatorios en los datos');
+    if (rec) {
+      const mal = post({ pin: '000000', accion: 'responder', clave: rec.clave, texto: 'no' });
+      chequear('responder con el PIN equivocado no guarda nada', mal.ok === false && guardadas().length === 0, JSON.stringify(mal).slice(0, 200));
+      s4.CacheService.getScriptCache().remove('intentos_pin');
+      const bien = post({ pin: PIN_DE_PRUEBA, accion: 'responder', clave: rec.clave, texto: 'Sí, hacelo' });
+      const resp = bien.ok ? bien.estado.alertas.filter(a => a.tipo === 'recordatorio_respondido' && a.clave === rec.clave)[0] : null;
+      chequear('responder con el PIN guarda y devuelve el estado con la respuesta',
+        !!resp && resp.respuesta === 'Sí, hacelo' && guardadas().length === 1, JSON.stringify(bien).slice(0, 200));
+      const otra = post({ pin: PIN_DE_PRUEBA, accion: 'borrar todo', clave: rec.clave });
+      chequear('el servidor no hace nada más que responder', otra.ok === false && guardadas().length === 1, JSON.stringify(otra).slice(0, 200));
+      const vacia = post({ pin: PIN_DE_PRUEBA, accion: 'responder', clave: rec.clave, texto: '' });
+      chequear('responder vacío borra la respuesta', vacia.ok === true && guardadas().length === 0, JSON.stringify(vacia).slice(0, 200));
+    }
+  }
   chequear('doGet no manda comprobantes, mails ni montos que la pantalla no muestra',
     r.ok === true && sobrantes(r.estado).length === 0,
     'salen igual: ' + (r.ok ? sobrantes(r.estado).join(', ') : r.error));

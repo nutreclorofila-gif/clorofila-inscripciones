@@ -949,5 +949,83 @@ caso(
   () => G.HOJAS_IGNORADAS.map(G.normalizarNombre).indexOf(G.normalizarNombre(REC)) !== -1 || 'no está en HOJAS_IGNORADAS'
 );
 
+console.log('\n--- Respuestas de Leo desde la app ---');
+// Leo, 5/10: «decir que Paula puede hacer octubre y noviembre, y que Claude lo sepa».
+const conResp = (filasR, respuestas) => G.construirEstado({
+  panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'], ['Curso de cocina', ED_V, '15', '0', '15', 'Abierto']],
+  panelFormulas: [['','','','','',''], ['','','', "=COUNTIF('Inscriptos Noviembre 2026'!K:K;B2)", '','']],
+  hojas: { 'Inscriptos Noviembre 2026': [H] }, extras: { [REC]: [HREC].concat(filasR) }, respuestas
+}, HOY);
+const resp1 = { 'decidir si prueba puede ir': { texto: 'Sí, que venga', cuando: '2026-11-01T13:20:00.000Z' } };
+caso(
+  'un recordatorio que Leo ya contestó sale de su lista y queda como respondido',
+  'si lo sigue viendo como pendiente, contesta dos veces o cree que no se guardó',
+  () => {
+    const e = conResp([['Decidir si Prueba puede ir', '01/11/2026', '', 'Detalle', 'Pendiente', 'Seguimiento', '']], resp1);
+    const r = tipos(e, 'recordatorio_respondido');
+    return (tipos(e, 'recordatorio').length === 0 && r.length === 1 && r[0].nivel === 'info' &&
+            r[0].respuesta === 'Sí, que venga' && /«Sí, que venga»/.test(r[0].detalle) && r[0].fila === 2 &&
+            r[0].quien === 'Seguimiento') || JSON.stringify(e.alertas);
+  }
+);
+caso(
+  'la respuesta se engancha aunque el Qué cambie de mayúsculas o tildes',
+  'la clave es el Qué normalizado: una sesión puede reescribirlo con otra tilde',
+  () => tipos(conResp([['DECIDIR si Prueba púede ir', '', '', '', 'Pendiente', '', '']], resp1), 'recordatorio_respondido').length === 1 || 'no la encontró'
+);
+caso(
+  'la respuesta de un recordatorio ya Hecho no aparece',
+  'cuando la sesión lo hizo y puso Hecho, se termina',
+  () => conResp([['Decidir si Prueba puede ir', '', '', '', 'Hecho', '', '']], resp1).alertas.filter(a => /respondido|^recordatorio$/.test(a.tipo)).length === 0 || 'apareció'
+);
+caso(
+  'cada recordatorio pendiente lleva su clave, para poder contestarlo',
+  'sin clave la app no sabe a cuál responde',
+  () => (tipos(conResp([['Otra Cosa', '', '', '', 'Pendiente', '', '']], {}), 'recordatorio')[0] || {}).clave === 'otra cosa' || 'sin clave'
+);
+const recsP = G.leerRecordatorios([HREC, ['Uno', '', '', '', 'Pendiente', '', ''], ['Dos', '', '', '', 'Hecho', '', '']]);
+const AHORA = new Date(2026, 10, 1, 10);
+caso(
+  'guardar una respuesta: texto limpio y la hora',
+  'se guarda lo que escribió, sin caracteres de control',
+  () => { const c = G.cambioDeRespuesta(recsP, {}, 'uno', '  hacelo\u0007 ya  ', AHORA);
+    return (c.guardar && c.guardar.texto === 'hacelo ya' && c.guardar.cuando === AHORA.toISOString() && c.borrar.length === 0) || JSON.stringify(c); }
+);
+caso(
+  'no se puede contestar un recordatorio que ya no está pendiente',
+  'si alguien lo cerró mientras Leo escribía, la respuesta quedaría colgada',
+  () => { try { G.cambioDeRespuesta(recsP, {}, 'dos', 'algo', AHORA); return 'lo aceptó'; } catch (e) { return /ya no está pendiente/.test(e.message) || e.message; } }
+);
+caso(
+  'tampoco uno que no existe',
+  'la clave viene del teléfono: no se confía en ella',
+  () => { try { G.cambioDeRespuesta(recsP, {}, 'inventado', 'algo', AHORA); return 'lo aceptó'; } catch (e) { return true; } }
+);
+caso(
+  'el texto vacío borra la respuesta',
+  'para arrepentirse',
+  () => { const c = G.cambioDeRespuesta(recsP, { uno: { texto: 'x' } }, 'uno', '   ', AHORA);
+    return (c.guardar === null && c.borrar.indexOf('uno') !== -1) || JSON.stringify(c); }
+);
+caso(
+  'se borran las respuestas de recordatorios que ya no están pendientes',
+  'si no, quedan guardadas para siempre en el servidor',
+  () => { const c = G.cambioDeRespuesta(recsP, { dos: { texto: 'x' }, borrado: { texto: 'y' } }, 'uno', 'ok', AHORA);
+    return (c.borrar.indexOf('dos') !== -1 && c.borrar.indexOf('borrado') !== -1 && c.borrar.indexOf('uno') === -1) || JSON.stringify(c.borrar); }
+);
+caso(
+  'una respuesta larguísima se rechaza',
+  'las propiedades del script tienen tope de tamaño',
+  () => { try { G.cambioDeRespuesta(recsP, {}, 'uno', 'a'.repeat(1001), AHORA); return 'la aceptó'; } catch (e) { return /muy larga/.test(e.message) || e.message; } }
+);
+caso(
+  'la app sigue sin permiso para escribir la planilla',
+  'responder no puede costar el permiso de solo lectura: las respuestas van a las propiedades del script',
+  () => {
+    const m = JSON.parse(require('fs').readFileSync(require('path').join(__dirname, '..', 'apps-script', 'appsscript.json'), 'utf8'));
+    return (m.oauthScopes.length === 1 && /spreadsheets\.readonly$/.test(m.oauthScopes[0])) || JSON.stringify(m.oauthScopes);
+  }
+);
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);

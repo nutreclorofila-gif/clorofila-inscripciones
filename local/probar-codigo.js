@@ -60,7 +60,7 @@ const faltan = [...llamadas].filter(n => !declaradas.has(n) && !constantes.has(n
 chequear('todas las funciones que se llaman existen',
   faltan.length === 0, 'se llaman y no están declaradas: ' + faltan.join(', '));
 
-const entradas = ['doGet','configurarPin'];  // las llama Google o se ejecutan desde el editor
+const entradas = ['doGet','doPost','configurarPin'];  // las llama Google o se ejecutan desde el editor
 const muertas = [...declaradas].filter(n => !llamadas.has(n) && entradas.indexOf(n) === -1);
 chequear('no hay funciones que no use nadie',
   muertas.length === 0, 'código muerto: ' + muertas.join(', '));
