@@ -671,5 +671,36 @@ else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' vece
   });
 }
 
+// Leo, 5/10: «no me pongas los carteles de restricción adelante, no tiene
+// sentido» / «eso es para cada actividad».
+{
+  console.log('\n--- Las restricciones van en su actividad, no adelante ---');
+  const { cargar } = require('./cargar.js');
+  const G = cargar();
+  const H = ['nombre','email','celular','actividad','horario','medio','comprobante','monto','verif','fecha','Edición','', 'Alergias'];
+  const ED = 'Taller de tapeo — 20/11/2026';
+  const crudo = {
+    panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'], ['Taller de tapeo', ED, '12', '2', '10', 'Abierto']],
+    panelFormulas: [['','','','','',''], ['','','',"=COUNTIF('Inscriptos Noviembre 2026'!K:K;B2)",'','']],
+    hojas: { 'Inscriptos Noviembre 2026': [H,
+      ['Persona Prueba', 'p@ejemplo.com', '', 'Taller de tapeo', '', 'Tikzet', 'Tikzet - Pago aprobado', '2600', '', '01/11/2026', ED, '', 'Sin <b>gluten</b>'],
+      ['Otra Prueba', 'o@ejemplo.com', '', 'Taller de tapeo', '', 'Tikzet', 'Tikzet - Pago aprobado', '2600', '', '01/11/2026', ED, '', 'No sé']] },
+    extras: {}
+  };
+  const est = JSON.parse(JSON.stringify(G.paraElTelefono(G.construirEstado(crudo, new Date(2026, 10, 1, 10)))));
+  const ui = cargarUI(est);
+  const c = ui.vistaCupos(), a = ui.vistaAlertas();
+  [
+    ['no hay cartel de restricción en la portada', !/Restricción alimentaria/.test(c) && !/class="aviso[^"]*">[^]*?gluten/.test(c.split('class="tarjeta')[0])],
+    ['la restricción está en la tarjeta de su actividad, a la vista', /class="restr"><b>Restricción:<\/b> Persona Prueba — Sin &lt;b&gt;gluten&lt;\/b&gt;/.test(c)],
+    ['«No sé» no aparece como restricción', !c.includes('Otra Prueba —')],
+    ['tampoco va en Alertas', !/gluten/.test(a)]
+  ].forEach(([nombre, ok]) => {
+    corridos++;
+    if (ok) console.log('  ok    ' + nombre);
+    else { fallas++; console.log('  FALLA ' + nombre + '\n        ' + c.slice(0, 300)); }
+  });
+}
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);

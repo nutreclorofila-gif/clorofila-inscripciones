@@ -1385,7 +1385,8 @@ function aplanarInscriptos(hojas) {
  *    pago con cédulas y números de operación: esas no son alertas y no salen.
  */
 var SENIAS_DE_RESTRICCION = /restricci|alergi|al[eé]rgic|intoleran|cel[ií]ac|no[ ](?:puede|debe)[ ]comer|no[ ]come[ ]/i;
-var RESPUESTA_NEGATIVA = /^(?:no|ningun[oa]?|nada|-+|n\/a|no[ ]tengo[ ]?(?:ninguna)?|sin[ ](?:alergias|restricciones))\.?$/i;
+// «No sé» también es que no tiene (Leo, 5/10: «si dicen no sé es que no tiene»).
+var RESPUESTA_NEGATIVA = /^(?:no|ningun[oa]?|nada|-+|n\/a|ns|nose|no[ ]s[eé]|no[ ]lo[ ]s[eé]|no[ ]sabe|no,?[ ]ningun[oa]|ningun[oa][ ](?:que[ ]sepa|conocida)|no[ ]tengo[ ]?(?:ninguna|alergias|restricciones)?|sin[ ](?:alergias|restricciones))[.!]?$/i;
 
 function restriccionDe(fila, colAlergias) {
   var notas = [];
@@ -2351,22 +2352,13 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
     }
   });
 
-  // h-bis) Restricción alimentaria de alguien anotado: alta, porque es lo que
-  //        hay que tener a mano al cocinar. Solo en ediciones vigentes: cuando
-  //        el taller pasa, deja de importar y la alerta se va sola.
-  var hoyCorte = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+  // h-bis) Restricciones alimentarias: NO son alertas. Van en la tarjeta de
+  //        cada actividad (ed.restricciones). Leo, 5/10: «no me pongas los
+  //        carteles de restricción adelante, no tiene sentido» / «eso es para
+  //        cada actividad».
   ediciones.forEach(function (ed) {
-    // Vigente no alcanza: una edición marcada Abierto sigue vigente aunque el
-    // taller ya haya pasado, y la alerta quedaba colgada.
-    if (ed.fecha && new Date(ed.fecha) < hoyCorte) return;
-    ed.personas.forEach(function (p) {
-      if (!p.restriccion) return;
-      alertas.push({
-        nivel: 'alta', tipo: 'restriccion', edicion: ed.edicion,
-        texto: 'Restricción alimentaria en ' + ed.edicion,
-        detalle: (p.nombre || 'Alguien sin nombre cargado') + ': ' + p.restriccion +
-                 ' (' + p.hoja + ', fila ' + p.fila + ').'
-      });
+    ed.restricciones = ed.personas.filter(function (p) { return p.restriccion; }).map(function (p) {
+      return { nombre: p.nombre || 'Alguien sin nombre cargado', texto: p.restriccion };
     });
   });
 

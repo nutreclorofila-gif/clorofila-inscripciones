@@ -664,43 +664,50 @@ function conNotas(edicion, gente, hoy, estado) {
   return G.construirEstado(crudo, hoy || new Date(2026, 10, 1));
 }
 const TAPEO = 'Taller de tapeo — 20/11/2026';
+const restr = (e) => (e.ediciones[0] || {}).restricciones || [];
 caso(
-  'una restricción anotada a mano en la L es una alerta alta, con el nombre y sin el rótulo',
+  'una restricción anotada a mano en la L va en su actividad, con el nombre y sin el rótulo',
   'es lo que hay que tener a mano al cocinar; si no aparece, nadie se acuerda el día del taller',
   () => {
-    const a = tipos(conNotas(TAPEO, [{ nombre: 'Rita Pérez', monto: '2600', nota: 'RESTRICCIÓN: no puede comer maní (avisó por mail)' }]), 'restriccion');
-    if (a.length !== 1 || a[0].nivel !== 'alta') return 'esperaba 1 alerta alta, hubo ' + a.length;
-    return (/Rita Pérez: no puede comer maní/.test(a[0].detalle) && !/RESTRICCIÓN:/.test(a[0].detalle)) || a[0].detalle;
+    const r = restr(conNotas(TAPEO, [{ nombre: 'Rita Pérez', monto: '2600', nota: 'RESTRICCIÓN: no puede comer maní (avisó por mail)' }]));
+    return (r.length === 1 && r[0].nombre === 'Rita Pérez' && r[0].texto === 'no puede comer maní (avisó por mail)') || JSON.stringify(r);
   }
 );
 caso(
-  'la columna Alergias del formulario: "No" no avisa, cualquier otra respuesta sí',
+  'las restricciones no son alertas',
+  'Leo, 5/10: «no me pongas los carteles de restricción adelante» / «eso es para cada actividad»',
+  () => tipos(conNotas(TAPEO, [{ nombre: 'Rita', monto: '2600', alergias: 'Celíaca' }]), 'restriccion').length === 0 || 'generó alerta'
+);
+caso(
+  'la columna Alergias del formulario: "No" no cuenta, cualquier otra respuesta sí',
   'la llena cada persona al inscribirse; un "celíaca" ahí tiene que verse igual que una nota a mano',
   () => {
-    const e = conNotas(TAPEO, [{ nombre: 'Rita', monto: '2600', alergias: 'No' }, { nombre: 'Sara', monto: '2600', alergias: 'ninguna' },
-      { nombre: 'Tita', monto: '2600', alergias: 'Maní y nueces' }]);
-    // "Maní y nueces" no tiene ninguna palabra clave: avisa por estar en la columna de Alergias.
-    const a = tipos(e, 'restriccion');
-    return (a.length === 1 && /Tita: Maní y nueces/.test(a[0].detalle)) || a.map(x => x.detalle).join(' | ') || 'ninguna alerta';
+    const r = restr(conNotas(TAPEO, [{ nombre: 'Rita', monto: '2600', alergias: 'No' }, { nombre: 'Sara', monto: '2600', alergias: 'ninguna' },
+      { nombre: 'Tita', monto: '2600', alergias: 'Maní y nueces' }]));
+    return (r.length === 1 && r[0].nombre === 'Tita' && r[0].texto === 'Maní y nueces') || JSON.stringify(r);
   }
 );
 caso(
-  'una nota de pago en la L no es una alerta ni viaja al teléfono',
-  'la L tiene cédulas y números de operación: mostrarlos como alerta los manda al celular',
+  '«No sé» y parecidas cuentan como que no tiene',
+  'Leo, 5/10: «si dicen no sé es que no tiene»',
+  () => {
+    const dichos = ['No sé', 'no se', 'Nose', 'No sé.', 'NS', 'No lo sé', 'No sabe', 'No, ninguna', 'Ninguna que sepa', 'No tengo alergias'];
+    const r = restr(conNotas(TAPEO, dichos.map((a, i) => ({ nombre: 'P' + i, monto: '2600', alergias: a }))));
+    return r.length === 0 || 'contó como restricción: ' + r.map(x => x.texto).join(' | ');
+  }
+);
+caso(
+  'pero «no sé si es celiaquía» sí cuenta',
+  'solo la respuesta entera es un no; una duda sobre una alergia hay que verla',
+  () => restr(conNotas(TAPEO, [{ nombre: 'Uma', monto: '2600', alergias: 'No sé si soy celíaca' }])).length === 1 || 'la descartó'
+);
+caso(
+  'una nota de pago en la L no es una restricción ni viaja al teléfono',
+  'la L tiene cédulas y números de operación: mostrarlos los manda al celular',
   () => {
     const e = conNotas(TAPEO, [{ nombre: 'Rita', monto: '2600', nota: 'CI 12345678 - transferencia op. 998877665544' }]);
-    if (tipos(e, 'restriccion').length) return 'la tomó como restricción';
+    if (restr(e).length) return 'la tomó como restricción';
     return !/12345678|998877665544/.test(JSON.stringify(G.paraElTelefono(e))) || 'la cédula viajó al teléfono';
-  }
-);
-caso(
-  'pasado el taller la alerta se va, aunque el Panel lo siga marcando Abierto',
-  'una alerta alta de un taller que ya fue tapa las que importan',
-  () => {
-    const gente = [{ nombre: 'Rita', monto: '2600', nota: 'RESTRICCIÓN: sin gluten' }];
-    const ese = tipos(conNotas(TAPEO, gente, new Date(2026, 10, 20, 9)), 'restriccion').length;
-    const despues = tipos(conNotas(TAPEO, gente, new Date(2026, 10, 21, 9), 'Abierto'), 'restriccion').length;
-    return (ese === 1 && despues === 0) || 'el día del taller ' + ese + ', el día después ' + despues;
   }
 );
 

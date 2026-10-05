@@ -48,6 +48,12 @@ try {
 }
 
 const MUTACIONES = [
+  ['las restricciones no se muestran en su actividad', INDEX,
+   "      restriccionesDe(e) +\n", ""],
+  ['«no sé» vuelve a contar como restricción', CODIGO,
+   "|ns|nose|no[ ]s[eé]|no[ ]lo[ ]s[eé]|no[ ]sabe", ""],
+  ['la restricción se muestra sin escapar', INDEX,
+   "esc(x.nombre) + ' — ' + esc(x.texto)", "x.nombre + ' — ' + x.texto"],
   ['después de enviar no se ve la confirmación', INDEX,
    "if (ok && ok.scrollIntoView) ok.scrollIntoView({ block: 'center' });", ""],
   ['se puede responder cualquier recordatorio, aunque ya no esté pendiente', CODIGO,
@@ -108,8 +114,8 @@ const MUTACIONES = [
    "'Panel', 'Sin pestaña del mes (webhook)', 'Pagos en persona', 'Recordatorios'];", "'Panel', 'Pagos en persona', 'Recordatorios'];"],
   ['agosto vuelve a depender del nombre de la pestaña', CODIGO,
    '  if (fijo) return new Date(', '  if (false) return new Date('],
-  ['la restricción alimentaria no avisa', CODIGO,
-   "      if (!p.restriccion) return;\n      alertas.push({", "      if (true) return;\n      alertas.push({"],
+  ['las restricciones no llegan a la actividad', CODIGO,
+   "ed.personas.filter(function (p) { return p.restriccion; })", "ed.personas.filter(function (p) { return false; })"],
   ['la alerta de restricción sigue después del taller', CODIGO,
    '    if (ed.fecha && new Date(ed.fecha) < hoyCorte) return;\n', ''],
   ['un "No" en Alergias es una alerta', CODIGO,

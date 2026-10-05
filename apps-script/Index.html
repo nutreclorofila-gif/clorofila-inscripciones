@@ -109,6 +109,10 @@
   .barra i { display: block; height: 100%; border-radius: 999px; background: var(--verde-claro); }
   .barra i.alta { background: var(--dorado); }
   .barra i.full { background: var(--verde); }
+  .restr {
+    margin: 0 14px 12px; padding: 7px 10px; border-radius: 8px; font-size: 13px;
+    background: var(--ambar-fondo); color: var(--ambar);
+  }
   .pie { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; color: var(--tenue); }
   .pie b { color: var(--texto); font-variant-numeric: tabular-nums; }
   .detalle { border-top: 1px solid var(--linea); padding: 4px 14px 12px; background: var(--crema); }
@@ -996,6 +1000,7 @@
           '<span style="margin-left:auto">' + (abierta ? 'ocultar ▴' : 'ver la gente ▾') + '</span>' +
         '</div>' +
       '</button>' +
+      restriccionesDe(e) +
       (abierta ? '<div class="detalle">' + (e.personas.length
         ? e.personas.map(function (p) { return persona(p); }).join('') +
           '<button class="copiar" data-copiar="' + e.id + '">Copiar la lista de anotados</button>'
@@ -1006,6 +1011,18 @@
           : '') +
         '</div>' : '') +
     '</div>';
+  }
+
+  /**
+   * Las restricciones alimentarias van en la tarjeta de su actividad, siempre a
+   * la vista (es lo que hay que tener a mano al cocinar), y no como cartel
+   * aparte en la portada (Leo, 5/10: «eso es para cada actividad»).
+   */
+  function restriccionesDe(e) {
+    var r = e.restricciones || [];
+    if (!r.length) return '';
+    return '<div class="restr"><b>' + (r.length === 1 ? 'Restricción' : r.length + ' restricciones') + ':</b> ' +
+      r.map(function (x) { return esc(x.nombre) + ' — ' + esc(x.texto); }).join(' · ') + '</div>';
   }
 
   var CONTACTOS = {};

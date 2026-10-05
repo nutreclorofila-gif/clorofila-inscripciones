@@ -173,14 +173,16 @@ esa persona no la cuenta nadie y desaparece del cupo. La app lo levanta como ale
 ## Restricciones alimentarias
 
 La app lee las pestañas de inscriptos hasta la columna N. Si alguien anotado tiene una
-restricción alimentaria, sale una **alerta alta** en su edición hasta el día del taller
-(después se va sola, aunque el Panel siga diciendo Abierto). Sale de dos lados:
+restricción alimentaria, se ve **en la tarjeta de su actividad** (Cupos), siempre a la vista:
+«Restricción: Nombre — lo que dijo». No es una alerta ni va en la portada (Leo, 5/10: «no me
+pongas los carteles de restricción adelante» / «eso es para cada actividad»). Sale de dos lados:
 
 - La columna **«Alergias»** del formulario (hoy la M): cualquier respuesta que no sea un no
-  ("No", "Ninguna", "-").
+  ("No", "Ninguna", "-"). **«No sé» cuenta como que no tiene** (Leo, 5/10), igual que «ns»,
+  «no lo sé» o «ninguna que sepa»; «no sé si soy celíaca» sí cuenta.
 - Una **nota a mano** de la L en adelante que lo diga con todas las letras: «RESTRICCIÓN: no
   puede comer pimienta», o que hable de alergia, intolerancia, celiaquía o "no puede comer".
-  Las demás notas de la L (cédulas, números de operación) no son alertas y no viajan al
+  Las demás notas de la L (cédulas, números de operación) no cuentan y no viajan al
   teléfono.
 
 ## Inscripciones sin pestaña del mes
