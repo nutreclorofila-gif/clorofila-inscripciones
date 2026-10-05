@@ -662,7 +662,8 @@ else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' vece
     ['lo delegado no se responde desde acá', !/data-responder="algo delegado"/.test(a)],
     ['lo respondido no cuenta en Pendientes de la portada', /pend-n">1</.test(c) && !/pend-t">Decidir si Prueba/.test(c)],
     ['la respuesta va por POST, no en la dirección', /method: 'POST'/.test(fuente) && !/accion=responder/.test(fuente)],
-    ['si falla, lo escrito no se pierde', /Lo que escribiste sigue acá/.test(fuente)]
+    ['si falla, lo escrito no se pierde', /Lo que escribiste sigue acá/.test(fuente)],
+    ['al guardar, la pantalla va hasta la confirmación (lo respondido se muda de sección)', /querySelector\('\.resp-ok'\)[\s\S]{0,80}scrollIntoView/.test(fuente)]
   ].forEach(([nombre, ok]) => {
     corridos++;
     if (ok) console.log('  ok    ' + nombre);

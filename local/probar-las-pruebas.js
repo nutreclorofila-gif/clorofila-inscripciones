@@ -48,6 +48,8 @@ try {
 }
 
 const MUTACIONES = [
+  ['después de enviar no se ve la confirmación', INDEX,
+   "if (ok && ok.scrollIntoView) ok.scrollIntoView({ block: 'center' });", ""],
   ['se puede responder cualquier recordatorio, aunque ya no esté pendiente', CODIGO,
    "if (!clave || !pendientes[clave]) {", "if (!clave) {"],
   ['responder no pide el PIN', CODIGO,

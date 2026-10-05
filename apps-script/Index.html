@@ -1299,6 +1299,10 @@
         LISTA_RESP = clave;
         recibirEstado(d.estado, pin);
         pintarTodo();
+        // Lo respondido se muda a otra sección, más abajo: sin esto la pantalla
+        // queda quieta y no se ve el «Guardada ✓» (probado el 5/10 en tamaño celu).
+        var ok = document.querySelector('.resp-ok');
+        if (ok && ok.scrollIntoView) ok.scrollIntoView({ block: 'center' });
         return;
       }
       var m = (d && d.error) || 'No se pudo guardar.';
