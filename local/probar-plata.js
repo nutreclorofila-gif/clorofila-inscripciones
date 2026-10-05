@@ -1034,5 +1034,17 @@ caso(
   }
 );
 
+console.log('\n--- Lo que no ocupa cupo no manda números al teléfono ---');
+caso(
+  'los celulares, cédulas y comprobantes de la nota de un anulado se tapan',
+  'el 5/10 la portada mostraba un celular y un comprobante de Mercado Pago de un duplicado',
+  () => {
+    const e = { ediciones: [], giftCards: [], fueraDeCupo: [{ nombre: 'Prueba', email: 'p@ejemplo.com', montoTexto: '1', monto: 1,
+      edicion: 'Anulado — duplicado de la fila 7: comprobante Mercado Pago 123456789012, CI 1.234.567-8, celular 099 123 456; tapeo 12/09 10:15' }] };
+    const t = G.paraElTelefono(e).fueraDeCupo[0].edicion;
+    return (!/123456789012|1\.234\.567-8|099 123 456/.test(t) && /fila 7/.test(t) && /12\/09 10:15/.test(t)) || t;
+  }
+);
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);

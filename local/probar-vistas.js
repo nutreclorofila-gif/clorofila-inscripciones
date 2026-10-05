@@ -222,7 +222,11 @@ if (archivo) {
     probarEstado('Lo que manda doGet, recortado', recortado);
     // Más fuerte que "no explota": las cuatro solapas tienen que salir idénticas
     // con y sin el recorte. Si difieren, se sacó algo que la pantalla sí mostraba.
-    const a = cargarUI(entero), b = cargarUI(recortado);
+    // Lo único que el recorte cambia a la vista, a propósito: los números largos de
+    // las notas de los anulados («No ocupan cupo») se tapan.
+    const enteroTapado = JSON.parse(JSON.stringify(entero));
+    (enteroTapado.fueraDeCupo || []).forEach(f => { f.edicion = G.taparNumeros(f.edicion); });
+    const a = cargarUI(enteroTapado), b = cargarUI(recortado);
     const distintas = ['vistaCupos', 'vistaPlata', 'vistaGente', 'vistaAlertas'].filter(v => a[v]() !== b[v]());
     corridos++;
     if (distintas.length === 0) console.log('  ok    las cuatro solapas quedan idénticas con y sin el recorte');
@@ -700,6 +704,30 @@ else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' vece
     if (ok) console.log('  ok    ' + nombre);
     else { fallas++; console.log('  FALLA ' + nombre + '\n        ' + c.slice(0, 300)); }
   });
+}
+
+{
+  console.log('\n--- Lo que no ocupa cupo va plegado ---');
+  const est = { forma: 3, generadoEn: new Date().toISOString(), hoy: new Date().toISOString(), ediciones: [], giftCards: [], espera: [], alertas: [],
+    fueraDeCupo: [{ nombre: 'Persona Anulada', edicion: 'Anulado — duplicado' }] };
+  let c = '';
+  try { c = cargarUI(est).vistaCupos(); } catch (e) { c = 'ERROR ' + e.message; }
+  corridos++;
+  if (/<details><summary>1 anotado que no ocupa cupo[^<]*<\/summary>[\s\S]*Persona Anulada[\s\S]*<\/details>/.test(c)) console.log('  ok    los anulados van plegados, con la cantidad');
+  else { fallas++; console.log('  FALLA los anulados van plegados, con la cantidad\n        ' + c.slice(0, 300)); }
+}
+
+{
+  console.log('\n--- Gente: el acompañante va debajo de quien lo trae ---');
+  const per = (nombre) => ({ nombre, estadoPago: 'pago', hoja: 'H', fila: nombre.length });
+  const est = { forma: 3, generadoEn: new Date().toISOString(), hoy: new Date().toISOString(), giftCards: [], espera: [], alertas: [], fueraDeCupo: [],
+    ediciones: [{ id: 'e1', edicion: 'Taller X', titulo: 'Taller X', vigente: true, personas: [per('Zoe Prueba'), per('Acompañante sin nombre de Zoe Prueba'), per('Bea Prueba')], pendientes: [] }] };
+  let g = '';
+  try { g = cargarUI(est).vistaGente(''); } catch (e) { g = 'ERROR ' + e.message; }
+  const i = (t) => g.indexOf('>' + t + '<');
+  corridos++;
+  if (i('Bea Prueba') >= 0 && i('Bea Prueba') < i('Zoe Prueba') && i('Zoe Prueba') < i('Acompañante sin nombre de Zoe Prueba')) console.log('  ok    el acompañante queda debajo de quien lo trae');
+  else { fallas++; console.log('  FALLA el acompañante queda debajo de quien lo trae\n        ' + [i('Bea Prueba'), i('Zoe Prueba'), i('Acompañante sin nombre de Zoe Prueba')]); }
 }
 
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');

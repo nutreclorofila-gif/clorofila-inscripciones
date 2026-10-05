@@ -939,11 +939,14 @@
         pasadas.map(tarjeta).join('') + '</details>';
     }
     if (DATOS.fueraDeCupo.length) {
-      html += '<div class="seccion">No ocupan cupo</div>' +
+      // Plegado: son anulados, duplicados y reubicados. Abiertos en la portada eran
+      // ruido debajo de las ediciones (revisión del 5/10).
+      html += '<details><summary>' + DATOS.fueraDeCupo.length + (DATOS.fueraDeCupo.length === 1
+          ? ' anotado que no ocupa cupo' : ' anotados que no ocupan cupo') + ' (anulados, duplicados)</summary>' +
         DATOS.fueraDeCupo.map(function (f) {
           return '<div class="persona"><div class="quien"><div class="nom">' + esc(f.nombre) +
             '</div><div class="sub">' + esc(f.edicion) + '</div></div></div>';
-        }).join('');
+        }).join('') + '</details>';
     }
     // La lista de espera que no se pudo atar a una fecha ("tapeo octubre" con
     // dos tapeos en el mes). Se deja sin ligar a propósito, para no nombrar la
@@ -1151,6 +1154,15 @@
   }
 
   /* ---------- gente ---------- */
+  /**
+   * «Acompañante sin nombre de Fulana» va justo debajo de Fulana, no amontonado
+   * arriba de todo por la A (revisión del 5/10).
+   */
+  function claveDeOrden(nombre) {
+    var n = String(nombre || '');
+    var m = n.match(/^acompañante sin nombre de\s+(.+)$/i);
+    return m ? m[1] + ' \uffff' : n;
+  }
   function vistaGente(filtro) {
     var todas = [];
     DATOS.ediciones.forEach(function (e) {
@@ -1158,7 +1170,7 @@
     });
     todas.sort(function (a, b) {
       if (a.e.vigente !== b.e.vigente) return a.e.vigente ? -1 : 1;
-      return (a.p.nombre || '').localeCompare(b.p.nombre || '', 'es');
+      return claveDeOrden(a.p.nombre).localeCompare(claveDeOrden(b.p.nombre), 'es');
     });
 
     var q = (filtro || '').trim();

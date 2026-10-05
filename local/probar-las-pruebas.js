@@ -48,6 +48,12 @@ try {
 }
 
 const MUTACIONES = [
+  ['los acompañantes vuelven a amontonarse arriba', INDEX,
+   "return m ? m[1] + ' \\uffff' : n;", "return n;"],
+  ['los números de los anulados viajan al teléfono', CODIGO,
+   "f.edicion = taparNumeros(f.edicion);", "f.edicion = f.edicion;"],
+  ['los anulados vuelven a ir abiertos en la portada', INDEX,
+   "' (anulados, duplicados)</summary>' +", "'</summary></details><div>' +"],
   ['las restricciones no se muestran en su actividad', INDEX,
    "      restriccionesDe(e) +\n", ""],
   ['«no sé» vuelve a contar como restricción', CODIGO,

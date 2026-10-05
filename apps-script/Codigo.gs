@@ -1011,7 +1011,15 @@ function paraElTelefono(estado) {
   });
   sacar(copia.giftCards, NO_VAN_AL_TELEFONO.giftCard);
   sacar(copia.fueraDeCupo, NO_VAN_AL_TELEFONO.fueraDeCupo);
+  // En los anulados la columna K es una nota a mano, y trae celulares y números de
+  // comprobante («celular 09…», «Mercado Pago 18…»): visto el 5/10 en la portada.
+  (copia.fueraDeCupo || []).forEach(function (f) { f.edicion = taparNumeros(f.edicion); });
   return copia;
+}
+
+/** Tapa los números largos (6 cifras o más, con puntos o guiones): celulares, cédulas, comprobantes. */
+function taparNumeros(texto) {
+  return String(texto == null ? '' : texto).replace(/\d(?:[\d.\- ]*\d){5,}/g, '…');
 }
 
 /**
