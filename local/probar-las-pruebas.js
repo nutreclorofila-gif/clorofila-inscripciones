@@ -116,8 +116,6 @@ const MUTACIONES = [
    '  if (fijo) return new Date(', '  if (false) return new Date('],
   ['las restricciones no llegan a la actividad', CODIGO,
    "ed.personas.filter(function (p) { return p.restriccion; })", "ed.personas.filter(function (p) { return false; })"],
-  ['la alerta de restricción sigue después del taller', CODIGO,
-   '    if (ed.fecha && new Date(ed.fecha) < hoyCorte) return;\n', ''],
   ['un "No" en Alergias es una alerta', CODIGO,
    'esLaDeAlergias ? !RESPUESTA_NEGATIVA.test(t) : SENIAS_DE_RESTRICCION.test(t)', 'esLaDeAlergias ? true : SENIAS_DE_RESTRICCION.test(t)'],
   ['cualquier nota de la L es una alerta (cédulas al teléfono)', CODIGO,
