@@ -67,7 +67,7 @@ var PRECIOS = {
 var FILAS_PANEL = 500;
 
 /** Pestañas que NO son ediciones y no cuentan en ningún cupo. */
-var HOJAS_IGNORADAS = ['Lista de espera', 'Gift Cards', 'Pagos en cuotas', 'Panel', 'Sin pestaña del mes (webhook)', 'Pagos en persona'];
+var HOJAS_IGNORADAS = ['Lista de espera', 'Gift Cards', 'Pagos en cuotas', 'Panel', 'Sin pestaña del mes (webhook)', 'Pagos en persona', 'Recordatorios'];
 
 /** De acá salen todas las ediciones: sin esta pestaña la app no tiene nada que mostrar. */
 var HOJA_PANEL = 'Panel';
@@ -96,6 +96,14 @@ var HOJA_SIN_MES = 'Sin pestaña del mes (webhook)';
  * se entera de que alguien viene con la plata.
  */
 var HOJA_VISITAS = 'Pagos en persona';
+
+/**
+ * Cualquier cosa importante que Leo no se puede olvidar (pedido suyo, 4/10/2026).
+ * La cargan las sesiones que atienden mensajes y la planilla: Qué, Para cuándo
+ * (dd/mm/aaaa), Hora, Detalle, Estado (Pendiente / Hecho / Cancelado), Quién lo
+ * cargó, Cargado el. Los mails los manda el proyecto aparte de avisos.
+ */
+var HOJA_RECORDATORIOS = 'Recordatorios';
 
 /** Prefijos de la columna K que son intencionales, no errores de carga. */
 var PREFIJOS_INTENCIONALES = ['Reubicado', 'Lista de espera', 'Cancelado', 'Anulado', 'Gift card'];
@@ -277,7 +285,7 @@ function leerPlanilla() {
   // exigir mayúsculas exactas: "Gift cards" tiene que valer igual que "Gift Cards".
   var extrasALeer = [];
   var nombreReal = {};
-  [[HOJA_ESPERA, 'espera'], [HOJA_GIFT, 'gift'], [HOJA_CUOTAS, 'cuotas'], [HOJA_SIN_MES, 'sinMes'], [HOJA_VISITAS, 'visitas']].forEach(function (par) {
+  [[HOJA_ESPERA, 'espera'], [HOJA_GIFT, 'gift'], [HOJA_CUOTAS, 'cuotas'], [HOJA_SIN_MES, 'sinMes'], [HOJA_VISITAS, 'visitas'], [HOJA_RECORDATORIOS, 'recordatorios']].forEach(function (par) {
     var real = buscarHoja(titulos, par[0]);
     if (real) { extrasALeer.push(real); nombreReal[real] = par[0]; }
   });
@@ -853,7 +861,8 @@ function construirEstado(crudo, ahora) {
   var gift = leerGiftCards((crudo.extras || {})[HOJA_GIFT]);
   var sinMes = leerSinMes((crudo.extras || {})[HOJA_SIN_MES]);
   var visitas = leerVisitas((crudo.extras || {})[HOJA_VISITAS]);
-  var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas, espera, gift, cuotas, sinMes, visitas);
+  var recordatorios = leerRecordatorios((crudo.extras || {})[HOJA_RECORDATORIOS]);
+  var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas, espera, gift, cuotas, sinMes, visitas, recordatorios);
 
   return {
     forma: FORMA_ESTADO,
@@ -1052,6 +1061,26 @@ function ligarAEdicion(texto, ediciones) {
 }
 
 /** Gift cards: una vendida sin usar es plata cobrada y un lugar que se va a ocupar. */
+/** Los recordatorios con algo en "Qué" (sin el encabezado). */
+function leerRecordatorios(filas) {
+  var res = [];
+  (filas || []).slice(1).forEach(function (f, i) {
+    var que = String(f[0] || '').trim();
+    if (!que) return;
+    var dia = fechaDeInscripcion(f[1]);
+    var p = dia ? dia.split('/') : null;
+    var e = normalizarNombre(f[4]);
+    res.push({
+      fila: i + 2, que: que, dia: dia,
+      fecha: p ? new Date(Number(p[2]), Number(p[1]) - 1, Number(p[0])) : null,
+      hora: String(f[2] || '').trim(), detalle: String(f[3] || '').trim(),
+      estado: /^hech|^cancel|^anul/.test(e) ? 'cerrado' : 'pendiente',
+      quien: String(f[5] || '').trim()
+    });
+  });
+  return res;
+}
+
 /** Las visitas de "Pagos en persona" con nombre (sin el encabezado). */
 function leerVisitas(filas) {
   var res = [];
@@ -1854,7 +1883,7 @@ function mediana(nums) {
   return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2;
 }
 
-function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, esperaGlobal, giftGlobal, cuotas, sinMes, visitas) {
+function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, esperaGlobal, giftGlobal, cuotas, sinMes, visitas, recordatorios) {
   var alertas = [];
   // Una edición que ya pasó no se arregla: alertar sobre ella es solo ruido.
   var ediciones = todasLasEdiciones.filter(function (e) { return e.vigente; });
@@ -2314,23 +2343,23 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
   (visitas || []).forEach(function (v) {
     var donde = 'En la pestaña "' + HOJA_VISITAS + '", fila ' + v.fila + '.';
     if (v.estado === 'pendiente') {
-      var cuando, texto;
+      var texto;
       if (!v.fecha) {
-        texto = v.nombre + ' viene a pagar en persona (sin día acordado)';
+        texto = v.nombre + ' viene al estudio a pagar — día a confirmar';
       } else {
         var dias = Math.round((v.fecha - hoyDia) / 86400000);
-        cuando = dias === 0 ? 'HOY' : dias === 1 ? 'MAÑANA' : 'el ' + v.dia.slice(0, 5);
+        var cuando = dias === 0 ? 'HOY' : dias === 1 ? 'MAÑANA' : 'el ' + v.dia.slice(0, 5);
         texto = dias < 0
-          ? v.nombre + ': tenía que venir a pagar el ' + v.dia.slice(0, 5) + ' y sigue Pendiente'
-          : v.nombre + ' viene a pagar en persona ' + cuando + (v.hora ? ' a las ' + v.hora : '');
+          ? v.nombre + ': tenía que venir a pagar el ' + v.dia.slice(0, 5) + ' — ¿vino?'
+          : v.nombre + ' viene al estudio a pagar — ' + cuando + (v.hora ? ' a las ' + v.hora : '');
       }
       alertas.push({
         nivel: 'alta', tipo: 'pago_en_persona', edicion: v.edicion,
         texto: texto,
-        detalle: (v.edicion ? 'Para "' + v.edicion + '". ' : '') +
+        detalle: (v.edicion ? v.edicion + '. ' : '') +
                  (v.monto ? 'Trae ' + plata(v.monto) + '. ' : '') +
-                 (v.notas ? v.notas + '. ' : '') +
-                 'Cuando pague, poné Pagó en Estado (o No vino). ' + donde
+                 (v.notas ? v.notas.replace(/[.\s]+$/, '') + '. ' : '') +
+                 'Cuando pague, poné Pagó en la columna Estado (o No vino). ' + donde
       });
       return;
     }
@@ -2343,6 +2372,24 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
                  'la alerta se va sola (o poné Sí en la columna Tally). ' + donde
       });
     }
+  });
+
+  // l) Recordatorios. Alta si es para hoy o mañana, si pasó o si no tiene fecha
+  //    (sin fecha no hay otro momento en que aparezca); media si falta más.
+  (recordatorios || []).forEach(function (r) {
+    if (r.estado !== 'pendiente') return;
+    var dias = r.fecha ? Math.round((r.fecha - hoyDia) / 86400000) : null;
+    var cuando = dias === null ? 'sin fecha'
+               : dias < 0 ? 'era para el ' + r.dia.slice(0, 5) + ', ¿se hizo?'
+               : (dias === 0 ? 'HOY' : dias === 1 ? 'MAÑANA' : 'el ' + r.dia.slice(0, 5)) + (r.hora ? ' a las ' + r.hora : '');
+    alertas.push({
+      nivel: dias === null || dias <= 1 ? 'alta' : 'media', tipo: 'recordatorio', edicion: '',
+      texto: r.que + ' — ' + cuando,
+      detalle: (r.detalle ? r.detalle.replace(/[.\s]+$/, '') + '. ' : '') +
+               (r.quien ? 'Lo cargó: ' + r.quien + '. ' : '') +
+               'Cuando esté, poné Hecho en la columna Estado (o Cancelado). En la pestaña "' +
+               HOJA_RECORDATORIOS + '", fila ' + r.fila + '.'
+    });
   });
 
   // Se marca sola: la portada no muestra el detalle de las que hablan de plata.

@@ -48,6 +48,12 @@ try {
 }
 
 const MUTACIONES = [
+  ['el recordatorio pendiente no alerta', CODIGO,
+   "    if (r.estado !== 'pendiente') return;", "    return;"],
+  ['el recordatorio de la semana que viene sale como alta', CODIGO,
+   "nivel: dias === null || dias <= 1 ? 'alta' : 'media'", "nivel: 'alta'"],
+  ['el recordatorio sin fecha sale como media', CODIGO,
+   "nivel: dias === null || dias <= 1 ? 'alta'", "nivel: dias <= 1 && dias !== null ? 'alta'"],
   ['la visita pendiente no alerta', CODIGO,
    "    if (v.estado === 'pendiente') {", "    if (v.estado === 'nunca') {"],
   ['la visita no dice HOY', CODIGO,
@@ -63,7 +69,7 @@ const MUTACIONES = [
   ['la pestaña de reserva del formulario no alerta', CODIGO,
    "    if (!lleno) return;\n    res.push(", "    if (true) return;\n    res.push("],
   ['la pestaña de reserva se lee como una edición', CODIGO,
-   "'Panel', 'Sin pestaña del mes (webhook)', 'Pagos en persona'];", "'Panel', 'Pagos en persona'];"],
+   "'Panel', 'Sin pestaña del mes (webhook)', 'Pagos en persona', 'Recordatorios'];", "'Panel', 'Pagos en persona', 'Recordatorios'];"],
   ['agosto vuelve a depender del nombre de la pestaña', CODIGO,
    '  if (fijo) return new Date(', '  if (false) return new Date('],
   ['la restricción alimentaria no avisa', CODIGO,

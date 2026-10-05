@@ -797,7 +797,7 @@ caso(
   () => {
     const a = tipos(conVisitas([['Visita Prueba', 'WhatsApp', ED_V, '', '', '', 'Pendiente', '', '', '']]), 'pago_en_persona');
     if (a.length !== 1) return 'esperaba 1, hay ' + a.length;
-    return /sin d[ií]a/i.test(a[0].texto) || 'no avisa que falta acordar el día: ' + a[0].texto;
+    return /a confirmar/i.test(a[0].texto) || 'no avisa que falta acordar el día: ' + a[0].texto;
   }
 );
 caso(
@@ -831,7 +831,7 @@ caso(
   'o no vino o pagó y nadie lo anotó: las dos cosas hay que resolverlas',
   () => {
     const a = tipos(conVisitas([['Visita Prueba', '', ED_V, '30/10/2026', '19:00', '', 'Pendiente', '', '', '']]), 'pago_en_persona');
-    return (a.length === 1 && /ten[ií]a que venir/i.test(a[0].texto)) || 'no avisa del día vencido: ' + (a[0] || {}).texto;
+    return (a.length === 1 && /ten[ií]a que venir/i.test(a[0].texto) && /vino\?/.test(a[0].texto)) || 'no avisa del día vencido: ' + (a[0] || {}).texto;
   }
 );
 caso(
@@ -877,6 +877,52 @@ caso(
   'la pestaña de visitas no se cuenta como una edición',
   'si se leyera como inscriptos, una visita ocuparía cupo antes de pagar',
   () => G.HOJAS_IGNORADAS.map(G.normalizarNombre).indexOf(G.normalizarNombre(VIS)) !== -1 || 'no está en HOJAS_IGNORADAS'
+);
+
+
+console.log('\n--- Recordatorios ---');
+const REC = 'Recordatorios';
+const HREC = ['Qué','Para cuándo','Hora','Detalle','Estado','Quién lo cargó','Cargado el'];
+const conRec = (filasR) => armar(ED_V, 15, [], null, null, { [REC]: [HREC].concat(filasR) });
+caso(
+  'un recordatorio para hoy da alerta alta que dice HOY',
+  'Leo pidió que los recordatorios importantes aparezcan en la app',
+  () => {
+    const a = tipos(conRec([['Llevar el horno a revisar', '01/11/2026', '10:00', 'Lo pidió Leo', 'Pendiente', 'Prueba', '']]), 'recordatorio');
+    if (a.length !== 1) return 'esperaba 1 alerta recordatorio, hay ' + a.length;
+    if (a[0].nivel !== 'alta') return 'esperaba alta, es ' + a[0].nivel;
+    return (/Llevar el horno/.test(a[0].texto) && /HOY a las 10:00/.test(a[0].texto)) || a[0].texto;
+  }
+);
+caso(
+  'un recordatorio para dentro de una semana se ve, pero como media',
+  'todavía no es urgente: no tiene que tapar lo de hoy',
+  () => {
+    const a = tipos(conRec([['Pedir presupuesto', '08/11/2026', '', '', '', '', '']]), 'recordatorio');
+    return (a.length === 1 && a[0].nivel === 'media' && /08\/11/.test(a[0].texto)) || JSON.stringify(a);
+  }
+);
+caso(
+  'un recordatorio sin fecha es alta',
+  'sin fecha no hay otro momento en que aparezca',
+  () => { const a = tipos(conRec([['Revisar el stock de frascos', '', '', '', 'Pendiente', '', '']]), 'recordatorio');
+    return (a.length === 1 && a[0].nivel === 'alta' && /sin fecha/.test(a[0].texto)) || JSON.stringify(a); }
+);
+caso(
+  'un recordatorio con la fecha pasada pregunta si se hizo',
+  'si quedó Pendiente, o se olvidó o nadie lo marcó',
+  () => { const a = tipos(conRec([['Pagar el alquiler', '30/10/2026', '', '', 'Pendiente', '', '']]), 'recordatorio');
+    return (a.length === 1 && a[0].nivel === 'alta' && /se hizo\?/.test(a[0].texto)) || JSON.stringify(a); }
+);
+caso(
+  'Hecho y Cancelado no alertan',
+  'lo resuelto se va solo',
+  () => tipos(conRec([['Uno', '01/11/2026', '', '', 'Hecho', '', ''], ['Dos', '01/11/2026', '', '', 'Cancelado', '', '']]), 'recordatorio').length === 0 || 'alertó algo resuelto'
+);
+caso(
+  'la pestaña de recordatorios no se cuenta como una edición',
+  'no es gente anotada',
+  () => G.HOJAS_IGNORADAS.map(G.normalizarNombre).indexOf(G.normalizarNombre(REC)) !== -1 || 'no está en HOJAS_IGNORADAS'
 );
 
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');

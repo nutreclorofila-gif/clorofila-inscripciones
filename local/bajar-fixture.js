@@ -77,7 +77,7 @@ const rellenar = (filas, ancho) =>
     let m;
     while ((m = re.exec(String(f[3] || '')))) nombradas.add(norm((m[1] || m[2]).replace(/''/g, "'")));
   });
-  const ignoradas = ['lista de espera', 'gift cards', 'pagos en cuotas', 'panel', norm('Sin pestaña del mes (webhook)'), norm('Pagos en persona')];
+  const ignoradas = ['lista de espera', 'gift cards', 'pagos en cuotas', 'panel', norm('Sin pestaña del mes (webhook)'), norm('Pagos en persona'), norm('Recordatorios')];
   const aLeer = titulos.filter(t => !ignoradas.includes(norm(t)) &&
     (/^inscriptos /i.test(String(t).trim()) || nombradas.has(norm(t))));
 
@@ -89,7 +89,7 @@ const rellenar = (filas, ancho) =>
   // mismo ancho que usa la app (hasta la N). Sin ellas la prueba con datos
   // reales nunca las veía.
   const extras = {};
-  for (const nombre of ['Lista de espera', 'Gift Cards', 'Pagos en cuotas', 'Sin pestaña del mes (webhook)', 'Pagos en persona']) {
+  for (const nombre of ['Lista de espera', 'Gift Cards', 'Pagos en cuotas', 'Sin pestaña del mes (webhook)', 'Pagos en persona', 'Recordatorios']) {
     const real = buscar(nombre);
     if (real) extras[nombre] = rellenar(await leer(citar(real) + '!A:N', 'FORMATTED_VALUE'), 14);
   }

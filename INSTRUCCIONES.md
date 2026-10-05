@@ -206,6 +206,17 @@ pestaña **«Pagos en persona»** de la Master: Nombre, Canal, Edición, Día ac
 - **No vino** o **Cancelado** cierran la visita sin alerta.
 - La pestaña nunca cuenta como edición ni ocupa cupo.
 
+## Recordatorios
+
+Para cualquier cosa importante que no se puede olvidar (pedido de Leo, 4/10/2026), una fila
+en la pestaña **«Recordatorios»** de la Master: Qué, Para cuándo (dd/mm/aaaa, o vacío),
+Hora, Detalle, Estado (Pendiente / Hecho / Cancelado), Quién lo cargó, Cargado el.
+
+- En la app: **alerta alta** si es para hoy, mañana, ya pasó («¿se hizo?») o no tiene fecha;
+  **media** si falta más. Con Hecho o Cancelado se va sola.
+- Por mail (proyecto `avisos/`): uno al cargarlo, y entra en el resumen diario de las 9
+  junto con los pagos en persona; uno si pasó la fecha y sigue Pendiente.
+
 ## Pagos en cuotas
 
 En la pestaña de inscriptos queda solo el primer pago. Las cuotas siguientes se anotan en
@@ -318,7 +329,7 @@ pruebas. Una prueba que nunca falla no prueba nada, y eso no se ve leyéndola.
 | `local/probar.js` | Los conteos contra el Panel real, edición por edición: anotados, cupo y personas. |
 | `local/casos-limite.js` | Escenarios plausibles de la planilla que podrían romperla, incluidas las alertas de sobrecupo, fórmula que no se entiende y Panel lleno. |
 | `local/probar-lectura.js` | `leerPlanilla()` con un Sheets falso: qué pestañas lee y cuáles no, y cuándo el Panel llegó al tope de filas que se leen. Y que `doGet` no mande al teléfono comprobantes, mails ni montos que la pantalla no muestra, y sí su marca de versión. |
-| `local/probar-avisos.js` | Los mails de «Pagos en persona» (`avisos/Avisos.gs`): aviso al cargar una visita, un resumen por día desde las 9 con HOY / Mañana en el asunto, una vez si el día pasó sin marcar, nada si no hay pendientes, y sin datos de contacto. |
+| `local/probar-avisos.js` | Los mails de «Pagos en persona» y «Recordatorios» (`avisos/Avisos.gs`): aviso al cargar una visita, un resumen por día desde las 9 con HOY / Mañana en el asunto, una vez si el día pasó sin marcar, nada si no hay pendientes, y sin datos de contacto. |
 | `local/probar-pin.js` | Que sin el PIN correcto no salga nada, y el freno a los intentos. |
 | `local/probar-planilla-a-mano.js` | Cómo se puede escribir la fórmula del Panel, la lista de espera y las gift cards, y que lo que no se pudo leer termine en una alerta. |
 | `local/probar-cache.js` | Qué queda guardado en el teléfono, cuándo vence y que "Salir" lo borre. |
