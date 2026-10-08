@@ -175,11 +175,14 @@ caso(
   }
 );
 caso(
-  'sin la marca, 12.000 en el curso sigue siendo una seña',
+  'sin la marca (o con un «sí»), 12.000 en el curso sigue siendo una seña',
   'la marca es la excepción que pone Leo, no un redondeo: $200 de menos sin decisión suya se avisa',
   () => {
-    const p = armar('Curso de cocina — Noviembre 2026', 15, [{nombre:'A',monto:'12000'}]).ediciones[0].personas[0];
-    return (p.estadoPago === 'parcial' && p.saldo === 200) || 'dio ' + p.estadoPago + ' / ' + p.saldo;
+    for (const v of ['', 'sí', 'verificado']) {
+      const p = armar('Curso de cocina — Noviembre 2026', 15, [{nombre:'A',monto:'12000',verificado:v}]).ediciones[0].personas[0];
+      if (p.estadoPago !== 'parcial' || p.saldo !== 200) return 'con «' + v + '» dio ' + p.estadoPago + ' / ' + p.saldo;
+    }
+    return true;
   }
 );
 
