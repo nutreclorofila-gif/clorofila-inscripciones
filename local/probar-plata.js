@@ -163,6 +163,26 @@ caso(
   }
 );
 
+caso(
+  '«completo» ahí da el curso por pagado aunque falte plata',
+  'Leo a veces decide no cobrar la diferencia («dejalo en 12000»): sin esto la app le sigue diciendo que le falta $200',
+  () => {
+    const e = armar('Curso de cocina — Noviembre 2026', 15, [{nombre:'A',monto:'12000',verificado:'completo'}]);
+    const p = e.ediciones[0].personas[0];
+    if (p.estadoPago !== 'completo' || p.saldo !== 0) return 'dio ' + p.estadoPago + ' / ' + p.saldo;
+    if (!/completo/i.test(p.nota || '')) return 'no dice por qué quedó completo: ' + p.nota;
+    return (tipos(e, 'pago').length === 0) || 'sigue saliendo la alerta de pago';
+  }
+);
+caso(
+  'sin la marca, 12.000 en el curso sigue siendo una seña',
+  'la marca es la excepción que pone Leo, no un redondeo: $200 de menos sin decisión suya se avisa',
+  () => {
+    const p = armar('Curso de cocina — Noviembre 2026', 15, [{nombre:'A',monto:'12000'}]).ediciones[0].personas[0];
+    return (p.estadoPago === 'parcial' && p.saldo === 200) || 'dio ' + p.estadoPago + ' / ' + p.saldo;
+  }
+);
+
 console.log('\n--- Lo que ya andaba, que no se rompa ---');
 caso(
   'una seña en el curso sigue mostrando cuánto falta',
@@ -411,6 +431,17 @@ caso(
       [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '4800' }, { nombre: 'Ana', email: 'ana@ejemplo.uy', n: 2, monto: '7400' }]);
     const p = e.ediciones[0].personas[0];
     return (p.estadoPago === 'completo' && p.saldo === 0 && e.ediciones[0].pendientes.length === 0) || p.estadoPago + ' / ' + p.saldo;
+  }
+);
+caso(
+  '«completo» en pago verificado también vale con cuotas: no queda nada por cobrar',
+  'la cuenta del curso se rehace al sumar las cuotas: si la marca se mira solo en la inscripción, se pierde',
+  () => {
+    const e = conCuotas(CURSO, [{ nombre: 'Ana', email: 'ana@ejemplo.uy', monto: '4800', verificado: 'completo' }],
+      [{ nombre: 'Ana', email: 'ana@ejemplo.uy', n: 1, monto: '4800' }]);
+    const p = e.ediciones[0].personas[0];
+    return (p.estadoPago === 'completo' && !p.saldo && !p.falta && e.ediciones[0].pendientes.length === 0)
+      || p.estadoPago + ' / saldo ' + p.saldo + ' / falta ' + p.falta;
   }
 );
 caso(

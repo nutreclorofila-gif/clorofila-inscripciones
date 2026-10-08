@@ -158,6 +158,12 @@ en vez de reimplementar la regla. Eso importa porque conviven dos convenciones:
 Si una fila del curso tiene la columna E vacía o con un valor que no matchea ningún grupo,
 esa persona no la cuenta nadie y desaparece del cupo. La app lo levanta como alerta alta.
 
+**Dar un curso por pagado aunque falte plata.** Si decidís no cobrar una diferencia (por
+ejemplo, alguien pagó $12.000 y le dijiste «dejalo en 12000»), escribí `completo` en la
+columna I («pago verificado») de su fila de inscriptos. La app la da por paga, no le
+reclama nada y en su ficha dice «Dado por completo». También sirve `saldado`. Un `no` en
+esa misma columna hace lo contrario: el pago pasa a Revisar.
+
 ## Lo que NO hace por su cuenta
 
 - **No deduplica montos.** Si el mismo número de comprobante aparece cargado con monto en

@@ -1530,6 +1530,15 @@ function pagoDesmentido(texto) {
   return /^(no|false|falso|pendiente|sin verificar|no verificad|dudos|revisar|rechazad|falta verificar)/.test(t);
 }
 
+/**
+ * "completo" (o "saldado") en la columna pago verificado: Leo decidió que esa
+ * persona no debe nada aunque haya pagado menos, como quien pagó $12.000 por el
+ * curso y él dijo «dejalo en 12000». Sin esto la app le seguía reclamando $200.
+ */
+function pagoSaldado(texto) {
+  return /^(completo|saldado|dado por completo|no se reclama)/.test(String(texto || '').trim().toLowerCase());
+}
+
 function evaluarPago(f, ed) {
   var p = {
     nombre: f.nombre, email: f.email, celular: f.celular, horario: f.horario,
@@ -1607,6 +1616,11 @@ function cuentaDelCurso(p, cobrado, porVenir) {
   if (cobrado >= PRECIOS.cursoTotal) {
     p.estadoPago = 'completo';
     delete p.nota;
+    return;
+  }
+  if (pagoSaldado(p.verificado)) {
+    p.estadoPago = 'completo';
+    p.nota = 'Dado por completo («' + String(p.verificado).trim() + '» en pago verificado)';
     return;
   }
   p.estadoPago = 'parcial';
