@@ -2369,8 +2369,10 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
 
   // h-cero) Lleno y el Estado sigue en Abierto. El Estado se escribe a mano en
   //         el Panel: si nadie lo pasa a Cerrado, la venta sigue y se pasa del cupo.
+  //         El curso no: se anota a mano, sin venta automática, y Leo lo deja
+  //         Abierto mientras dura para ver a los alumnos (12/10/2026).
   abiertas.forEach(function (ed) {
-    if (ed.abierta && ed.cupo > 0 && ed.quedan === 0) {
+    if (ed.abierta && !ed.esCurso && ed.cupo > 0 && ed.quedan === 0) {
       alertas.push({
         nivel: 'media', tipo: 'lleno_abierto', edicion: ed.edicion,
         texto: ed.edicion + ': está lleno y sigue Abierto',

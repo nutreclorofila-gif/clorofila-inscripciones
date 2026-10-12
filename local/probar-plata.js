@@ -808,6 +808,11 @@ caso(
   () => tipos(armar('Taller de tapeo — 16/11/2026', 2, dos, "=COUNTIF('Inscriptos Noviembre 2026'!K:K;B2)", 'Cerrado'), 'lleno_abierto').length === 0 || 'alertó con la edición cerrada'
 );
 caso(
+  'el curso lleno y Abierto no da alerta',
+  'Leo deja el curso en Abierto para ver a los alumnos, y ahí no hay venta automática (se anota a mano): pedirle que lo cierre es ruido',
+  () => tipos(armar('Curso de cocina — Noviembre 2026', 2, dos, null, 'Abierto'), 'lleno_abierto').length === 0 || 'alertó con el curso'
+);
+caso(
   'con lugares libres no da alerta de lleno',
   'quedan lugares: que siga abierta es lo que corresponde',
   () => tipos(armar('Taller de tapeo — 16/11/2026', 3, dos, "=COUNTIF('Inscriptos Noviembre 2026'!K:K;B2)", 'Abierto'), 'lleno_abierto').length === 0 || 'alertó con un lugar libre'
