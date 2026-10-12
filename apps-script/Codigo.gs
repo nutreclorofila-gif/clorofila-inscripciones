@@ -74,8 +74,9 @@ var HOJA_PANEL = 'Panel';
 
 /**
  * Pestañas que no ocupan cupo pero sí hay que mirar: cuando un taller se llena,
- * lo que se necesita es a quién llamar; y una gift card vendida es plata cobrada
- * y un lugar que alguien va a usar más adelante.
+ * lo que se necesita es a quién llamar; y una gift card cobrada sin usar es plata
+ * cobrada y un lugar que alguien va a usar más adelante (las pendientes de pago
+ * todavía no).
  */
 var HOJA_ESPERA = 'Lista de espera';
 var HOJA_GIFT = 'Gift Cards';
@@ -958,7 +959,9 @@ function construirEstado(crudo, ahora) {
       porVencer: sumar(cobrando, 'porVencer'),
       pendientes: cobrando.reduce(function (a, e) { return a + e.pendientes.length; }, 0),
       enEspera: espera.length,
-      giftSinUsar: gift.filter(function (g) { return !g.usada; }).length,
+      // Cobradas y sin usar: las pendientes de pago NO entran acá.
+      giftSinUsar: gift.filter(function (g) { return !g.usada && !g.pendiente; }).length,
+      giftPendientes: gift.filter(function (g) { return g.pendiente; }).length,
       // Va en el resumen y no colgado del array: las propiedades de un array no
       // sobreviven a JSON.stringify y nunca llegarían al navegador.
       giftSinMonto: !!gift.faltaElMonto,
@@ -1141,7 +1144,6 @@ function ligarAEdicion(texto, ediciones) {
   return porFecha.length === 1 ? porFecha[0].edicion : null;
 }
 
-/** Gift cards: una vendida sin usar es plata cobrada y un lugar que se va a ocupar. */
 /**
  * Los recordatorios con algo en "Qué" (sin el encabezado). La clave es el Qué
  * normalizado, no la fila: las filas se corren si alguien inserta una arriba.
@@ -1236,6 +1238,8 @@ function leerGiftCards(filas) {
     var monto = parsearMonto(importe.valor);
     if (monto === null) sinMonto = true;
 
+    var usada = estaUsada(estado) || !!usadaPor || !!fechaUso;
+
     return {
       nombre: quien,
       deQuien: deQuien,
@@ -1246,7 +1250,11 @@ function leerGiftCards(filas) {
       usadaPor: usadaPor,
       // Canjeada si lo dice el estado, o si hay alguien anotado como que la usó,
       // o si tiene fecha de uso. Cualquiera de las tres alcanza.
-      usada: estaUsada(estado) || !!usadaPor || !!fechaUso,
+      usada: usada,
+      // Tres situaciones: pendiente de pago (entró sola, Leo todavía no confirmó
+      // que pagaron), cobrada sin usar y usada. Una pendiente NO es plata
+      // cobrada ni un lugar futuro. Si ya figura usada, manda eso.
+      pendiente: !usada && estaPendiente(estado),
       fila: o._fila
     };
   }).filter(function (x) { return x.nombre || x.email || x.monto; });
@@ -1269,6 +1277,16 @@ function estaUsada(texto) {
   if (!t) return false;
   if (/^(no|sin usar|sin canjear|no usada|pendiente|vigente|activa|disponible)/.test(t)) return false;
   return /^(s[ií]|x)$/.test(t) || /(usad|canjead|entregad|cobrad)/.test(t);
+}
+
+/**
+ * ¿La gift card todavía espera que se confirme el pago? Desde el 12/10/2026 las
+ * compras entran solas a la pestaña con Estado «Pendiente»; Leo las pasa a
+ * «Libre» cuando confirma el pago. Solo mira el Estado: «Tarjeta enviada» u
+ * otras columnas nuevas no participan.
+ */
+function estaPendiente(texto) {
+  return /^pendiente/.test(String(texto || '').trim().toLowerCase());
 }
 
 /**

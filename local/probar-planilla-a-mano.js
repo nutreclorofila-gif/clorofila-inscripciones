@@ -125,6 +125,38 @@ const completa = G.leerGiftCards([['nombre', 'de', 'email', 'monto', 'usada'], [
 caso('con la planilla completa lee todo bien', ['Mengana', 'a@b.com', 3500], [completa[0].deQuien, completa[0].email, completa[0].monto]);
 caso('y ahí no falta nada',                    false, completa.faltaElMonto);
 
+// Desde el 12/10/2026 las compras entran solas con Estado «Pendiente» (sin pagar
+// todavía) y Leo las pasa a «Libre» al confirmar el pago. Una pendiente no es
+// plata cobrada: tiene que distinguirse de la cobrada sin usar y de la usada.
+console.log('\n--- Gift cards: pendiente de pago, cobrada y usada ---');
+caso('"Pendiente" no está usada',                  false, G.estaUsada('Pendiente'));
+caso('"Pendiente" figura pendiente',               true,  G.estaPendiente('Pendiente'));
+caso('"Pendiente de pago" figura pendiente',       true,  G.estaPendiente('  Pendiente de pago'));
+['Libre', 'Vigente', 'Disponible', 'Sin usar', '', 'Usada'].forEach(t => {
+  caso('"' + t + '" no figura pendiente', false, G.estaPendiente(t));
+});
+['Libre', 'Vigente', 'Disponible', 'Sin usar', ''].forEach(t => {
+  caso('"' + t + '" no cuenta como usada', false, G.estaUsada(t));
+});
+// Los encabezados de hoy, con la columna K de importe y la L «Tarjeta enviada».
+const HGC_L = HGC.concat(['Importe', 'Tarjeta enviada']);
+const gcL = G.leerGiftCards([HGC_L,
+  ['GC-201', 'Taller de tapeo', 'Fulana', 'f@x.com', '12/10/2026', 'Mengana', '099111222', 'Pendiente', '', '', '3000', ''],
+  ['GC-202', 'Taller de tapeo', 'Zutana', 'z@x.com', '12/10/2026', 'Perengano', '099333444', 'Libre', '', '', '3000', '13/10/2026'],
+  ['GC-203', 'Taller de tapeo', 'Zutana', 'z@x.com', '01/06/2026', 'Fulanito', '099555666', 'Libre', '', '', '3000', 'entregada a mano antes de la automatización'],
+  ['GC-204', 'Taller de tapeo', 'Zutana', 'z@x.com', '01/06/2026', 'Menganito', '099777888', 'Usada', 'Menganito', '20/08/2026', '3000', '']]);
+caso('con la columna L, la pendiente figura pendiente y no usada', [true, false], [gcL[0].pendiente, gcL[0].usada]);
+caso('y se lee el importe, quién la compró y qué regala', [3000, 'Fulana', 'Taller de tapeo'], [gcL[0].monto, gcL[0].deQuien, gcL[0].actividad]);
+caso('la cobrada con fecha en «Tarjeta enviada» no es pendiente ni usada', [false, false], [gcL[1].pendiente, gcL[1].usada]);
+caso('«entregada a mano…» en «Tarjeta enviada» NO la marca usada', [false, false], [gcL[2].pendiente, gcL[2].usada]);
+caso('y esa columna no se confunde con estado: sigue diciendo «Libre»', 'Libre', gcL[2].estado);
+caso('ni con email ni destinatario ni de quién', ['z@x.com', 'Fulanito', 'Zutana'], [gcL[2].email, gcL[2].nombre, gcL[2].deQuien]);
+caso('la usada sigue usada y no pendiente', [true, false], [gcL[3].usada, gcL[3].pendiente]);
+// Aun si la columna L cayera sola (sin Estado), tampoco pasa a ser usada.
+const sinEstadoL = G.leerGiftCards([['Código', 'Actividad', 'Destinatario', 'Tarjeta enviada'],
+  ['GC-301', 'Taller de tapeo', 'Mengana', 'entregada a mano antes de la automatización']])[0];
+caso('sin Estado, «Tarjeta enviada» no la marca usada ni pendiente', [false, false, ''], [sinEstadoL.usada, sinEstadoL.pendiente, sinEstadoL.estado]);
+
 console.log('\n--- Lista de espera: distinguir "no hay nadie" de "no la supe leer" ---');
 // Importa porque las dos cosas dan cero desde afuera, y una es normal y la otra
 // es que la app está ciega justo cuando un taller se llena.

@@ -1099,9 +1099,12 @@
         }).join('')
       : '<div class="vacio">Está todo cobrado.</div>';
 
-    // Gift cards: las vendidas sin usar son plata ya cobrada y un lugar futuro.
+    // Gift cards: las cobradas sin usar son plata ya cobrada y un lugar futuro.
+    // Las pendientes de pago todavía no: van aparte, para que Leo las confirme.
     var gc = DATOS.giftCards || [];
-    var sinUsar = gc.filter(function (g) { return !g.usada; });
+    var pendGift = gc.filter(function (g) { return g.pendiente && !g.usada; });
+    var sinUsar = gc.filter(function (g) { return !g.usada && !g.pendiente; });
+    var cobradas = gc.length - pendGift.length;
     if (gc.length) {
       html += '<div class="seccion">Gift cards</div>' +
         '<div class="tarjeta"><div style="padding:14px">' +
@@ -1114,7 +1117,7 @@
               plata(sinUsar.reduce(function (a, g) { return a + (g.monto || 0); }, 0)) +
               '</b>cobrado por adelantado</span>') +
           '</div>' +
-          '<div class="pie"><span>' + gc.length + ' vendidas en total</span>' +
+          '<div class="pie"><span>' + cobradas + ' vendidas en total</span>' +
           '<span>' + (r.giftSinMonto
             ? 'Sin importe cargado en la planilla.'
             : 'Cada una sin usar es un lugar que alguien va a ocupar.') + '</span></div>' +
@@ -1125,7 +1128,17 @@
             '<div class="sub">' + esc([g.actividad || '', g.deQuien ? 'la compró ' + g.deQuien : '', g.estado]
               .filter(Boolean).join(' · ')) + '</div></div>' +
             '<span style="font-weight:600">' + (g.monto ? plata(g.monto) : '') + '</span></div>';
-        }).join('');
+        }).join('') +
+        (pendGift.length
+          ? '<div class="seccion">Gift cards pendientes de confirmar pago</div>' +
+            pendGift.map(function (g) {
+              return '<div class="persona"><div class="quien">' +
+                '<div class="nom">' + esc(g.deQuien || g.nombre || '(sin nombre)') + '</div>' +
+                '<div class="sub">' + esc([g.actividad || '', g.nombre ? 'para ' + g.nombre : '']
+                  .filter(Boolean).join(' · ')) + '</div></div>' +
+                '<span style="font-weight:600">' + (g.monto ? plata(g.monto) : '') + '</span></div>';
+            }).join('')
+          : '');
     }
 
     html += '<div class="seccion">Tikzet</div>' +

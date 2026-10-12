@@ -511,6 +511,41 @@ console.log('\n--- La tarjeta abierta de Cupos ---');
     /Olga Inventada/.test(gift) && /Pablo Inventado/.test(gift) && /la compró Sara Inventada/.test(gift));
   chequeo('y no la que ya se usó', !/Rita Inventada/.test(gift));
 
+  // Pendientes de pago (Estado «Pendiente»): no suman a lo cobrado ni a las sin
+  // usar, y salen aparte con comprador, qué regala e importe.
+  {
+    const conPend = conGift(HGC.concat(['Importe', 'Tarjeta enviada']), [
+      ['GC-911', 'Taller de tapeo', 'Sara Inventada', 'sara@ejemplo.com', '12/10/2026', 'Olga Inventada', '', 'Libre', '', '', '1000', '13/10/2026'],
+      ['GC-912', 'Curso de cocina', 'Tito Inventado', 'tito@ejemplo.com', '12/10/2026', 'Pablo Inventado', '', 'Pendiente', '', '', '7000', ''],
+      ['GC-913', 'Taller de tapeo', 'Ana Inventada', 'ana@ejemplo.com', '01/06/2026', 'Rita Inventada', '', 'Libre', '', '', '2000', 'entregada a mano antes de la automatización']]);
+    probarEstado('Gift cards con pendientes', conPend);
+    const hp = seccion(cargarUI(conPend).vistaPlata());
+    const chp = (nombre, cond) => {
+      corridos++;
+      if (cond) console.log('  ok    ' + nombre);
+      else { fallas++; console.log('  FALLA ' + nombre + '\n        la sección quedó: ' + hp.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 400)); }
+    };
+    chp('el resumen separa 2 cobradas sin usar y 1 pendiente',
+      conPend.resumen.giftSinUsar === 2 && conPend.resumen.giftPendientes === 1);
+    chp('el número grande no cuenta la pendiente', /class="grande">2<\/span><span class="de">sin usar/.test(hp));
+    chp('lo cobrado por adelantado no suma la pendiente',
+      hp.indexOf(ui.plata(3000) + '</b>cobrado por adelantado') !== -1 && hp.indexOf(ui.plata(10000)) === -1);
+    chp('"vendidas en total" no cuenta la pendiente', /2 vendidas en total/.test(hp));
+    chp('hay un bloque de pendientes de confirmar pago', /pendientes de confirmar pago/.test(hp));
+    const bloque = hp.slice(hp.indexOf('pendientes de confirmar pago'));
+    chp('la pendiente muestra comprador, qué regala e importe',
+      /Tito Inventado/.test(bloque) && /Curso de cocina/.test(bloque) && bloque.indexOf(ui.plata(7000)) !== -1);
+    const arriba = hp.slice(0, hp.indexOf('pendientes de confirmar pago'));
+    chp('y no aparece entre las cobradas', !/Tito Inventado/.test(arriba) && !/Pablo Inventado/.test(arriba));
+    chp('la de «entregada a mano» figura cobrada, no usada ni pendiente', /Rita Inventada/.test(arriba));
+    // Con todo pendiente: cero cobradas y el bloque de pendientes.
+    const todoPend = conGift(HGC.concat(['Importe']), [
+      ['GC-921', 'Taller de tapeo', 'Sara Inventada', 'sara@ejemplo.com', '12/10/2026', 'Olga Inventada', '', 'Pendiente', '', '', '1000']]);
+    const ht = seccion(cargarUI(todoPend).vistaPlata());
+    chp('con todas pendientes no hay plata cobrada por adelantado ni vendidas',
+      ht.slice(0, ht.indexOf('pendientes de confirmar pago')).indexOf(ui.plata(1000)) === -1 && /0 vendidas en total/.test(ht));
+  }
+
   // La pestaña de hoy no tiene columna de importe: no se inventa un $ 0.
   const sinMonto = conGift(HGC, [
     ['GC-901', 'Taller de tapeo', 'Sara Inventada', 'sara@ejemplo.com', '01/07/2026', 'Olga Inventada', '', 'Libre', '', '']]);
