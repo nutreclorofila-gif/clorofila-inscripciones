@@ -119,7 +119,7 @@ Además:
 - **Copiar la lista de anotados** de una edición: título, cupo y solo los nombres (sin estado
   de pago ni montos), para pegarla en el grupo o mandarla a la cocina.
 - **Funciona sin señal**: guarda el último estado en el teléfono y lo muestra enseguida al
-  abrir, mientras busca lo nuevo, con un cartel en las cuatro solapas que dice de cuándo es y
+  abrir, mientras busca lo nuevo, con un cartel en las cinco solapas que dice de cuándo es y
   por qué no es lo de ahora. Lo guardado va junto al PIN con que se obtuvo, pero como el PIN
   también queda guardado, quien abra la app en el teléfono desbloqueado la ve: lo que protege
   es el bloqueo del teléfono y el botón **Salir** (ver *Lo que queda guardado en el teléfono*).
@@ -135,7 +135,7 @@ La app dice qué pasó y no toca el PIN, salvo que el servidor lo rechace:
 | Google contesta con su página de error (el 403 cuando se revoca el permiso) | "Google no mandó los datos (error 403). Puede que haya que volver a autorizar la app." |
 | El teléfono está sin señal | "El teléfono está sin señal." |
 | El pedido queda colgado | A los 8 segundos avisa que sigue esperando; a los 30 corta y lo dice. |
-| La página y el servidor quedaron de versiones distintas (se publicó uno solo, o el teléfono tiene la página vieja) | Un aviso en las cuatro solapas, sin montos: *"Cerrá la app y abrila de nuevo"* o *"Tocá Actualizar"*, y si sigue, que hay que volver a publicar. Ver *Desplegar cambios*. |
+| La página y el servidor quedaron de versiones distintas (se publicó uno solo, o el teléfono tiene la página vieja) | Un aviso en las cinco solapas, sin montos: *"Cerrá la app y abrila de nuevo"* o *"Tocá Actualizar"*, y si sigue, que hay que volver a publicar. Ver *Desplegar cambios*. |
 
 Si hay datos guardados, en todos los casos menos el primero se muestran esos datos con el
 motivo en el cartel amarillo. Lo prueba `local/probar-arranque.js`.
@@ -199,6 +199,27 @@ mail. Esa pestaña no cuenta en ningún cupo. Mientras tenga alguna fila escrita
 muestra una **alerta alta** con el nombre y la edición. Se arregla creando la pestaña del
 mes (mismo encabezado que las otras) y moviendo la fila; cuando la pestaña de reserva queda
 vacía, la alerta se va sola.
+
+## Grupos (Eventos y empresas)
+
+La solapa **Grupos** muestra la pestaña **«Eventos y empresas»** de la Master: los eventos
+privados de empresas y grupos (pedido de Leo, 14/10/2026). Solo la lee; no cuenta en ningún
+cupo ni da alertas.
+
+- Una tarjeta por fila con Empresa / grupo: contacto y tipo, fecha y horario, personas,
+  formato, total, seña y saldo (o el precio por persona si todavía no hay total), el estado
+  con color, el **próximo paso** y un botón **Abrir el chat** (columna G).
+- Arriba los **confirmados** (y los hechos que falta cobrar), por fecha. Después los que
+  están en **propuesta o consulta**. Los **cobrados y cancelados**, plegados al final.
+- La fecha y las personas pueden ser texto («fines de noviembre», «8 a 10»): se muestran
+  tal cual. Para ordenar se usa el primer día que aparezca en la fecha («jueves 10/12 o
+  17/12» → 10/12).
+- El Estado se lee por cómo empieza: Consulta, Propuesta…, Confirmado…, Realizado, Cobrado,
+  Cancelado. Vacío cuenta como Consulta.
+- El link del chat solo se muestra si empieza con `https://`.
+- **Al teléfono no viajan** el mail, el celular, el medio de pago, el comprobante, la factura
+  ni las notas: las notas copian chats enteros. Si hace falta algo de eso, está en la planilla.
+- Se lee de la A a la W. No mover las columnas: la app las toma por posición.
 
 ## Pagos en persona
 
@@ -270,7 +291,7 @@ venció, y las cuotas que todavía no vencieron van aparte como **"Más adelante
 Son dos piezas y se publican en este orden: **primero el servidor, después la página.** La
 página nueva lee campos que agrega el servidor nuevo; al revés, si el servidor falla, en el
 teléfono queda una pantalla que espera datos que nadie le manda. Si igual quedan de versiones
-distintas, la app lo avisa en las cuatro solapas (*"Los datos vienen de una versión anterior
+distintas, la app lo avisa en las cinco solapas (*"Los datos vienen de una versión anterior
 de la app"* o *"Esta pantalla es más vieja que los datos"*): la marca es `FORMA_ESTADO` en
 `Codigo.gs` y `FORMA_ESPERADA` en `Index.html`, y se suben juntas, en 1, cada vez que el
 estado gana, pierde o cambia un campo que la página lee.
@@ -355,11 +376,11 @@ pruebas. Una prueba que nunca falla no prueba nada, y eso no se ve leyéndola.
 | `local/probar-pin.js` | Que sin el PIN correcto no salga nada, y el freno a los intentos. |
 | `local/probar-planilla-a-mano.js` | Cómo se puede escribir la fórmula del Panel, la lista de espera y las gift cards, y que lo que no se pudo leer termine en una alerta. |
 | `local/probar-cache.js` | Qué queda guardado en el teléfono, cuándo vence y que "Salir" lo borre. |
-| `local/probar-vistas.js` | Las cuatro solapas con datos nuevos, con un backend viejo y con la planilla vacía. También la tarjeta de Cupos abierta (el chip dice cuánto falta, no cuánto pagó) y las gift cards de Plata (lo cobrado por adelantado suma solo las cobradas sin usar; las de Estado «Pendiente» van aparte, como «pendientes de confirmar pago»). |
+| `local/probar-vistas.js` | Las cinco solapas con datos nuevos, con un backend viejo y con la planilla vacía. También la tarjeta de Cupos abierta (el chip dice cuánto falta, no cuánto pagó) y las gift cards de Plata (lo cobrado por adelantado suma solo las cobradas sin usar; las de Estado «Pendiente» van aparte, como «pendientes de confirmar pago»). |
 | `local/probar-plata.js` | La lógica de plata: señas, precio del curso, montos raros, comprobantes repetidos, columna de verificación, y los totales de arriba ("Falta cobrar", lugares libres, pendientes), que suman solo lo que viene. |
 | `local/probar-xss.js` | Datos hostiles del Tally público: el escape al incrustar, y que al pintarlos no quede ninguna etiqueta ni ningún manejador vivo — incluidos los enlaces de contacto, que es donde el dato entra dentro de un `href`, la gente de adentro de cada tarjeta de Cupos y las gift cards. |
 | `local/probar-privacidad.js` | Cruza los nombres, mails y celulares reales del fixture contra todo lo que está en el repo (que es público) y contra la página publicada en `gh-pages`. |
-| `local/probar-arranque.js` | Qué ve Leo cuando algo falla al abrir la app, en la puerta del PIN y al tocar Actualizar: que un error del servidor no borre el PIN ni se disfrace de "Sin conexión", que el PIN rechazado borre todo, el límite de espera, el cartel de datos viejos y el aviso de versiones distintas en las cuatro solapas. |
+| `local/probar-arranque.js` | Qué ve Leo cuando algo falla al abrir la app, en la puerta del PIN y al tocar Actualizar: que un error del servidor no borre el PIN ni se disfrace de "Sin conexión", que el PIN rechazado borre todo, el límite de espera, el cartel de datos viejos y el aviso de versiones distintas en las cinco solapas. |
 | `local/probar-publicacion.js` | Que `web/index.html` sea exactamente lo que sale de `Index.html`, que la URL del servidor esté escrita en un solo lugar, que `desplegar.sh` publique la página después del servidor, y `local/publicar-pagina.sh` de punta a punta contra un `gh-pages` de mentira (sin red), incluido que no publique si `verificar.sh` no pasa. |
 | `local/probar-documentacion.js` | Que este documento no vuelva a decir cosas que dejaron de ser ciertas: la receta de Netlify, la copia "que funciona igual", el PIN "nunca en claro", cuántas suites hay. |
 

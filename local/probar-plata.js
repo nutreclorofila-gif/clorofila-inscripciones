@@ -1085,5 +1085,102 @@ caso(
   }
 );
 
+console.log('\n--- Eventos y empresas ---');
+// Datos inventados. Columnas A a W, como la pestaña real.
+const HEV = ['Cargado el','Empresa / grupo','Contacto','Email','Celular','Canal','Link al chat','Tipo','Formato / menú',
+  'Fecha del evento','Horario / turno','Personas','Precio por persona','Total','Seña','Saldo','Medio de pago','Comprobante',
+  'Estado','Propuesta / último contacto','Próximo paso','Factura','Notas'];
+const ev = (o) => ['13/10/2026', o.grupo || '', o.contacto || '', o.email || '', o.cel || '', o.canal || 'WhatsApp', o.chat || '',
+  o.tipo || '', o.formato || '', o.fecha || '', o.horario || '', o.personas || '', o.precio || '', o.total || '', o.sena || '',
+  o.saldo || '', o.medio || '', o.comprobante || '', o.estado || '', '', o.paso || '', o.factura || '', o.notas || ''];
+const conEventos = (filas) => armar('Taller de tapeo — 16/11/2026', 12, [{nombre:'A',monto:'2600'}], null, null,
+  { 'Eventos y empresas': [HEV].concat(filas.map(ev)) });
+caso(
+  'lee un grupo confirmado con su plata y su fecha',
+  'es lo que Leo pidió ver en el celu: cuándo, cuántos, cuánto y qué falta',
+  () => {
+    const g = conEventos([{ grupo: 'Grupo Prueba', contacto: 'Fulana Prueba', fecha: 'viernes 6/11/2026', horario: '19 a 22:30',
+      personas: '11', precio: '1.500', total: '16.500', sena: '3.300', saldo: '13.200', estado: 'Confirmado con seña',
+      paso: 'Confirmar el horario', chat: 'https://business.facebook.com/latest/inbox/all?selected_item_id=1' }]).eventos[0];
+    if (!g) return 'no leyó el grupo';
+    if (g.estado !== 'confirmado') return 'estado ' + g.estado;
+    if (g.fecha !== '2026-11-06') return 'fecha ' + g.fecha;
+    if (g.total !== 16500 || g.sena !== 3300 || g.saldo !== 13200 || g.precio !== 1500) return 'plata ' + [g.total, g.sena, g.saldo, g.precio];
+    return (g.proximoPaso === 'Confirmar el horario' && /^https:/.test(g.chat) && g.fila === 2) || JSON.stringify(g);
+  }
+);
+caso(
+  'la fecha y las personas escritas en texto pasan tal cual, sin romper nada',
+  'en la pestaña real hay «fines de noviembre o principios de diciembre» y «8 a 10»',
+  () => {
+    const g = conEventos([{ grupo: 'Grupo Texto', fecha: 'fines de noviembre o principios de diciembre', personas: '8 a 10',
+      precio: '2.100', estado: 'Propuesta enviada' }]).eventos[0];
+    return (g.fecha === '' && g.fechaTexto === 'fines de noviembre o principios de diciembre' && g.personas === '8 a 10'
+      && g.total === null && g.saldo === null && g.estado === 'propuesta') || JSON.stringify(g);
+  }
+);
+caso(
+  'con dos fechas ordena por la primera, y sin año toma el que viene',
+  '«jueves 10/12 o jueves 17/12» y «15/1» escritos en noviembre son de este diciembre y del enero que viene',
+  () => {
+    const e = conEventos([{ grupo: 'Dos fechas', fecha: 'jueves 10/12 o jueves 17/12' }, { grupo: 'Enero', fecha: '15/1' }]).eventos;
+    return (e[0].fecha === '2026-12-10' && e[1].fecha === '2027-01-15') || e.map(x => x.fecha).join(' / ');
+  }
+);
+caso(
+  'sin saldo escrito, el saldo es el total menos la seña',
+  'el Saldo es una fórmula: si alguien la borra, la tarjeta no puede decir que no se debe nada',
+  () => {
+    const g = conEventos([{ grupo: 'Sin saldo', total: '10.000', sena: '2.000', estado: 'Confirmado' }]).eventos[0];
+    return g.saldo === 8000 || 'saldo ' + g.saldo;
+  }
+);
+caso(
+  'el estado se entiende escrito de varias formas',
+  'el Estado se escribe a mano: «cancelado», «Cobrado», «Realizado» o vacío no pueden caer todos en lo mismo',
+  () => {
+    const e = conEventos([{ grupo: 'a', estado: 'Consulta' }, { grupo: 'b', estado: 'realizado' }, { grupo: 'c', estado: 'Cobrado' },
+      { grupo: 'd', estado: 'Cancelado' }, { grupo: 'e', estado: '' }, { grupo: 'f', estado: 'algo raro' }]).eventos;
+    return e.map(x => x.estado).join(',') === 'consulta,realizado,cobrado,cancelado,consulta,otro' || e.map(x => x.estado).join(',');
+  }
+);
+caso(
+  'un link que no es https no llega a la tarjeta',
+  'el link va a un botón: un «javascript:» escrito en la celda se ejecutaría al tocarlo',
+  () => {
+    const e = conEventos([{ grupo: 'a', chat: 'javascript:alert(1)' }, { grupo: 'b', chat: 'http://inseguro.com' },
+      { grupo: 'c', chat: 'https://x.com/" onclick="alert(1)' }]).eventos;
+    return e.every(x => x.chat === '') || e.map(x => x.chat).join(' | ');
+  }
+);
+caso(
+  'al teléfono no van el mail, el celular, el comprobante, la factura ni las notas',
+  'todo lo que viaja queda guardado en el celular; las notas copian chats enteros',
+  () => {
+    const e = conEventos([{ grupo: 'Grupo Privado', email: 'privado@ejemplo.com', cel: '099 111 222', comprobante: 'Transacción 777888999',
+      factura: 'RUT 210000000011', notas: 'NOTA-SECRETA del chat', medio: 'Transferencia', estado: 'Confirmado' }]);
+    const txt = JSON.stringify(G.paraElTelefono(e).eventos);
+    return !/privado@ejemplo|099 111 222|777888999|210000000011|NOTA-SECRETA|Transferencia/.test(txt) || txt;
+  }
+);
+caso(
+  'la pestaña no cuenta en ningún cupo ni da alertas',
+  'no es una edición: si se leyera como inscriptos, los grupos aparecerían como gente anotada',
+  () => {
+    const sin = conEventos([]);
+    const con = conEventos([{ grupo: 'Grupo Prueba', personas: '30', estado: 'Confirmado', total: '1' }]);
+    return (con.ediciones[0].anotados === sin.ediciones[0].anotados && con.alertas.length === sin.alertas.length)
+      || 'cambió: ' + con.ediciones[0].anotados + ' / ' + con.alertas.length;
+  }
+);
+caso(
+  'sin la pestaña, la lista de eventos viene vacía',
+  'la planilla puede no tenerla (o tenerla con otro nombre un día): la app no se puede caer',
+  () => {
+    const e = armar('Taller de tapeo — 16/11/2026', 12, [{nombre:'A',monto:'2600'}]);
+    return (Array.isArray(e.eventos) && e.eventos.length === 0) || JSON.stringify(e.eventos);
+  }
+);
+
 console.log('\n' + (corridos - fallas) + '/' + corridos + ' pasan');
 if (fallas) process.exit(1);

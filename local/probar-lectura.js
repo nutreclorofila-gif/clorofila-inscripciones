@@ -17,7 +17,7 @@ const llamadas = [];
 let nombreEspera = 'Lista de espera', nombreGift = 'Gift Cards', nombrePanel = 'Panel';
 const titulos = () => [
   'Clorofila — Master contactos 2026 v5 DEFINITIVO', nombrePanel, nombreEspera,
-  nombreGift, 'Curso Octubre 2026', 'Tapeo 07-08-2026', 'Recordatorios',
+  nombreGift, 'Curso Octubre 2026', 'Tapeo 07-08-2026', 'Recordatorios', 'Eventos y empresas',
   ...Object.keys(fixture.hojas)
 ].filter(Boolean);
 
@@ -45,7 +45,7 @@ const Sheets = {
       batchGet: (id, opts) => {
         llamadas.push({ op: 'batchGet', ranges: opts.ranges });
         return { valueRanges: opts.ranges.map(r => {
-          const nombre = r.replace(/^'/, '').replace(/'!A:[KN]$/, '').replace(/''/g, "'");
+          const nombre = r.replace(/^'/, '').replace(/'!A:[KNW]$/, '').replace(/''/g, "'");
           if (igual(nombre, nombreEspera)) {
             return { values: [
               ['nombre','email','celular','edición'],
@@ -59,6 +59,13 @@ const Sheets = {
               ['Decidir algo de prueba','','','Detalle inventado','Pendiente','Prueba',''],
               ['Algo ya hecho','','','','Hecho','','']
             ]};
+          }
+          if (igual(nombre, 'Eventos y empresas')) {
+            // La API corta cada fila en el rango pedido: con A:N no llegaría el Estado (S).
+            const fila = ['13/10/2026','Grupo Inventado','Fulana','f@ejemplo.com','','WhatsApp','https://ejemplo.com/chat','Despedida','',
+              'viernes 6/11/2026','19 h','11','1.500','16.500','3.300','13.200','','','Confirmado con seña','','Esperar','',''];
+            const hasta = /A:W$/.test(r) ? 23 : 14;
+            return { values: [['Cargado el','Empresa / grupo'], fila.slice(0, hasta)] };
           }
           if (igual(nombre, nombreGift)) {
             return { values: [
@@ -116,6 +123,12 @@ chequear('"Lista de espera" y "Gift Cards" NO entran como inscriptos',
 chequear('pero SÍ se leen aparte',
   !!(crudo.extras && crudo.extras['Lista de espera'] && crudo.extras['Gift Cards']),
   'sin ellas no se puede saber a quién llamar cuando algo se llena');
+
+chequear('«Eventos y empresas» se lee aparte y hasta la W',
+  !leidas.includes('Eventos y empresas') && !!(crudo.extras && crudo.extras['Eventos y empresas'])
+    && crudo.extras['Eventos y empresas'][1][18] === 'Confirmado con seña' && crudo.extras['Eventos y empresas'][1][20] === 'Esperar',
+  'el Estado y el Próximo paso están en la S y la U: leyendo hasta la N, todos los grupos salían como «Consulta». ' +
+  JSON.stringify((crudo.extras || {})['Eventos y empresas']));
 
 chequear('pide las fórmulas del Panel, no solo los valores',
   llamadas.some(l => l.render === 'FORMULA') && /COUNTIF/i.test(crudo.panelFormulas.map(f => f[3]).join(' ')),

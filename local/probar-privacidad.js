@@ -20,11 +20,15 @@ const fixture = JSON.parse(fs.readFileSync(rutaFixture, 'utf8'));
 // 8 dígitos, que es lo que queda igual escrito con 0, con +598 o con espacios).
 const nombres = new Set(), mails = new Set(), celulares = new Set();
 const tablas = [...Object.values(fixture.hojas || {}), ...Object.values(fixture.extras || {})];
+// La cuenta del negocio no es una persona: va en los links al chat de «Eventos
+// y empresas» (authuser=…) y en el código, a propósito.
+const PROPIOS = ['nutreclorofila@gmail.com'];
 for (const t of tablas) {
-  for (const fila of t) {
+  // La primera fila es el encabezado: «Cargado el» no es el nombre de nadie.
+  for (const fila of t.slice(1)) {
     for (const celda of fila) {
       const c = String(celda || '').trim();
-      (c.match(/[\w.+-]+@[\w-]+\.[\w.]+/g) || []).forEach(m => mails.add(m.toLowerCase()));
+      (c.match(/[\w.+-]+@[\w-]+\.[\w.]+/g) || []).forEach(m => { if (!PROPIOS.includes(m.toLowerCase())) mails.add(m.toLowerCase()); });
       const d = c.replace(/\D/g, '');
       if (/^(598)?0?9\d{7}$/.test(d)) celulares.add(d.slice(-8));
     }

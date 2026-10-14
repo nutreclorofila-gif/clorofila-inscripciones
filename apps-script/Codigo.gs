@@ -34,7 +34,7 @@ var ID_PLANILLA = '1C3UfC__jr3F0x_XWp5lRvL47MLjQqOwTa9wURKuXZBQ';
  * gana, pierde o cambia un campo que la página lee. verificar.sh controla que
  * los dos números sean iguales.
  */
-var FORMA_ESTADO = 3;
+var FORMA_ESTADO = 4;
 
 /**
  * Precios de referencia. Solo se usan para calcular SALDO del curso de cocina,
@@ -67,7 +67,7 @@ var PRECIOS = {
 var FILAS_PANEL = 500;
 
 /** Pestañas que NO son ediciones y no cuentan en ningún cupo. */
-var HOJAS_IGNORADAS = ['Lista de espera', 'Gift Cards', 'Pagos en cuotas', 'Panel', 'Sin pestaña del mes (webhook)', 'Pagos en persona', 'Recordatorios'];
+var HOJAS_IGNORADAS = ['Lista de espera', 'Gift Cards', 'Pagos en cuotas', 'Panel', 'Sin pestaña del mes (webhook)', 'Pagos en persona', 'Recordatorios', 'Eventos y empresas'];
 
 /** De acá salen todas las ediciones: sin esta pestaña la app no tiene nada que mostrar. */
 var HOJA_PANEL = 'Panel';
@@ -105,6 +105,18 @@ var HOJA_VISITAS = 'Pagos en persona';
  * cargó, Cargado el. Los mails los manda el proyecto aparte de avisos.
  */
 var HOJA_RECORDATORIOS = 'Recordatorios';
+
+/**
+ * Eventos privados de empresas y grupos (pedido de Leo, 14/10/2026: «que se vea
+ * bien la información de empresas y grupos»). La cargan las sesiones que
+ * atienden mensajes. Va de la A a la W: Cargado el, Empresa / grupo, Contacto,
+ * Email, Celular, Canal, Link al chat, Tipo, Formato / menú, Fecha del evento,
+ * Horario, Personas, Precio por persona, Total, Seña, Saldo, Medio de pago,
+ * Comprobante, Estado, Último contacto, Próximo paso, Factura, Notas. La app
+ * solo la lee. Al teléfono NO van el mail, el celular, el comprobante, la
+ * factura ni las notas (las notas copian chats enteros).
+ */
+var HOJA_EVENTOS = 'Eventos y empresas';
 
 /**
  * Las respuestas de Leo a los recordatorios, escritas desde la app (pedido suyo,
@@ -358,7 +370,7 @@ function leerPlanilla() {
   // exigir mayúsculas exactas: "Gift cards" tiene que valer igual que "Gift Cards".
   var extrasALeer = [];
   var nombreReal = {};
-  [[HOJA_ESPERA, 'espera'], [HOJA_GIFT, 'gift'], [HOJA_CUOTAS, 'cuotas'], [HOJA_SIN_MES, 'sinMes'], [HOJA_VISITAS, 'visitas'], [HOJA_RECORDATORIOS, 'recordatorios']].forEach(function (par) {
+  [[HOJA_ESPERA, 'espera'], [HOJA_GIFT, 'gift'], [HOJA_CUOTAS, 'cuotas'], [HOJA_SIN_MES, 'sinMes'], [HOJA_VISITAS, 'visitas'], [HOJA_RECORDATORIOS, 'recordatorios'], [HOJA_EVENTOS, 'eventos']].forEach(function (par) {
     var real = buscarHoja(titulos, par[0]);
     if (real) { extrasALeer.push(real); nombreReal[real] = par[0]; }
   });
@@ -370,7 +382,11 @@ function leerPlanilla() {
   // Inscriptos hasta la N: de la L en adelante van las notas a mano (por
   // ejemplo, una restricción alimentaria), que la app muestra como alerta.
   var todas = aLeer.map(function (n) { return { nombre: n, rango: "'" + n.replace(/'/g, "''") + "'!A:N", ancho: 14, extra: false }; })
-    .concat(extrasALeer.map(function (n) { return { nombre: n, rango: "'" + n.replace(/'/g, "''") + "'!A:N", ancho: 14, extra: true }; }));
+    .concat(extrasALeer.map(function (n) {
+      // Eventos y empresas llega hasta la W: estado, próximo paso y lo demás están después de la N.
+      var ancha = nombreReal[n] === HOJA_EVENTOS;
+      return { nombre: n, rango: "'" + n.replace(/'/g, "''") + "'!A:" + (ancha ? 'W' : 'N'), ancho: ancha ? 23 : 14, extra: true };
+    }));
 
   if (todas.length) {
     var resp = Sheets.Spreadsheets.Values.batchGet(ID_PLANILLA, {
@@ -936,6 +952,7 @@ function construirEstado(crudo, ahora) {
   var sinMes = leerSinMes((crudo.extras || {})[HOJA_SIN_MES]);
   var visitas = leerVisitas((crudo.extras || {})[HOJA_VISITAS]);
   var recordatorios = leerRecordatorios((crudo.extras || {})[HOJA_RECORDATORIOS], crudo.respuestas);
+  var eventos = leerEventos((crudo.extras || {})[HOJA_EVENTOS], hoy);
   var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas, espera, gift, cuotas, sinMes, visitas, recordatorios);
 
   return {
@@ -946,6 +963,7 @@ function construirEstado(crudo, ahora) {
     alertas: alertas,
     espera: espera,
     giftCards: gift,
+    eventos: eventos,
     fueraDeCupo: listarFueraDeCupo(filas, usadas, hoy),
     tikzet: resumirTikzet(ediciones),
     resumen: {
@@ -1193,6 +1211,59 @@ function leerVisitas(filas) {
     });
   });
   return res;
+}
+
+/**
+ * Las filas de "Eventos y empresas" con grupo escrito, solo con lo que la
+ * pantalla muestra. La fecha y las personas a veces son texto («fines de
+ * noviembre», «8 a 10»): se mandan tal cual, y la fecha además se lee para
+ * ordenar si trae un día (la primera que aparezca, «jueves 10/12 o 17/12» → 10/12).
+ */
+function leerEventos(filas, hoy) {
+  var res = [];
+  (filas || []).slice(1).forEach(function (f, i) {
+    var grupo = String(f[1] || '').trim();
+    if (!grupo) return;
+    var texto = function (c) { return String(f[c] == null ? '' : f[c]).trim(); };
+    var e = normalizarNombre(f[18]);
+    var estado = !e ? 'consulta' : /^consult/.test(e) ? 'consulta' : /^propuesta/.test(e) ? 'propuesta'
+               : /^confirm/.test(e) ? 'confirmado' : /^realiz/.test(e) ? 'realizado'
+               : /^cobrad/.test(e) ? 'cobrado' : /^cancel|^anul|^no va|^perdid/.test(e) ? 'cancelado' : 'otro';
+    var total = parsearMonto(f[13]), sena = parsearMonto(f[14]), saldo = parsearMonto(f[15]);
+    if (saldo === null && total !== null) saldo = total - (sena || 0);
+    var chat = texto(6);
+    res.push({
+      fila: i + 2, grupo: grupo, contacto: texto(2), canal: texto(5),
+      // Solo un link de verdad: el texto va a un href en el teléfono.
+      chat: /^https:\/\/[^\s"'<>]+$/.test(chat) ? chat : '',
+      tipo: texto(7), formato: texto(8),
+      fechaTexto: texto(9), fecha: fechaDeEvento(f[9], hoy), horario: texto(10),
+      personas: texto(11), precio: parsearMonto(f[12]),
+      total: total, sena: sena, saldo: saldo,
+      estado: estado, estadoTexto: texto(18),
+      ultimoContacto: texto(19), proximoPaso: texto(20)
+    });
+  });
+  return res;
+}
+
+/** El primer día que aparezca en el texto («viernes 6/11/2026», «10/12»), como aaaa-mm-dd; '' si no hay. */
+function fechaDeEvento(texto, hoy) {
+  var m = String(texto == null ? '' : texto).match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);
+  if (!m) return '';
+  var dia = Number(m[1]), mes = Number(m[2]);
+  var anio = m[3] ? Number(m[3]) : null;
+  if (anio !== null && anio < 100) anio += 2000;
+  if (anio === null) {
+    // Sin año: el de hoy, salvo que haya pasado hace más de dos meses (en
+    // octubre, «15/1» es el enero que viene).
+    anio = hoy.getFullYear();
+    if (new Date(anio, mes - 1, dia) < new Date(hoy.getFullYear(), hoy.getMonth() - 2, hoy.getDate())) anio++;
+  }
+  var d = new Date(anio, mes - 1, dia);
+  if (d.getDate() !== dia || d.getMonth() !== mes - 1) return '';
+  var dd = function (n) { return (n < 10 ? '0' : '') + n; };
+  return anio + '-' + dd(mes) + '-' + dd(dia);
 }
 
 /** Filas con algo escrito en la pestaña de reserva del webhook (sin el encabezado). */

@@ -561,6 +561,58 @@ console.log('\n--- La tarjeta abierta de Cupos ---');
 
 function montos(h) { return h.match(/\$\s?[\d.]+/g) || []; }
 
+console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
+{
+  // Datos inventados, ya como salen del servidor.
+  const g = (o) => Object.assign({ fila: 2, grupo: 'Grupo', contacto: '', canal: '', chat: '', tipo: '', formato: '',
+    fechaTexto: '', fecha: '', horario: '', personas: '', precio: null, total: null, sena: null, saldo: null,
+    estado: 'consulta', estadoTexto: '', ultimoContacto: '', proximoPaso: '' }, o);
+  const eventos = [
+    g({ grupo: 'Propuesta Uno', estado: 'propuesta', fechaTexto: 'fines de noviembre', personas: '8 a 10', precio: 2100 }),
+    g({ grupo: 'Cobrado Viejo', estado: 'cobrado', fecha: '2026-09-01', fechaTexto: '1/9/2026', total: 5000, saldo: 0 }),
+    g({ grupo: 'Confirmado Tarde', estado: 'confirmado', fecha: '2026-12-10', fechaTexto: 'jueves 10/12' }),
+    g({ grupo: 'Confirmado Pronto', estado: 'confirmado', fecha: '2026-11-06', fechaTexto: 'viernes 6/11/2026', horario: '19 a 22:30',
+        personas: '11', total: 16500, sena: 3300, saldo: 13200, proximoPaso: 'Confirmar el horario',
+        chat: 'https://business.facebook.com/latest/inbox/all?selected_item_id=1&thread_type=WEC_MESSAGE', canal: 'WhatsApp' })
+  ];
+  const datosBase = JSON.parse(fs.readFileSync(path.join(base, 'local', 'fixture.json'), 'utf8'));
+  const ui = cargarUI(Object.assign({}, datosBase, { eventos }));
+  correr('solapa Grupos con datos', () => ui.vistaGrupos());
+  const h = ui.vistaGrupos();
+  const pos = (t) => h.indexOf(t);
+  corridos++;
+  if (pos('Confirmado Pronto') !== -1 && pos('Confirmado Pronto') < pos('Confirmado Tarde') && pos('Confirmado Tarde') < pos('Propuesta Uno')
+      && pos('Propuesta Uno') < pos('Cobrado Viejo')) {
+    console.log('  ok    arriba los confirmados por fecha, después las propuestas, al final lo cobrado');
+  } else { fallas++; console.log('  FALLA el orden de los grupos: ' + ['Confirmado Pronto','Confirmado Tarde','Propuesta Uno','Cobrado Viejo'].map(pos).join(', ')); }
+  corridos++;
+  const plegado = h.slice(h.indexOf('<details>'));
+  if (h.indexOf('<details>') !== -1 && plegado.indexOf('Cobrado Viejo') !== -1 && plegado.indexOf('</details>') > plegado.indexOf('Cobrado Viejo')) {
+    console.log('  ok    lo cobrado y lo cancelado quedan plegados');
+  } else { fallas++; console.log('  FALLA lo cobrado no quedó adentro del plegado'); }
+  corridos++;
+  const tarjeta = h.slice(pos('Confirmado Pronto'), pos('Confirmado Tarde'));
+  const falta = ['viernes 6/11/2026 · 19 a 22:30', '11 personas', '$ 16.500', '$ 3.300', '$ 13.200', 'Confirmar el horario',
+    'href="https://business.facebook.com/latest/inbox/all?selected_item_id=1&amp;thread_type=WEC_MESSAGE"', 'Confirmado'].filter(t => tarjeta.indexOf(t) === -1);
+  if (!falta.length) console.log('  ok    la tarjeta dice fecha, horario, personas, total, seña, saldo, próximo paso y el chat');
+  else { fallas++; console.log('  FALLA a la tarjeta le falta: ' + falta.join(' | ')); }
+  corridos++;
+  const texto = h.slice(pos('Propuesta Uno'));
+  if (/fines de noviembre/.test(texto) && /8 a 10</.test(texto) && !/8 a 10 personas/.test(texto) && /\$ 2\.100<\/b> por persona/.test(texto)) {
+    console.log('  ok    fecha y personas en texto se muestran tal cual, y sin total va el precio por persona');
+  } else { fallas++; console.log('  FALLA la tarjeta con texto: ' + texto.slice(0, 300)); }
+
+  const hostil = cargarUI(Object.assign({}, datosBase, { eventos: [g({ grupo: '<img src=x onerror=alert(1)>', proximoPaso: '<script>x</script>',
+    estado: '"><b>', estadoTexto: '<i>raro</i>', chat: 'https://x.com/a"b' })] })).vistaGrupos();
+  corridos++;
+  if (!/<img|<script|<i>|"><b>|a"b/.test(hostil)) console.log('  ok    lo escrito en la pestaña se escapa');
+  else { fallas++; console.log('  FALLA quedó HTML sin escapar: ' + hostil.slice(0, 300)); }
+
+  const sinServidor = Object.assign({}, datosBase); delete sinServidor.eventos;
+  correr('solapa Grupos con un servidor viejo (sin eventos)', () => cargarUI(sinServidor).vistaGrupos());
+  correr('solapa Grupos vacía', () => cargarUI(Object.assign({}, datosBase, { eventos: [] })).vistaGrupos());
+}
+
 // Las piezas se prueban sueltas; esto comprueba que estén enchufadas.
 console.log('\n--- Que las piezas estén conectadas ---');
 const fuente = fs.readFileSync(path.join(base, 'apps-script', 'Index.html'), 'utf8');

@@ -77,11 +77,12 @@
   .total .r { font-size: 12px; color: var(--tenue); text-transform: uppercase; letter-spacing: 0.04em; }
 
   /* --- solapas --- */
-  nav { display: flex; gap: 6px; margin: 12px 0 16px; overflow-x: auto; scrollbar-width: none; }
+  /* Cinco solapas: con más relleno, «Alertas» quedaba cortada en un celular de 375 px. */
+  nav { display: flex; gap: 4px; margin: 12px 0 16px; overflow-x: auto; scrollbar-width: none; }
   nav::-webkit-scrollbar { display: none; }
   .solapa {
     flex: 0 0 auto; border: none; background: var(--crema); color: var(--texto);
-    border-radius: 999px; padding: 9px 15px; font: inherit; font-size: 14px; cursor: pointer;
+    border-radius: 999px; padding: 9px 9px; font: inherit; font-size: 14px; cursor: pointer;
     min-height: 44px;
   }
   .solapa[aria-selected="true"] { background: var(--verde); color: var(--fondo); font-weight: 600; }
@@ -132,6 +133,18 @@
   .chip.cubierto { background: var(--crema); color: var(--tenue); }
   .chip.parcial  { background: var(--ambar-fondo); color: var(--ambar); }
   .chip.sin_pago, .chip.revisar { background: var(--rojo-fondo); color: var(--rojo); }
+  /* Estados de "Eventos y empresas". */
+  .chip.ev-confirmado, .chip.ev-cobrado { background: var(--verde-fondo); color: var(--verde); }
+  .chip.ev-realizado, .chip.ev-propuesta { background: var(--ambar-fondo); color: var(--ambar); }
+  .chip.ev-consulta, .chip.ev-otro, .chip.ev-cancelado { background: var(--crema); color: var(--tenue); }
+  .grupo { padding: 14px; }
+  .grupo .cab { display: flex; align-items: flex-start; gap: 10px; }
+  .grupo .cab .quien { min-width: 0; flex: 1; }
+  .grupo .nom { font-size: 16px; font-weight: 600; }
+  .grupo .sub { font-size: 13px; color: var(--tenue); margin-top: 2px; }
+  .grupo .dato { font-size: 14px; margin-top: 8px; }
+  .grupo .dato b { font-weight: 600; }
+  .grupo .paso { font-size: 14px; margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: var(--crema); }
 
   /* --- avisos --- */
   .aviso { border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; border: 1px solid transparent; }
@@ -284,7 +297,7 @@
    * igual a FORMA_ESTADO de Codigo.gs (verificar.sh lo controla) y se suben
    * juntas. Si el servidor manda otra, avisoDeVersion() lo dice en pantalla.
    */
-  var FORMA_ESPERADA = 3;
+  var FORMA_ESPERADA = 4;
 
   /** Después de esto, lo guardado no se muestra más y hay que buscar de nuevo. */
   var VIDA_CACHE = 3 * 24 * 60 * 60 * 1000;   // 3 días
@@ -802,6 +815,7 @@
       ['cupos', 'Cupos', 0],
       ['plata', 'Plata', 0],
       ['gente', 'Gente', 0],
+      ['grupos', 'Grupos', 0],
       ['alertas', 'Alertas', total]
     ];
     document.getElementById('solapas').innerHTML = defs.map(function (d) {
@@ -893,6 +907,7 @@
     var viejo = avisoDeCache() + avisoDeVersion();
     if (SOLAPA === 'cupos') p.innerHTML = viejo + avisoDeNovedades() + vistaCupos();
     else if (SOLAPA === 'plata') p.innerHTML = viejo + vistaPlata();
+    else if (SOLAPA === 'grupos') p.innerHTML = viejo + vistaGrupos();
     else if (SOLAPA === 'gente') {
       // Si Gente ya está en pantalla, el buscador NO se rehace: solo el cartel
       // y la lista, filtrada con lo que haya escrito. Desde que lo guardado se
@@ -1050,6 +1065,67 @@
   }
 
   /* ---------- plata ---------- */
+  /**
+   * Eventos privados de empresas y grupos, de la pestaña «Eventos y empresas».
+   * Arriba lo confirmado y lo hecho, por fecha; después lo que está en
+   * propuesta o consulta; lo cobrado y lo cancelado, plegado al final.
+   */
+  function vistaGrupos() {
+    var eventos = DATOS.eventos;
+    if (!eventos) {
+      return '<div class="vacio">Esta parte necesita la versión nueva del servidor. Tocá Actualizar.</div>';
+    }
+    if (!eventos.length) {
+      return '<div class="vacio">No hay grupos cargados en la pestaña «Eventos y empresas».</div>';
+    }
+    var porFecha = function (a, b) {
+      if (a.fecha && b.fecha) return a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0;
+      return a.fecha ? -1 : b.fecha ? 1 : 0;
+    };
+    var de = function (estados) {
+      return eventos.filter(function (e) { return estados.indexOf(e.estado) !== -1; }).sort(porFecha);
+    };
+    var confirmados = de(['confirmado', 'realizado']);
+    var abiertos = de(['propuesta', 'consulta', 'otro']);
+    var cerrados = de(['cobrado', 'cancelado']);
+    var html = '';
+    if (confirmados.length) html += '<div class="seccion">Confirmados (' + confirmados.length + ')</div>' + confirmados.map(tarjetaGrupo).join('');
+    if (abiertos.length) html += '<div class="seccion">En propuesta o consulta (' + abiertos.length + ')</div>' + abiertos.map(tarjetaGrupo).join('');
+    if (cerrados.length) {
+      html += '<details><summary>' + cerrados.length + (cerrados.length === 1 ? ' cobrado o cancelado' : ' cobrados o cancelados') +
+              '</summary>' + cerrados.map(tarjetaGrupo).join('') + '</details>';
+    }
+    return html;
+  }
+
+  var ESTADO_GRUPO = {
+    confirmado: 'Confirmado', realizado: 'Hecho, falta cobrar', propuesta: 'Propuesta enviada',
+    consulta: 'Consulta', cobrado: 'Cobrado', cancelado: 'Cancelado'
+  };
+
+  function tarjetaGrupo(e) {
+    var rotulo = ESTADO_GRUPO[e.estado] || e.estadoTexto || 'Sin estado';
+    var sub = [e.contacto && e.contacto !== e.grupo ? e.contacto : '', e.tipo].filter(Boolean).join(' · ');
+    var cuando = [e.fechaTexto, e.horario].filter(Boolean).join(' · ');
+    var plataTxt = [];
+    if (e.total !== null && e.total !== undefined) plataTxt.push('Total <b>' + plata(e.total) + '</b>');
+    if (e.sena) plataTxt.push('Seña <b>' + plata(e.sena) + '</b>');
+    if (e.saldo !== null && e.saldo !== undefined && e.total) plataTxt.push('Saldo <b>' + plata(e.saldo) + '</b>');
+    if (!plataTxt.length && e.precio) plataTxt.push('<b>' + plata(e.precio) + '</b> por persona');
+    return '<div class="tarjeta"><div class="grupo">' +
+      '<div class="cab"><div class="quien"><div class="nom">' + esc(e.grupo) + '</div>' +
+        (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '</div>' +
+        '<span class="chip ev-' + esc(e.estado) + '">' + esc(rotulo) + '</span></div>' +
+      '<div class="dato">' + (cuando ? '<b>' + esc(cuando) + '</b>' : 'Sin fecha') +
+        (e.personas ? ' · ' + esc(e.personas) + (/^\d+$/.test(e.personas) ? (e.personas === '1' ? ' persona' : ' personas') : '') : '') + '</div>' +
+      (e.formato ? '<div class="dato">' + esc(e.formato) + '</div>' : '') +
+      (plataTxt.length ? '<div class="dato">' + plataTxt.join(' · ') + '</div>' : '') +
+      (e.proximoPaso ? '<div class="paso"><b>Próximo paso:</b> ' + esc(e.proximoPaso) + '</div>' : '') +
+      (e.chat ? '<div class="contacto" style="padding-top:10px"><a href="' + esc(e.chat) + '" target="_blank" rel="noopener">Abrir el chat' +
+        (e.canal ? ' (' + esc(e.canal) + ')' : '') + '</a></div>' : '') +
+    '</div></div>';
+  }
+
   function vistaPlata() {
     // También el curso que ya empezó y se sigue pagando en cuotas (cobrando):
     // cerró la inscripción, pero todavía hay plata por cobrar ahí.

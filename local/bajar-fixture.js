@@ -77,7 +77,7 @@ const rellenar = (filas, ancho) =>
     let m;
     while ((m = re.exec(String(f[3] || '')))) nombradas.add(norm((m[1] || m[2]).replace(/''/g, "'")));
   });
-  const ignoradas = ['lista de espera', 'gift cards', 'pagos en cuotas', 'panel', norm('Sin pestaña del mes (webhook)'), norm('Pagos en persona'), norm('Recordatorios')];
+  const ignoradas = ['lista de espera', 'gift cards', 'pagos en cuotas', 'panel', norm('Sin pestaña del mes (webhook)'), norm('Pagos en persona'), norm('Recordatorios'), norm('Eventos y empresas')];
   const aLeer = titulos.filter(t => !ignoradas.includes(norm(t)) &&
     (/^inscriptos /i.test(String(t).trim()) || nombradas.has(norm(t))));
 
@@ -93,6 +93,9 @@ const rellenar = (filas, ancho) =>
     const real = buscar(nombre);
     if (real) extras[nombre] = rellenar(await leer(citar(real) + '!A:N', 'FORMATTED_VALUE'), 14);
   }
+  // Eventos y empresas llega hasta la W, igual que en la app.
+  const eventos = buscar('Eventos y empresas');
+  if (eventos) extras['Eventos y empresas'] = rellenar(await leer(citar(eventos) + '!A:W', 'FORMATTED_VALUE'), 23);
 
   const fixture = { panelValores, panelFormulas, hojas, extras, generadoEn: new Date().toISOString() };
 

@@ -46,7 +46,8 @@ window.fetch = function (url) {
     : { ok: false, error: 'PIN incorrecto.' };
   return new Promise(function (listo) {
     setTimeout(function () {
-      listo({ ok: true, status: 200, json: function () { return Promise.resolve(resp); } });
+      // La página lee r.text() (desde que distingue un error de Google de un JSON); json() queda por las dudas.
+      listo({ ok: true, status: 200, text: function () { return Promise.resolve(JSON.stringify(resp)); }, json: function () { return Promise.resolve(resp); } });
     }, 250);
   });
 };
