@@ -136,7 +136,7 @@
   /* Estados de "Eventos y empresas". */
   .chip.ev-confirmado, .chip.ev-cobrado { background: var(--verde-fondo); color: var(--verde); }
   .chip.ev-realizado, .chip.ev-propuesta { background: var(--ambar-fondo); color: var(--ambar); }
-  .chip.ev-consulta, .chip.ev-otro, .chip.ev-cancelado { background: var(--crema); color: var(--tenue); }
+  .chip.ev-consulta, .chip.ev-otro, .chip.ev-cancelado, .chip.ev-descartado { background: var(--crema); color: var(--tenue); }
   .grupo { padding: 14px; }
   .grupo .cab { display: flex; align-items: flex-start; gap: 10px; }
   .grupo .cab .quien { min-width: 0; flex: 1; }
@@ -145,6 +145,9 @@
   .grupo .dato { font-size: 14px; margin-top: 8px; }
   .grupo .dato b { font-weight: 600; }
   .grupo .paso { font-size: 14px; margin-top: 10px; padding: 8px 10px; border-radius: 10px; background: var(--crema); }
+  /* El grupo abierto en Cupos: el detalle ya es crema y ya tiene margen. */
+  .detalle .grupo { padding: 4px 0 2px; }
+  .detalle .grupo .paso { background: var(--papel); }
 
   /* --- avisos --- */
   .aviso { border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; border: 1px solid transparent; }
@@ -933,16 +936,7 @@
 
   /* ---------- cupos ---------- */
   function vistaCupos() {
-    // Lo más próximo primero: es lo que hay que mirar hoy. Por cuándo EMPIEZA:
-    // el curso de octubre va antes que un taller del 16/10 aunque siga vigente
-    // hasta el 31.
-    var vigentes = DATOS.ediciones.filter(function (e) { return e.vigente; })
-      .sort(function (a, b) {
-        var fa = a.inicio || a.fecha, fb = b.inicio || b.fecha;
-        if (!fa) return 1;
-        if (!fb) return -1;
-        return new Date(fa) - new Date(fb);
-      });
+    var vigentes = DATOS.ediciones.filter(function (e) { return e.vigente; });
     var pasadas = DATOS.ediciones.filter(function (e) { return !e.vigente; });
     var html = '';
 
@@ -953,7 +947,18 @@
     if (urgentes.length) html += urgentes.map(avisoSinPlata).join('');
 
     if (!vigentes.length) html += '<div class="vacio">No hay ninguna edición abierta ni por venir.</div>';
-    else html += vigentes.map(tarjeta).join('');
+    // Lo más próximo primero: es lo que hay que mirar hoy. Por cuándo EMPIEZA:
+    // el curso de octubre va antes que un taller del 16/10 aunque siga vigente
+    // hasta el 31. Sin fecha, al final.
+    // Los grupos privados confirmados van entre las ediciones, por fecha (Leo,
+    // 14/10/2026). No son una edición: no suman a los cupos ni a los lugares
+    // libres de arriba, que salen del servidor y solo cuentan ediciones.
+    var cuando = function (iso) { var t = iso ? new Date(iso).getTime() : NaN; return isNaN(t) ? Infinity : t; };
+    var filas = vigentes.map(function (e) { return { t: cuando(e.inicio || e.fecha), html: tarjeta(e) }; })
+      .concat(gruposEnCupos().map(function (g) { return { t: g.fecha ? fechaLocal(g.fecha).getTime() : Infinity, html: tarjetaGrupoEnCupos(g) }; }));
+    // Con la misma fecha va primero la edición (sort es estable).
+    filas.sort(function (a, b) { return a.t === b.t ? 0 : (a.t < b.t ? -1 : 1); });
+    html += filas.map(function (f) { return f.html; }).join('');
 
     if (pasadas.length) {
       html += '<details><summary>Ver las ' + pasadas.length + ' ediciones que ya pasaron</summary>' +
@@ -979,6 +984,53 @@
         sueltos.map(function (x, i) { return enEspera(x, 'esp-suelta-' + i); }).join('');
     }
     return html;
+  }
+
+  /** Los grupos de «Eventos y empresas» que van también en Cupos: Confirmado… y Realizado. */
+  function gruposEnCupos() {
+    return (DATOS.eventos || []).filter(function (g) { return g.estado === 'confirmado' || g.estado === 'realizado'; });
+  }
+
+  /** 'aaaa-mm-dd' como medianoche de acá: new Date('aaaa-mm-dd') es la de Greenwich, y en Uruguay cae el día anterior. */
+  function fechaLocal(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+    return m ? new Date(+m[1], m[2] - 1, +m[3]) : new Date(NaN);
+  }
+
+  /**
+   * Un grupo privado en Cupos: nombre, cuándo y cuántos. El saldo a cobrar va al
+   * tocar la tarjeta, como los montos de cada edición: Cupos es la portada.
+   */
+  function tarjetaGrupoEnCupos(g) {
+    var id = 'grupo-' + g.fila;
+    var abierta = ABIERTAS[id];
+    var cuando = g.fecha ? cuandoEs(fechaLocal(g.fecha)) : null;
+    var dia = [g.fechaTexto, g.horario].filter(Boolean).join(' · ');
+    var gente = g.personas ? esc(g.personas) + (/^\d+$/.test(g.personas) ? (g.personas === '1' ? ' persona' : ' personas') : '') : '';
+    var plataTxt = [];
+    if (g.saldo !== null && g.saldo !== undefined && g.total) plataTxt.push('Saldo a cobrar <b>' + plata(g.saldo) + '</b>');
+    if (g.total !== null && g.total !== undefined) plataTxt.push('Total <b>' + plata(g.total) + '</b>');
+    if (g.sena) plataTxt.push('Seña <b>' + plata(g.sena) + '</b>');
+    if (!plataTxt.length && g.precio) plataTxt.push('<b>' + plata(g.precio) + '</b> por persona');
+    return '<div class="tarjeta">' +
+      '<button class="cabeza" data-ed="' + id + '" aria-expanded="' + !!abierta + '">' +
+        '<div class="quees">Grupo privado' + (g.estado === 'realizado' ? ' · hecho, falta cobrar' : '') +
+          (cuando && g.estado !== 'realizado' ? ' · <span class="cuando ' + cuando.clase + '">' + cuando.texto + '</span>' : '') +
+        '</div>' +
+        '<div class="cual">' + esc(g.grupo) + '</div>' +
+        '<div class="pie">' +
+          '<span>' + (dia ? '<b>' + esc(dia) + '</b>' : 'Sin fecha') + '</span>' +
+          (gente ? '<span>' + gente + '</span>' : '') +
+          '<span style="margin-left:auto">' + (abierta ? 'ocultar ▴' : 'ver el saldo ▾') + '</span>' +
+        '</div>' +
+      '</button>' +
+      (abierta ? '<div class="detalle"><div class="grupo">' +
+        '<div class="dato">' + (plataTxt.length ? plataTxt.join(' · ') : 'Sin montos cargados') + '</div>' +
+        (g.proximoPaso ? '<div class="paso"><b>Próximo paso:</b> ' + esc(g.proximoPaso) + '</div>' : '') +
+        (g.chat ? '<div class="contacto" style="padding-top:10px"><a href="' + esc(g.chat) + '" target="_blank" rel="noopener">Abrir el chat' +
+          (g.canal ? ' (' + esc(g.canal) + ')' : '') + '</a></div>' : '') +
+        '</div></div>' : '') +
+    '</div>';
   }
 
   function tarjeta(e) {
@@ -1068,29 +1120,50 @@
 
   /* ---------- plata ---------- */
   /**
-   * Los grupos confirmados de la pestaña «Eventos y empresas», por fecha. Leo
-   * (14/10/2026): «las confirmadas solo en la app». Entran «Confirmado con seña»
-   * y «Realizado» (todavía tiene saldo por cobrar); las propuestas, consultas,
-   * cobrados y cancelados quedan en la planilla y ni siquiera viajan al celu.
+   * Eventos privados de empresas y grupos, de la pestaña «Eventos y empresas».
+   * Arriba lo confirmado y lo hecho, por fecha; después lo que está en
+   * propuesta o consulta; lo cobrado, lo cancelado y lo descartado, plegado al
+   * final con el conteo de cada uno.
    */
   function vistaGrupos() {
     var eventos = DATOS.eventos;
     if (!eventos) {
       return '<div class="vacio">Esta parte necesita la versión nueva del servidor. Tocá Actualizar.</div>';
     }
-    // El servidor ya manda solo los confirmados; se filtra igual por si llega uno viejo.
-    var confirmados = eventos.filter(function (e) { return e.estado === 'confirmado' || e.estado === 'realizado'; })
-      .sort(function (a, b) {
-        if (a.fecha && b.fecha) return a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0;
-        return a.fecha ? -1 : b.fecha ? 1 : 0;
-      });
-    if (!confirmados.length) return '<div class="vacio">No hay grupos confirmados.</div>';
-    return confirmados.map(tarjetaGrupo).join('');
+    if (!eventos.length) {
+      return '<div class="vacio">No hay grupos cargados en la pestaña «Eventos y empresas».</div>';
+    }
+    var porFecha = function (a, b) {
+      if (a.fecha && b.fecha) return a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0;
+      return a.fecha ? -1 : b.fecha ? 1 : 0;
+    };
+    var de = function (estados) {
+      return eventos.filter(function (e) { return estados.indexOf(e.estado) !== -1; }).sort(porFecha);
+    };
+    var confirmados = de(['confirmado', 'realizado']);
+    // Todo lo que no sea confirmado, hecho, cobrado, cancelado o descartado: un estado
+    // que no se reconoce no puede hacer desaparecer al grupo.
+    var abiertos = eventos.filter(function (e) {
+      return ['confirmado', 'realizado', 'cobrado', 'cancelado', 'descartado'].indexOf(e.estado) === -1;
+    }).sort(porFecha);
+    // Los tres conteos van siempre, aunque sean cero: «Descartados (0)» dice que
+    // no hay, y no que la app no lo mira.
+    var cerrados = [['Cobrados', de(['cobrado'])], ['Cancelados', de(['cancelado'])], ['Descartados', de(['descartado'])]];
+    var html = '';
+    if (confirmados.length) html += '<div class="seccion">Confirmados (' + confirmados.length + ')</div>' + confirmados.map(tarjetaGrupo).join('');
+    if (abiertos.length) html += '<div class="seccion">En propuesta o consulta (' + abiertos.length + ')</div>' + abiertos.map(tarjetaGrupo).join('');
+    html += '<details><summary>' + cerrados.map(function (c) { return c[0] + ' (' + c[1].length + ')'; }).join(' · ') + '</summary>' +
+      (cerrados.some(function (c) { return c[1].length; })
+        ? cerrados.filter(function (c) { return c[1].length; }).map(function (c) {
+            return '<div class="seccion">' + c[0] + ' (' + c[1].length + ')</div>' + c[1].map(tarjetaGrupo).join('');
+          }).join('')
+        : '<div class="vacio">Ninguno por ahora.</div>') + '</details>';
+    return html;
   }
 
   var ESTADO_GRUPO = {
     confirmado: 'Confirmado', realizado: 'Hecho, falta cobrar', propuesta: 'Propuesta enviada',
-    consulta: 'Consulta', cobrado: 'Cobrado', cancelado: 'Cancelado'
+    consulta: 'Consulta', cobrado: 'Cobrado', cancelado: 'Cancelado', descartado: 'Descartado'
   };
 
   function tarjetaGrupo(e) {
@@ -1100,7 +1173,9 @@
     var plataTxt = [];
     if (e.total !== null && e.total !== undefined) plataTxt.push('Total <b>' + plata(e.total) + '</b>');
     if (e.sena) plataTxt.push('Seña <b>' + plata(e.sena) + '</b>');
-    if (e.saldo !== null && e.saldo !== undefined && e.total) plataTxt.push('Saldo <b>' + plata(e.saldo) + '</b>');
+    // El saldo solo tiene sentido con algo pagado o acordado: en una propuesta, «Total $14.700 · Saldo $14.700» confunde.
+    var conSaldo = e.sena || e.estado === 'confirmado' || e.estado === 'realizado';
+    if (conSaldo && e.saldo !== null && e.saldo !== undefined && e.total) plataTxt.push('Saldo <b>' + plata(e.saldo) + '</b>');
     if (!plataTxt.length && e.precio) plataTxt.push('<b>' + plata(e.precio) + '</b> por persona');
     return '<div class="tarjeta"><div class="grupo">' +
       '<div class="cab"><div class="quien"><div class="nom">' + esc(e.grupo) + '</div>' +
