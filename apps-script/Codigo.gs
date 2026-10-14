@@ -1035,7 +1035,20 @@ function paraElTelefono(estado) {
   // En los anulados la columna K es una nota a mano, y trae celulares y números de
   // comprobante («celular 09…», «Mercado Pago 18…»): visto el 5/10 en la portada.
   (copia.fueraDeCupo || []).forEach(function (f) { f.edicion = taparNumeros(f.edicion); });
+  // En «Eventos y empresas» el texto es libre: el 14/10 la columna Contacto de un
+  // grupo traía un celular. Se tapan números largos y mails en todo lo que se
+  // escribe a mano (el link del chat se revisa aparte y lleva el mail del negocio).
+  (copia.eventos || []).forEach(function (e) {
+    ['grupo', 'contacto', 'canal', 'tipo', 'formato', 'personas', 'ultimoContacto', 'proximoPaso', 'estadoTexto'].forEach(function (k) {
+      if (e[k]) e[k] = taparMails(taparNumeros(e[k]));
+    });
+  });
   return copia;
+}
+
+/** Tapa los mails escritos en un texto. */
+function taparMails(texto) {
+  return String(texto == null ? '' : texto).replace(/[^\s@<>()"',;:]+@[^\s@<>()"',;:]+\.[^\s@<>()"',;:]+/g, '…');
 }
 
 /** Tapa los números largos (6 cifras o más, con puntos o guiones): celulares, cédulas, comprobantes. */

@@ -1164,6 +1164,19 @@ caso(
   }
 );
 caso(
+  'un celular o un mail escrito en el texto de un grupo no viaja al teléfono',
+  'visto el 14/10: la columna Contacto de un grupo traía un celular; el texto se escribe a mano',
+  () => {
+    const e = conEventos([{ grupo: 'Grupo 099 123 456', contacto: 'Fulana 099123456 / fulana@ejemplo.com', tipo: 'Cumple', formato: 'tel 2900-1234-5',
+      paso: 'Llamar al 098.765.432 o escribir a otra@ejemplo.com.uy', estado: 'Confirmado', fecha: '6/11', personas: '11' }]);
+    const t = G.paraElTelefono(e).eventos[0];
+    const txt = JSON.stringify(t);
+    const ok = !/099 ?123 ?456|098\.765\.432|2900-1234|@ejemplo/.test(txt) && t.contacto.indexOf('Fulana') === 0
+      && /Llamar al/.test(t.proximoPaso) && t.personas === '11' && t.fechaTexto === '6/11';
+    return ok || txt;
+  }
+);
+caso(
   'al teléfono viajan todos los grupos, con cualquier estado',
   'Leo (14/10): la solapa Grupos muestra todo; «dejalas así». Los confirmados van además en Cupos',
   () => {

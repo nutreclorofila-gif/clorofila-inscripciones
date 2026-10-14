@@ -229,6 +229,8 @@ cupo ni da alertas.
 - El link del chat solo se muestra si empieza con `https://`.
 - **Al teléfono no viajan** el mail, el celular, el medio de pago, el comprobante, la factura
   ni las notas: las notas copian chats enteros. Si hace falta algo de eso, está en la planilla.
+  Y si en una columna de texto (Contacto, Próximo paso, etc.) se escribe un celular o un mail,
+  se tapa con «…» antes de viajar.
 - Se lee de la A a la W. No mover las columnas: la app las toma por posición.
 
 ## Pagos en persona
