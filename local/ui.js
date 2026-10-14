@@ -33,7 +33,7 @@ function cargarUI(datos, novedades) {
 
   const api = new Function('document', 'localStorage', 'window', 'navigator', 'setTimeout', 'fetch',
     js + '\nDATOS = arguments[6]; NOVEDADES = arguments[7] || null;' +
-    '\nreturn {vistaCupos,vistaPlata,vistaGente,vistaGrupos,vistaAlertas,pintarTotales,avisoDeNovedades,contacto,persona,enEspera,coincideBusqueda,sinAcentos,copiarLista,cuandoEs,hora,plata,esc,' +
+    '\nreturn {vistaCupos,vistaPlata,vistaGente,vistaGrupos,tarjetaGrupoEnCupos,gruposEnCupos,fechaLocal,vistaAlertas,pintarTotales,avisoDeNovedades,contacto,persona,enEspera,coincideBusqueda,sinAcentos,copiarLista,cuandoEs,hora,plata,esc,' +
     // Lo mismo que tocar a una persona: abre sus botones de contacto.
     'abrirContacto:function(k){CONTACTOS[k]=true;},' +
     // Lo mismo que tocar cada tarjeta de Cupos. Sin esto ninguna prueba pintaba
@@ -41,7 +41,9 @@ function cargarUI(datos, novedades) {
     // se podía sacar el escape del nombre y todo seguía en verde. Con las
     // tarjetas abiertas se ven montos a propósito: cerrarlas antes de mirar la portada.
     'abrirTodas:function(){DATOS.ediciones.forEach(function(e){ABIERTAS[e.id]=true;});},' +
-    'cerrarTodas:function(){ABIERTAS={};}};')
+    'cerrarTodas:function(){ABIERTAS={};},' +
+    // Lo mismo que tocar una tarjeta suelta (un grupo en Cupos: 'grupo-<fila>').
+    'abrir:function(id){ABIERTAS[id]=true;}};')
     (document, localStorage, window, navigator, () => {},
      () => Promise.reject(new Error('sin red')), datos, novedades);
   api.verEscrito = (id) => escrito[id] || '';

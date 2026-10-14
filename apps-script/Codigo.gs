@@ -1035,9 +1035,6 @@ function paraElTelefono(estado) {
   // En los anulados la columna K es una nota a mano, y trae celulares y números de
   // comprobante («celular 09…», «Mercado Pago 18…»): visto el 5/10 en la portada.
   (copia.fueraDeCupo || []).forEach(function (f) { f.edicion = taparNumeros(f.edicion); });
-  // Leo (14/10/2026): «las confirmadas solo en la app». Las propuestas, consultas,
-  // cobrados y cancelados se quedan en la planilla.
-  copia.eventos = (copia.eventos || []).filter(function (e) { return e.estado === 'confirmado' || e.estado === 'realizado'; });
   return copia;
 }
 
@@ -1231,7 +1228,9 @@ function leerEventos(filas, hoy) {
     var e = normalizarNombre(f[18]);
     var estado = !e ? 'consulta' : /^consult/.test(e) ? 'consulta' : /^propuesta/.test(e) ? 'propuesta'
                : /^confirm/.test(e) ? 'confirmado' : /^realiz/.test(e) ? 'realizado'
-               : /^cobrad/.test(e) ? 'cobrado' : /^cancel|^anul|^no va|^perdid/.test(e) ? 'cancelado' : 'otro';
+               : /^cobrad/.test(e) ? 'cobrado' : /^cancel|^anul|^no va|^perdid/.test(e) ? 'cancelado'
+             // Descartado: lo descartó Clorofila (no le sirve), distinto de un grupo que se cayó.
+             : /^descart/.test(e) ? 'descartado' : 'otro';
     var total = parsearMonto(f[13]), sena = parsearMonto(f[14]), saldo = parsearMonto(f[15]);
     if (saldo === null && total !== null) saldo = total - (sena || 0);
     var chat = texto(6);

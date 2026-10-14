@@ -1140,8 +1140,8 @@ caso(
   'el Estado se escribe a mano: «cancelado», «Cobrado», «Realizado» o vacío no pueden caer todos en lo mismo',
   () => {
     const e = conEventos([{ grupo: 'a', estado: 'Consulta' }, { grupo: 'b', estado: 'realizado' }, { grupo: 'c', estado: 'Cobrado' },
-      { grupo: 'd', estado: 'Cancelado' }, { grupo: 'e', estado: '' }, { grupo: 'f', estado: 'algo raro' }]).eventos;
-    return e.map(x => x.estado).join(',') === 'consulta,realizado,cobrado,cancelado,consulta,otro' || e.map(x => x.estado).join(',');
+      { grupo: 'd', estado: 'Cancelado' }, { grupo: 'e', estado: '' }, { grupo: 'f', estado: 'algo raro' }, { grupo: 'g', estado: 'Descartado' }]).eventos;
+    return e.map(x => x.estado).join(',') === 'consulta,realizado,cobrado,cancelado,consulta,otro,descartado' || e.map(x => x.estado).join(',');
   }
 );
 caso(
@@ -1164,13 +1164,13 @@ caso(
   }
 );
 caso(
-  'al teléfono van solo los grupos confirmados y los realizados',
-  'Leo (14/10): «las confirmadas solo en la app»; las propuestas y consultas quedan en la planilla',
+  'al teléfono viajan todos los grupos, con cualquier estado',
+  'Leo (14/10): la solapa Grupos muestra todo; «dejalas así». Los confirmados van además en Cupos',
   () => {
     const e = conEventos([{ grupo: 'a', estado: 'Consulta' }, { grupo: 'b', estado: 'Propuesta enviada' }, { grupo: 'c', estado: 'Confirmado con seña' },
-      { grupo: 'd', estado: 'Realizado' }, { grupo: 'e', estado: 'Cobrado' }, { grupo: 'f', estado: 'Cancelado' }, { grupo: 'g', estado: 'raro' }]);
+      { grupo: 'd', estado: 'Realizado' }, { grupo: 'e', estado: 'Cobrado' }, { grupo: 'f', estado: 'Cancelado' }, { grupo: 'g', estado: 'Descartado' }]);
     const tel = G.paraElTelefono(e).eventos.map(x => x.grupo).join(',');
-    return (tel === 'c,d' && e.eventos.length === 7) || 'al teléfono: ' + tel + ' (en el servidor ' + e.eventos.length + ')';
+    return tel === 'a,b,c,d,e,f,g' || 'al teléfono: ' + tel;
   }
 );
 caso(
@@ -1179,8 +1179,10 @@ caso(
   () => {
     const sin = conEventos([]);
     const con = conEventos([{ grupo: 'Grupo Prueba', personas: '30', estado: 'Confirmado', total: '1' }]);
-    return (con.ediciones[0].anotados === sin.ediciones[0].anotados && con.alertas.length === sin.alertas.length)
-      || 'cambió: ' + con.ediciones[0].anotados + ' / ' + con.alertas.length;
+    // Tampoco los totales de arriba (anotados / cupo / lugares libres).
+    return (con.ediciones[0].anotados === sin.ediciones[0].anotados && con.alertas.length === sin.alertas.length
+      && JSON.stringify(con.resumen) === JSON.stringify(sin.resumen))
+      || 'cambió: ' + con.ediciones[0].anotados + ' / ' + con.alertas.length + ' / ' + JSON.stringify(con.resumen);
   }
 );
 caso(

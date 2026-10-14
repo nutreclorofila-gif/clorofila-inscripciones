@@ -100,7 +100,7 @@ una alerta alta en vez de dejar de mostrar ediciones en silencio.
 
 | Solapa | Qué hay |
 |---|---|
-| **Cupos** | Una tarjeta por edición vigente con `anotados / cupo` en número grande, barra de ocupación, cobrado y cuántos deben. Se toca la tarjeta y se despliega la gente. Si hay gente esperando, el pie lo dice, y en verde *"esperando, y hay lugar"* cuando hay lugar libre. Quien está en la lista de espera pero ya se anotó en esa misma edición (mismo mail o mismo celular) no cuenta como que espera, ni acá ni en Alertas. Abajo, las ediciones que ya pasaron, colapsadas, y la gente de la lista de espera que no se pudo atar a una fecha, con lo que escribió que quiere. |
+| **Cupos** | Una tarjeta por edición vigente con `anotados / cupo` en número grande, barra de ocupación, cobrado y cuántos deben. Se toca la tarjeta y se despliega la gente. Si hay gente esperando, el pie lo dice, y en verde *"esperando, y hay lugar"* cuando hay lugar libre. Quien está en la lista de espera pero ya se anotó en esa misma edición (mismo mail o mismo celular) no cuenta como que espera, ni acá ni en Alertas. Entre las ediciones, por fecha, los grupos privados confirmados de «Eventos y empresas» (ver *Grupos*), que no suman a ningún cupo. Abajo, las ediciones que ya pasaron, colapsadas, y la gente de la lista de espera que no se pudo atar a una fecha, con lo que escribió que quiere. |
 | **Plata** | Cobrado total de lo que viene, desglose por edición, lista de quién debe y cuánto, y el bloque de Tikzet. Incluye el curso que ya empezó y se sigue pagando en cuotas, aunque haya cerrado la inscripción: ahí figura solo quien está en la pestaña "Pagos en cuotas". |
 | **Gente** | Todos los inscriptos con buscador por nombre, mail o celular, y su estado de pago. |
 | **Alertas** | Solo lo que necesita que alguien haga algo: descuadres, sobrecupo, pagos incompletos, Tikzet sin cargar, y *"Hay 2 lugares en … y Fulana está esperando"* cuando se libera lugar en una edición abierta con gente en la lista de espera (un aviso por edición). Si no hay nada, no hay nada. |
@@ -202,21 +202,29 @@ vacía, la alerta se va sola.
 
 ## Grupos (Eventos y empresas)
 
-La solapa **Grupos** muestra los grupos **confirmados** de la pestaña **«Eventos y
-empresas»** de la Master: eventos privados de empresas y grupos. Leo, 14/10/2026: «las
-confirmadas solo en la app». Solo lee; no cuenta en ningún cupo ni da alertas.
+La solapa **Grupos** muestra la pestaña **«Eventos y empresas»** de la Master: los eventos
+privados de empresas y grupos (pedido de Leo, 14/10/2026). Solo la lee; no cuenta en ningún
+cupo ni da alertas.
 
-- Entran los de Estado **Confirmado…** y **Realizado** (todavía tiene saldo por cobrar),
-  ordenados por fecha; los que no tienen fecha, al final. Las propuestas, consultas,
-  cobrados y cancelados se quedan en la planilla: **ni siquiera viajan al celu**. Si no hay
-  ninguno: «No hay grupos confirmados».
-- Una tarjeta por grupo: contacto y tipo, fecha y horario, personas, formato, total, seña
-  y saldo (o el precio por persona si todavía no hay total), el estado, el **próximo paso**
-  y un botón **Abrir el chat** (columna G).
-- La fecha y las personas pueden ser texto («un jueves de diciembre», «8 a 10»): se
-  muestran tal cual. Para ordenar se usa el primer día que aparezca en la fecha.
+- Una tarjeta por fila con Empresa / grupo: contacto y tipo, fecha y horario, personas,
+  formato, total, seña y saldo (o el precio por persona si todavía no hay total), el estado
+  con color, el **próximo paso** y un botón **Abrir el chat** (columna G).
+- Arriba los **confirmados** (y los hechos que falta cobrar), por fecha. Después los que
+  están en **propuesta o consulta** (y los de un estado que no se reconoce). Los
+  **cobrados, cancelados y descartados**, plegados al final con el conteo de cada uno
+  («Cobrados (1) · Cancelados (2) · Descartados (2)»).
+- En una propuesta o consulta va solo el total: el saldo aparece cuando hay seña o el
+  grupo está confirmado o hecho.
+- Los **confirmados y los hechos** van **también en Cupos**, mezclados por fecha con los
+  cursos y talleres: «Grupo privado», el nombre, fecha y horario, y personas. El saldo a
+  cobrar, el próximo paso y el chat aparecen al tocar la tarjeta (en Cupos, que es la
+  portada, la plata no se ve sin tocar). No suman a los cupos ni a los lugares libres.
+- La fecha y las personas pueden ser texto («fines de noviembre», «8 a 10»): se muestran
+  tal cual. Para ordenar se usa el primer día que aparezca en la fecha («jueves 10/12 o
+  17/12» → 10/12).
 - El Estado se lee por cómo empieza: Consulta, Propuesta…, Confirmado…, Realizado, Cobrado,
-  Cancelado. Vacío cuenta como Consulta.
+  Cancelado, Descartado. Vacío cuenta como Consulta. **Descartado** es distinto de
+  Cancelado (lo descartó Clorofila, no se cayó el grupo), pero va al mismo plegado.
 - El link del chat solo se muestra si empieza con `https://`.
 - **Al teléfono no viajan** el mail, el celular, el medio de pago, el comprobante, la factura
   ni las notas: las notas copian chats enteros. Si hace falta algo de eso, está en la planilla.
