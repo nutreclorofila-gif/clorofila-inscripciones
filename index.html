@@ -1068,40 +1068,24 @@
 
   /* ---------- plata ---------- */
   /**
-   * Eventos privados de empresas y grupos, de la pestaña «Eventos y empresas».
-   * Arriba lo confirmado y lo hecho, por fecha; después lo que está en
-   * propuesta o consulta; lo cobrado y lo cancelado, plegado al final.
+   * Los grupos confirmados de la pestaña «Eventos y empresas», por fecha. Leo
+   * (14/10/2026): «las confirmadas solo en la app». Entran «Confirmado con seña»
+   * y «Realizado» (todavía tiene saldo por cobrar); las propuestas, consultas,
+   * cobrados y cancelados quedan en la planilla y ni siquiera viajan al celu.
    */
   function vistaGrupos() {
     var eventos = DATOS.eventos;
     if (!eventos) {
       return '<div class="vacio">Esta parte necesita la versión nueva del servidor. Tocá Actualizar.</div>';
     }
-    if (!eventos.length) {
-      return '<div class="vacio">No hay grupos cargados en la pestaña «Eventos y empresas».</div>';
-    }
-    var porFecha = function (a, b) {
-      if (a.fecha && b.fecha) return a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0;
-      return a.fecha ? -1 : b.fecha ? 1 : 0;
-    };
-    var de = function (estados) {
-      return eventos.filter(function (e) { return estados.indexOf(e.estado) !== -1; }).sort(porFecha);
-    };
-    var confirmados = de(['confirmado', 'realizado']);
-    // Todo lo que no sea confirmado, hecho, cobrado o cancelado: un estado que no se
-    // reconoce no puede hacer desaparecer al grupo.
-    var abiertos = eventos.filter(function (e) {
-      return ['confirmado', 'realizado', 'cobrado', 'cancelado'].indexOf(e.estado) === -1;
-    }).sort(porFecha);
-    var cerrados = de(['cobrado', 'cancelado']);
-    var html = '';
-    if (confirmados.length) html += '<div class="seccion">Confirmados (' + confirmados.length + ')</div>' + confirmados.map(tarjetaGrupo).join('');
-    if (abiertos.length) html += '<div class="seccion">En propuesta o consulta (' + abiertos.length + ')</div>' + abiertos.map(tarjetaGrupo).join('');
-    if (cerrados.length) {
-      html += '<details><summary>' + cerrados.length + (cerrados.length === 1 ? ' cobrado o cancelado' : ' cobrados o cancelados') +
-              '</summary>' + cerrados.map(tarjetaGrupo).join('') + '</details>';
-    }
-    return html;
+    // El servidor ya manda solo los confirmados; se filtra igual por si llega uno viejo.
+    var confirmados = eventos.filter(function (e) { return e.estado === 'confirmado' || e.estado === 'realizado'; })
+      .sort(function (a, b) {
+        if (a.fecha && b.fecha) return a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0;
+        return a.fecha ? -1 : b.fecha ? 1 : 0;
+      });
+    if (!confirmados.length) return '<div class="vacio">No hay grupos confirmados.</div>';
+    return confirmados.map(tarjetaGrupo).join('');
   }
 
   var ESTADO_GRUPO = {
