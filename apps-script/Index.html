@@ -1086,7 +1086,11 @@
       return eventos.filter(function (e) { return estados.indexOf(e.estado) !== -1; }).sort(porFecha);
     };
     var confirmados = de(['confirmado', 'realizado']);
-    var abiertos = de(['propuesta', 'consulta', 'otro']);
+    // Todo lo que no sea confirmado, hecho, cobrado o cancelado: un estado que no se
+    // reconoce no puede hacer desaparecer al grupo.
+    var abiertos = eventos.filter(function (e) {
+      return ['confirmado', 'realizado', 'cobrado', 'cancelado'].indexOf(e.estado) === -1;
+    }).sort(porFecha);
     var cerrados = de(['cobrado', 'cancelado']);
     var html = '';
     if (confirmados.length) html += '<div class="seccion">Confirmados (' + confirmados.length + ')</div>' + confirmados.map(tarjetaGrupo).join('');
@@ -1115,7 +1119,7 @@
     return '<div class="tarjeta"><div class="grupo">' +
       '<div class="cab"><div class="quien"><div class="nom">' + esc(e.grupo) + '</div>' +
         (sub ? '<div class="sub">' + esc(sub) + '</div>' : '') + '</div>' +
-        '<span class="chip ev-' + esc(e.estado) + '">' + esc(rotulo) + '</span></div>' +
+        '<span class="chip ev-' + (ESTADO_GRUPO[e.estado] ? e.estado : 'otro') + '">' + esc(rotulo) + '</span></div>' +
       '<div class="dato">' + (cuando ? '<b>' + esc(cuando) + '</b>' : 'Sin fecha') +
         (e.personas ? ' · ' + esc(e.personas) + (/^\d+$/.test(e.personas) ? (e.personas === '1' ? ' persona' : ' personas') : '') : '') + '</div>' +
       (e.formato ? '<div class="dato">' + esc(e.formato) + '</div>' : '') +

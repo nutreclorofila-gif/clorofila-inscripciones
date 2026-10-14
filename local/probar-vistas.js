@@ -602,10 +602,17 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
     console.log('  ok    fecha y personas en texto se muestran tal cual, y sin total va el precio por persona');
   } else { fallas++; console.log('  FALLA la tarjeta con texto: ' + texto.slice(0, 300)); }
 
-  const hostil = cargarUI(Object.assign({}, datosBase, { eventos: [g({ grupo: '<img src=x onerror=alert(1)>', proximoPaso: '<script>x</script>',
-    estado: '"><b>', estadoTexto: '<i>raro</i>', chat: 'https://x.com/a"b' })] })).vistaGrupos();
+  // Un grupo por cada lugar donde va texto de la planilla. Primero se comprueba
+  // que estén dibujados: si no, el escape no se estaría probando.
+  const hostil = cargarUI(Object.assign({}, datosBase, { eventos: [
+    g({ grupo: '<img src=x onerror=alert(1)>', contacto: '<u>c</u>', tipo: '<s>t</s>', formato: '<em>f</em>', fechaTexto: '<q>d</q>',
+        horario: '<kbd>h</kbd>', personas: '<sub>p</sub>', proximoPaso: '<script>x</script>', canal: '<mark>w</mark>',
+        estado: 'propuesta', chat: 'https://x.com/a"b' }),
+    // «"><b>» no sirve de prueba: la tarjeta misma tiene '<div class="dato"><b>'.
+    g({ grupo: 'Estado raro', estado: 'x" onmouseover="alert(1)', estadoTexto: '<i>raro</i>' })] })).vistaGrupos();
   corridos++;
-  if (!/<img|<script|<i>|"><b>|a"b/.test(hostil)) console.log('  ok    lo escrito en la pestaña se escapa');
+  if ((hostil.match(/class="grupo"/g) || []).length !== 2) { fallas++; console.log('  FALLA no se dibujaron los dos grupos hostiles: un estado raro no puede esconder un grupo'); }
+  else if (!/<img|<script|<i>|onmouseover="|a"b|<u>|<s>|<em>|<q>|<kbd>|<sub>|<mark>/.test(hostil)) console.log('  ok    lo escrito en la pestaña se escapa, y un estado raro igual se muestra');
   else { fallas++; console.log('  FALLA quedó HTML sin escapar: ' + hostil.slice(0, 300)); }
 
   const sinServidor = Object.assign({}, datosBase); delete sinServidor.eventos;
