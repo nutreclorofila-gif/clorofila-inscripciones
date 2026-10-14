@@ -212,7 +212,8 @@ cupo ni da alertas.
 - Arriba los **confirmados** (y los hechos que falta cobrar), por fecha. Después los que
   están en **propuesta o consulta** (y los de un estado que no se reconoce). Los
   **cobrados, cancelados y descartados**, plegados al final con el conteo de cada uno
-  («Cobrados (1) · Cancelados (2) · Descartados (2)»).
+  («Cobrados (1) · Cancelados (2) · Descartados (0)»). Los tres conteos van siempre,
+  aunque sean cero.
 - En una propuesta o consulta va solo el total: el saldo aparece cuando hay seña o el
   grupo está confirmado o hecho.
 - Los **confirmados y los hechos** van **también en Cupos**, mezclados por fecha con los

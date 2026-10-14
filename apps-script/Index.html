@@ -934,16 +934,7 @@
 
   /* ---------- cupos ---------- */
   function vistaCupos() {
-    // Lo más próximo primero: es lo que hay que mirar hoy. Por cuándo EMPIEZA:
-    // el curso de octubre va antes que un taller del 16/10 aunque siga vigente
-    // hasta el 31.
-    var vigentes = DATOS.ediciones.filter(function (e) { return e.vigente; })
-      .sort(function (a, b) {
-        var fa = a.inicio || a.fecha, fb = b.inicio || b.fecha;
-        if (!fa) return 1;
-        if (!fb) return -1;
-        return new Date(fa) - new Date(fb);
-      });
+    var vigentes = DATOS.ediciones.filter(function (e) { return e.vigente; });
     var pasadas = DATOS.ediciones.filter(function (e) { return !e.vigente; });
     var html = '';
 
@@ -954,6 +945,9 @@
     if (urgentes.length) html += urgentes.map(avisoSinPlata).join('');
 
     if (!vigentes.length) html += '<div class="vacio">No hay ninguna edición abierta ni por venir.</div>';
+    // Lo más próximo primero: es lo que hay que mirar hoy. Por cuándo EMPIEZA:
+    // el curso de octubre va antes que un taller del 16/10 aunque siga vigente
+    // hasta el 31. Sin fecha, al final.
     // Los grupos privados confirmados van entre las ediciones, por fecha (Leo,
     // 14/10/2026). No son una edición: no suman a los cupos ni a los lugares
     // libres de arriba, que salen del servidor y solo cuentan ediciones.
@@ -1150,17 +1144,18 @@
     var abiertos = eventos.filter(function (e) {
       return ['confirmado', 'realizado', 'cobrado', 'cancelado', 'descartado'].indexOf(e.estado) === -1;
     }).sort(porFecha);
-    var cerrados = [['Cobrados', de(['cobrado'])], ['Cancelados', de(['cancelado'])], ['Descartados', de(['descartado'])]]
-      .filter(function (c) { return c[1].length; });
+    // Los tres conteos van siempre, aunque sean cero: «Descartados (0)» dice que
+    // no hay, y no que la app no lo mira.
+    var cerrados = [['Cobrados', de(['cobrado'])], ['Cancelados', de(['cancelado'])], ['Descartados', de(['descartado'])]];
     var html = '';
     if (confirmados.length) html += '<div class="seccion">Confirmados (' + confirmados.length + ')</div>' + confirmados.map(tarjetaGrupo).join('');
     if (abiertos.length) html += '<div class="seccion">En propuesta o consulta (' + abiertos.length + ')</div>' + abiertos.map(tarjetaGrupo).join('');
-    if (cerrados.length) {
-      html += '<details><summary>' + cerrados.map(function (c) { return c[0] + ' (' + c[1].length + ')'; }).join(' · ') + '</summary>' +
-        cerrados.map(function (c) {
-          return '<div class="seccion">' + c[0] + ' (' + c[1].length + ')</div>' + c[1].map(tarjetaGrupo).join('');
-        }).join('') + '</details>';
-    }
+    html += '<details><summary>' + cerrados.map(function (c) { return c[0] + ' (' + c[1].length + ')'; }).join(' · ') + '</summary>' +
+      (cerrados.some(function (c) { return c[1].length; })
+        ? cerrados.filter(function (c) { return c[1].length; }).map(function (c) {
+            return '<div class="seccion">' + c[0] + ' (' + c[1].length + ')</div>' + c[1].map(tarjetaGrupo).join('');
+          }).join('')
+        : '<div class="vacio">Ninguno por ahora.</div>') + '</details>';
     return html;
   }
 

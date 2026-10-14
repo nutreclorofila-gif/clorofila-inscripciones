@@ -697,6 +697,12 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
   else if (!/<img|<script|a"b|<q>|<kbd>|<sub>|<mark>/.test(hc)) console.log('  ok    en Cupos lo escrito en la pestaña también se escapa');
   else { fallas++; console.log('  FALLA quedó HTML sin escapar en Cupos: ' + hc.slice(0, 300)); }
 
+  corridos++;
+  const sinCerrados = cargarUI(Object.assign({}, datosBase, { eventos: [eventos[0]] })).vistaGrupos();
+  if (/<summary>Cobrados \(0\) · Cancelados \(0\) · Descartados \(0\)<\/summary>/.test(sinCerrados) && /Ninguno por ahora/.test(sinCerrados)) {
+    console.log('  ok    sin cobrados, cancelados ni descartados, los tres conteos dicen 0');
+  } else { fallas++; console.log('  FALLA los conteos en cero: ' + (sinCerrados.match(/<summary>[^<]*/) || ['sin plegado'])[0]); }
+
   const sinServidor = Object.assign({}, datosBase); delete sinServidor.eventos;
   correr('solapa Grupos con un servidor viejo (sin eventos)', () => cargarUI(sinServidor).vistaGrupos());
   correr('solapa Grupos vacía', () => cargarUI(Object.assign({}, datosBase, { eventos: [] })).vistaGrupos());
