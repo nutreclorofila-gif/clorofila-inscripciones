@@ -1164,6 +1164,16 @@ caso(
   }
 );
 caso(
+  'al teléfono van solo los grupos confirmados y los realizados',
+  'Leo (14/10): «las confirmadas solo en la app»; las propuestas y consultas quedan en la planilla',
+  () => {
+    const e = conEventos([{ grupo: 'a', estado: 'Consulta' }, { grupo: 'b', estado: 'Propuesta enviada' }, { grupo: 'c', estado: 'Confirmado con seña' },
+      { grupo: 'd', estado: 'Realizado' }, { grupo: 'e', estado: 'Cobrado' }, { grupo: 'f', estado: 'Cancelado' }, { grupo: 'g', estado: 'raro' }]);
+    const tel = G.paraElTelefono(e).eventos.map(x => x.grupo).join(',');
+    return (tel === 'c,d' && e.eventos.length === 7) || 'al teléfono: ' + tel + ' (en el servidor ' + e.eventos.length + ')';
+  }
+);
+caso(
   'la pestaña no cuenta en ningún cupo ni da alertas',
   'no es una edición: si se leyera como inscriptos, los grupos aparecerían como gente anotada',
   () => {

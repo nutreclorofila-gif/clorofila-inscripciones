@@ -202,18 +202,19 @@ vacía, la alerta se va sola.
 
 ## Grupos (Eventos y empresas)
 
-La solapa **Grupos** muestra la pestaña **«Eventos y empresas»** de la Master: los eventos
-privados de empresas y grupos (pedido de Leo, 14/10/2026). Solo la lee; no cuenta en ningún
-cupo ni da alertas.
+La solapa **Grupos** muestra los grupos **confirmados** de la pestaña **«Eventos y
+empresas»** de la Master: eventos privados de empresas y grupos. Leo, 14/10/2026: «las
+confirmadas solo en la app». Solo lee; no cuenta en ningún cupo ni da alertas.
 
-- Una tarjeta por fila con Empresa / grupo: contacto y tipo, fecha y horario, personas,
-  formato, total, seña y saldo (o el precio por persona si todavía no hay total), el estado
-  con color, el **próximo paso** y un botón **Abrir el chat** (columna G).
-- Arriba los **confirmados** (y los hechos que falta cobrar), por fecha. Después los que
-  están en **propuesta o consulta**. Los **cobrados y cancelados**, plegados al final.
-- La fecha y las personas pueden ser texto («fines de noviembre», «8 a 10»): se muestran
-  tal cual. Para ordenar se usa el primer día que aparezca en la fecha («jueves 10/12 o
-  17/12» → 10/12).
+- Entran los de Estado **Confirmado…** y **Realizado** (todavía tiene saldo por cobrar),
+  ordenados por fecha; los que no tienen fecha, al final. Las propuestas, consultas,
+  cobrados y cancelados se quedan en la planilla: **ni siquiera viajan al celu**. Si no hay
+  ninguno: «No hay grupos confirmados».
+- Una tarjeta por grupo: contacto y tipo, fecha y horario, personas, formato, total, seña
+  y saldo (o el precio por persona si todavía no hay total), el estado, el **próximo paso**
+  y un botón **Abrir el chat** (columna G).
+- La fecha y las personas pueden ser texto («un jueves de diciembre», «8 a 10»): se
+  muestran tal cual. Para ordenar se usa el primer día que aparezca en la fecha.
 - El Estado se lee por cómo empieza: Consulta, Propuesta…, Confirmado…, Realizado, Cobrado,
   Cancelado. Vacío cuenta como Consulta.
 - El link del chat solo se muestra si empieza con `https://`.

@@ -1035,6 +1035,9 @@ function paraElTelefono(estado) {
   // En los anulados la columna K es una nota a mano, y trae celulares y números de
   // comprobante («celular 09…», «Mercado Pago 18…»): visto el 5/10 en la portada.
   (copia.fueraDeCupo || []).forEach(function (f) { f.edicion = taparNumeros(f.edicion); });
+  // Leo (14/10/2026): «las confirmadas solo en la app». Las propuestas, consultas,
+  // cobrados y cancelados se quedan en la planilla.
+  copia.eventos = (copia.eventos || []).filter(function (e) { return e.estado === 'confirmado' || e.estado === 'realizado'; });
   return copia;
 }
 

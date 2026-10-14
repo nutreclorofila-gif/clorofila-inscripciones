@@ -567,10 +567,14 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
   const g = (o) => Object.assign({ fila: 2, grupo: 'Grupo', contacto: '', canal: '', chat: '', tipo: '', formato: '',
     fechaTexto: '', fecha: '', horario: '', personas: '', precio: null, total: null, sena: null, saldo: null,
     estado: 'consulta', estadoTexto: '', ultimoContacto: '', proximoPaso: '' }, o);
+  // Leo (14/10): «las confirmadas solo en la app». Van también una propuesta y un
+  // cobrado, como si llegaran de un servidor sin el filtro: no se tienen que ver.
   const eventos = [
     g({ grupo: 'Propuesta Uno', estado: 'propuesta', fechaTexto: 'fines de noviembre', personas: '8 a 10', precio: 2100 }),
     g({ grupo: 'Cobrado Viejo', estado: 'cobrado', fecha: '2026-09-01', fechaTexto: '1/9/2026', total: 5000, saldo: 0 }),
+    g({ grupo: 'Realizado Sin Cobrar', estado: 'realizado', fecha: '2026-10-20', fechaTexto: '20/10/2026', total: 9000, sena: 2000, saldo: 7000 }),
     g({ grupo: 'Confirmado Tarde', estado: 'confirmado', fecha: '2026-12-10', fechaTexto: 'jueves 10/12' }),
+    g({ grupo: 'Confirmado Texto', estado: 'confirmado', fechaTexto: 'un jueves de diciembre', personas: '8 a 10', precio: 2100 }),
     g({ grupo: 'Confirmado Pronto', estado: 'confirmado', fecha: '2026-11-06', fechaTexto: 'viernes 6/11/2026', horario: '19 a 22:30',
         personas: '11', total: 16500, sena: 3300, saldo: 13200, proximoPaso: 'Confirmar el horario',
         chat: 'https://business.facebook.com/latest/inbox/all?selected_item_id=1&thread_type=WEC_MESSAGE', canal: 'WhatsApp' })
@@ -581,15 +585,13 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
   const h = ui.vistaGrupos();
   const pos = (t) => h.indexOf(t);
   corridos++;
-  if (pos('Confirmado Pronto') !== -1 && pos('Confirmado Pronto') < pos('Confirmado Tarde') && pos('Confirmado Tarde') < pos('Propuesta Uno')
-      && pos('Propuesta Uno') < pos('Cobrado Viejo')) {
-    console.log('  ok    arriba los confirmados por fecha, después las propuestas, al final lo cobrado');
-  } else { fallas++; console.log('  FALLA el orden de los grupos: ' + ['Confirmado Pronto','Confirmado Tarde','Propuesta Uno','Cobrado Viejo'].map(pos).join(', ')); }
+  if (pos('Propuesta Uno') === -1 && pos('Cobrado Viejo') === -1) console.log('  ok    solo los confirmados: ni propuestas ni cobrados');
+  else { fallas++; console.log('  FALLA se ven grupos que no están confirmados'); }
   corridos++;
-  const plegado = h.slice(h.indexOf('<details>'));
-  if (h.indexOf('<details>') !== -1 && plegado.indexOf('Cobrado Viejo') !== -1 && plegado.indexOf('</details>') > plegado.indexOf('Cobrado Viejo')) {
-    console.log('  ok    lo cobrado y lo cancelado quedan plegados');
-  } else { fallas++; console.log('  FALLA lo cobrado no quedó adentro del plegado'); }
+  if (pos('Realizado Sin Cobrar') !== -1 && pos('Realizado Sin Cobrar') < pos('Confirmado Pronto') && pos('Confirmado Pronto') < pos('Confirmado Tarde')
+      && pos('Confirmado Tarde') < pos('Confirmado Texto')) {
+    console.log('  ok    confirmados y realizados por fecha, los que no tienen fecha al final');
+  } else { fallas++; console.log('  FALLA el orden: ' + ['Realizado Sin Cobrar','Confirmado Pronto','Confirmado Tarde','Confirmado Texto'].map(pos).join(', ')); }
   corridos++;
   const tarjeta = h.slice(pos('Confirmado Pronto'), pos('Confirmado Tarde'));
   const falta = ['viernes 6/11/2026 · 19 a 22:30', '11 personas', '$ 16.500', '$ 3.300', '$ 13.200', 'Confirmar el horario',
@@ -597,27 +599,24 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
   if (!falta.length) console.log('  ok    la tarjeta dice fecha, horario, personas, total, seña, saldo, próximo paso y el chat');
   else { fallas++; console.log('  FALLA a la tarjeta le falta: ' + falta.join(' | ')); }
   corridos++;
-  const texto = h.slice(pos('Propuesta Uno'));
-  if (/fines de noviembre/.test(texto) && /8 a 10</.test(texto) && !/8 a 10 personas/.test(texto) && /\$ 2\.100<\/b> por persona/.test(texto)) {
+  const texto = h.slice(pos('Confirmado Texto'));
+  if (/un jueves de diciembre/.test(texto) && /8 a 10</.test(texto) && !/8 a 10 personas/.test(texto) && /\$ 2\.100<\/b> por persona/.test(texto)) {
     console.log('  ok    fecha y personas en texto se muestran tal cual, y sin total va el precio por persona');
   } else { fallas++; console.log('  FALLA la tarjeta con texto: ' + texto.slice(0, 300)); }
-
-  // Un grupo por cada lugar donde va texto de la planilla. Primero se comprueba
-  // que estén dibujados: si no, el escape no se estaría probando.
   corridos++;
-  const enPropuesta = cargarUI(Object.assign({}, datosBase, { eventos: [g({ grupo: 'Propuesta Con Total', estado: 'propuesta', total: 14700, saldo: 14700 })] })).vistaGrupos();
-  if (/\$ 14\.700/.test(enPropuesta) && !/Saldo/.test(enPropuesta)) console.log('  ok    en una propuesta va el total y no el saldo');
-  else { fallas++; console.log('  FALLA la propuesta muestra saldo o no muestra el total: ' + enPropuesta.slice(0, 300)); }
+  const sinConfirmados = cargarUI(Object.assign({}, datosBase, { eventos: [eventos[0], eventos[1]] })).vistaGrupos();
+  if (/No hay grupos confirmados/.test(sinConfirmados)) console.log('  ok    sin confirmados dice «No hay grupos confirmados»');
+  else { fallas++; console.log('  FALLA sin confirmados: ' + sinConfirmados.slice(0, 200)); }
 
+  // Cada lugar donde va texto de la planilla. Primero se comprueba que la tarjeta
+  // esté dibujada: si no, el escape no se estaría probando.
   const hostil = cargarUI(Object.assign({}, datosBase, { eventos: [
     g({ grupo: '<img src=x onerror=alert(1)>', contacto: '<u>c</u>', tipo: '<s>t</s>', formato: '<em>f</em>', fechaTexto: '<q>d</q>',
         horario: '<kbd>h</kbd>', personas: '<sub>p</sub>', proximoPaso: '<script>x</script>', canal: '<mark>w</mark>',
-        estado: 'propuesta', chat: 'https://x.com/a"b' }),
-    // «"><b>» no sirve de prueba: la tarjeta misma tiene '<div class="dato"><b>'.
-    g({ grupo: 'Estado raro', estado: 'x" onmouseover="alert(1)', estadoTexto: '<i>raro</i>' })] })).vistaGrupos();
+        estado: 'confirmado', chat: 'https://x.com/a"b' })] })).vistaGrupos();
   corridos++;
-  if ((hostil.match(/class="grupo"/g) || []).length !== 2) { fallas++; console.log('  FALLA no se dibujaron los dos grupos hostiles: un estado raro no puede esconder un grupo'); }
-  else if (!/<img|<script|<i>|onmouseover="|a"b|<u>|<s>|<em>|<q>|<kbd>|<sub>|<mark>/.test(hostil)) console.log('  ok    lo escrito en la pestaña se escapa, y un estado raro igual se muestra');
+  if ((hostil.match(/class="grupo"/g) || []).length !== 1) { fallas++; console.log('  FALLA no se dibujó el grupo hostil: el escape no se está probando'); }
+  else if (!/<img|<script|a"b|<u>|<s>|<em>|<q>|<kbd>|<sub>|<mark>/.test(hostil)) console.log('  ok    lo escrito en la pestaña se escapa');
   else { fallas++; console.log('  FALLA quedó HTML sin escapar: ' + hostil.slice(0, 300)); }
 
   const sinServidor = Object.assign({}, datosBase); delete sinServidor.eventos;
