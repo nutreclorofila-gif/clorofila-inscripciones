@@ -197,6 +197,8 @@ const MUTACIONES = [
    "return ['confirmado', 'realizado', 'cobrado', 'cancelado'].indexOf(e.estado) === -1;", "return ['propuesta', 'consulta', 'otro'].indexOf(e.estado) !== -1;"],
   ['el estado raro entra crudo en la clase del chip', INDEX,
    "(ESTADO_GRUPO[e.estado] ? e.estado : 'otro')", 'e.estado'],
+  ['una propuesta vuelve a mostrar saldo', INDEX,
+   "var conSaldo = e.sena || e.estado === 'confirmado' || e.estado === 'realizado';", 'var conSaldo = true;'],
   ['el curso lleno y Abierto vuelve a pedir que lo cierren', CODIGO,
    'if (ed.abierta && !ed.esCurso && ed.cupo > 0 && ed.quedan === 0) {', 'if (ed.abierta && ed.cupo > 0 && ed.quedan === 0) {'],
   ['un taller lleno y Abierto deja de avisar', CODIGO,

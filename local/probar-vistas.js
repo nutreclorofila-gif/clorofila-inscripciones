@@ -604,6 +604,11 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
 
   // Un grupo por cada lugar donde va texto de la planilla. Primero se comprueba
   // que estén dibujados: si no, el escape no se estaría probando.
+  corridos++;
+  const enPropuesta = cargarUI(Object.assign({}, datosBase, { eventos: [g({ grupo: 'Propuesta Con Total', estado: 'propuesta', total: 14700, saldo: 14700 })] })).vistaGrupos();
+  if (/\$ 14\.700/.test(enPropuesta) && !/Saldo/.test(enPropuesta)) console.log('  ok    en una propuesta va el total y no el saldo');
+  else { fallas++; console.log('  FALLA la propuesta muestra saldo o no muestra el total: ' + enPropuesta.slice(0, 300)); }
+
   const hostil = cargarUI(Object.assign({}, datosBase, { eventos: [
     g({ grupo: '<img src=x onerror=alert(1)>', contacto: '<u>c</u>', tipo: '<s>t</s>', formato: '<em>f</em>', fechaTexto: '<q>d</q>',
         horario: '<kbd>h</kbd>', personas: '<sub>p</sub>', proximoPaso: '<script>x</script>', canal: '<mark>w</mark>',

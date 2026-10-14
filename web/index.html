@@ -1116,7 +1116,9 @@
     var plataTxt = [];
     if (e.total !== null && e.total !== undefined) plataTxt.push('Total <b>' + plata(e.total) + '</b>');
     if (e.sena) plataTxt.push('Seña <b>' + plata(e.sena) + '</b>');
-    if (e.saldo !== null && e.saldo !== undefined && e.total) plataTxt.push('Saldo <b>' + plata(e.saldo) + '</b>');
+    // El saldo solo tiene sentido con algo pagado o acordado: en una propuesta, «Total $14.700 · Saldo $14.700» confunde.
+    var conSaldo = e.sena || e.estado === 'confirmado' || e.estado === 'realizado';
+    if (conSaldo && e.saldo !== null && e.saldo !== undefined && e.total) plataTxt.push('Saldo <b>' + plata(e.saldo) + '</b>');
     if (!plataTxt.length && e.precio) plataTxt.push('<b>' + plata(e.precio) + '</b> por persona');
     return '<div class="tarjeta"><div class="grupo">' +
       '<div class="cab"><div class="quien"><div class="nom">' + esc(e.grupo) + '</div>' +
