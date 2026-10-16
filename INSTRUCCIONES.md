@@ -256,7 +256,9 @@ Hora, Detalle, Estado (Pendiente / Hecho / Cancelado), Quién lo cargó, Cargado
 - En la app: **alerta alta** si es para hoy, mañana, ya pasó («¿se hizo?») o no tiene fecha;
   **media** si falta más. Con Hecho o Cancelado se va sola.
 - **Delegado** (con «Lo hace: <sesión>» al principio del Detalle): lo resuelve una sesión, no Leo.
-  Sale de su lista y de los mails, y se ve aparte en Alertas («Lo están haciendo las sesiones»).
+  **No aparece en la app** ni en los mails. Leo, 15/10/2026: «en la app quedan los pendientes
+  importantes, no de conversaciones», como alguien que pasa por el estudio o alguien que debe
+  plata. El seguimiento de un chat (¿eligió fecha?, ¿contestó la propuesta?) va como Delegado.
 - En la portada, todo va en UNA tarjeta chica «Pendientes»: hasta 4 renglones de una línea
   (lo que viene a pagar y lo de hoy primero) y el resto como cantidad.
 - Por mail (proyecto `avisos/`): uno al cargarlo, y entra en el resumen diario de las 9

@@ -2582,15 +2582,11 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
   // l) Recordatorios. Alta si es para hoy o mañana, si pasó o si no tiene fecha
   //    (sin fecha no hay otro momento en que aparezca); media si falta más.
   (recordatorios || []).forEach(function (r) {
-    // Delegado: lo está haciendo otra sesión. No es de Leo: va aparte, sin urgencia.
-    if (r.estado === 'delegado') {
-      alertas.push({
-        nivel: 'info', tipo: 'recordatorio_delegado', edicion: '', texto: r.que,
-        detalle: (r.detalle ? r.detalle.replace(/[.\s]+$/, '') + '. ' : '') + 'Cuando esté, la sesión pone Hecho. ' +
-                 'En la pestaña "' + HOJA_RECORDATORIOS + '", fila ' + r.fila + '.'
-      });
-      return;
-    }
+    // Delegado: lo está haciendo otra sesión (el seguimiento de una conversación,
+    // por ejemplo). Leo, 15/10/2026: «en la app quedan los pendientes importantes,
+    // no de conversaciones... como alguien que pasa por el espacio, alguien que
+    // falta pagar, no cada mensaje». No viaja al teléfono.
+    if (r.estado === 'delegado') return;
     if (r.estado !== 'pendiente') return;
     // Leo ya contestó desde la app: deja de ser suyo hasta que una sesión lo haga.
     if (r.respuesta) {

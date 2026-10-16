@@ -91,6 +91,8 @@ const MUTACIONES = [
    "var muestro = renglones.slice(0, RENGLONES_PORTADA);", "var muestro = renglones;"],
   ['en Alertas los recordatorios vuelven a ser tarjetas', INDEX,
    "var resto = DATOS.alertas.filter(function (a) { return !esCargada(a); });", "var resto = DATOS.alertas;"],
+  ['lo delegado vuelve a aparecer en la app', CODIGO,
+   "    if (r.estado === 'delegado') return;\n    if (r.estado !== 'pendiente') return;", "    if (r.estado !== 'pendiente' && r.estado !== 'delegado') return;"],
   ['lo delegado vuelve a la lista de Leo', CODIGO,
    ": /^deleg/.test(e) ? 'delegado' : 'pendiente',", ": 'pendiente',"],
   ['los recordatorios dejan de agruparse por cuándo', INDEX,

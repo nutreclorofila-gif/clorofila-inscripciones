@@ -981,12 +981,13 @@ caso(
   () => tipos(conRec([['Uno', '01/11/2026', '', '', 'Hecho', '', ''], ['Dos', '01/11/2026', '', '', 'Cancelado', '', '']]), 'recordatorio').length === 0 || 'alertó algo resuelto'
 );
 caso(
-  'un recordatorio Delegado no es de Leo: sale aparte, como info',
-  'Leo pidió que le quede solo lo que tiene que decidir él; lo de las sesiones no puede competir con eso',
+  'un recordatorio Delegado no llega a la app',
+  'Leo (15/10): en la app, solo lo importante (quién viene a pagar, quién debe); el seguimiento de cada chat lo hace cada chat',
   () => {
-    const e = conRec([['Algo delegado', '01/11/2026', '', 'Lo hace: Seguimiento', 'Delegado', '', '']]);
-    const d = tipos(e, 'recordatorio_delegado');
-    return (tipos(e, 'recordatorio').length === 0 && d.length === 1 && d[0].nivel === 'info') || JSON.stringify(e.alertas.map(a => a.tipo + ':' + a.nivel));
+    const e = conRec([['Algo delegado', '01/11/2026', '', 'Lo hace: Seguimiento', 'Delegado', '', ''], ['Algo pendiente', '01/11/2026', '', '', 'Pendiente', '', '']]);
+    const txt = JSON.stringify(e.alertas);
+    return (tipos(e, 'recordatorio').length === 1 && tipos(e, 'recordatorio_delegado').length === 0 && txt.indexOf('Algo delegado') === -1)
+      || JSON.stringify(e.alertas.map(a => a.tipo + ':' + a.texto));
   }
 );
 caso(

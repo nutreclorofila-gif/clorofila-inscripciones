@@ -845,7 +845,7 @@ else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' vece
     ['lo ya respondido va en su sección, con la respuesta a la vista', /Ya respondiste: lo hace Claude \(1\)/.test(a) && seccionResp.includes('Decidir si Prueba puede ir')],
     ['lo ya respondido se puede corregir', /data-responder="decidir si prueba puede ir">Cambiar la respuesta</.test(a)],
     ['la respuesta se muestra escapada, no como HTML', a.includes('&lt;b&gt;puede&lt;/b&gt;') && !a.includes('<b>puede</b>')],
-    ['lo delegado no se responde desde acá', !/data-responder="algo delegado"/.test(a)],
+    ['lo delegado no se muestra en ningún lado', !/Algo delegado/.test(a) && !/Algo delegado/.test(c) && !/Lo están haciendo las sesiones/.test(a)],
     ['lo respondido no cuenta en Pendientes de la portada', /pend-n">1</.test(c) && !/pend-t">Decidir si Prueba/.test(c)],
     ['la respuesta va por POST, no en la dirección', /method: 'POST'/.test(fuente) && !/accion=responder/.test(fuente)],
     ['si falla, lo escrito no se pierde', /Lo que escribiste sigue acá/.test(fuente)],
