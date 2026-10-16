@@ -1437,8 +1437,8 @@
     }
     var resp = DATOS.alertas.filter(esRespondido);
     if (resp.length) html += '<div class="seccion">Ya respondiste: lo hace Claude (' + resp.length + ')</div>' + resp.map(plegable).join('');
-    var deleg = DATOS.alertas.filter(esDelegado);
-    if (deleg.length) html += '<div class="seccion">Lo están haciendo las sesiones (' + deleg.length + ')</div>' + deleg.map(plegable).join('');
+    // Lo delegado ya no viaja (Leo, 15/10/2026: solo lo importante). Si llega de un
+    // servidor viejo, esCargada lo saca del resto y no se muestra.
     var resto = DATOS.alertas.filter(function (a) { return !esCargada(a); });
     if (resto.length) html += (visitas.length || recs.length ? '<div class="seccion">Revisar en la planilla (' + resto.length + ')</div>' : '') +
       resto.map(aviso).join('');
