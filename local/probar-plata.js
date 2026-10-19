@@ -892,12 +892,12 @@ caso(
   }
 );
 caso(
-  'pagó en persona y no está anotada: avisa que falta el Tally',
-  'sin el Tally no entra en la pestaña de inscriptos y no ocupa su lugar en el cupo',
+  'pagó en persona y no está anotada: avisa que falta anotarla',
+  'si no está en la pestaña de inscriptos no ocupa su lugar en el cupo (Tally ya no se usa desde el 18/10)',
   () => {
     const a = tipos(conVisitas([['Visita Prueba', '', ED_V, '03/11/2026', '', '4800', 'Pagó', '', '', '']]), 'pago_sin_tally');
     if (a.length !== 1) return 'esperaba 1 alerta pago_sin_tally, hay ' + a.length;
-    return /Tally/.test(a[0].texto) || 'el título no habla del Tally';
+    return (/falta anotarla/.test(a[0].texto) && !/Pedile que lo complete|formulario/.test(a[0].detalle)) || 'el aviso: ' + a[0].texto + ' / ' + a[0].detalle;
   }
 );
 caso(

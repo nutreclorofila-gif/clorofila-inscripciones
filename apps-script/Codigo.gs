@@ -2571,10 +2571,11 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
     if (v.estado === 'pago' && !v.tally && !filas.some(function (f) { return mismaPersona(f.nombre, v.nombre); })) {
       alertas.push({
         nivel: 'media', tipo: 'pago_sin_tally', edicion: v.edicion,
-        texto: v.nombre + ' pagó en persona y falta el Tally',
-        detalle: 'Sin el formulario no figura en la pestaña de inscriptos ni ocupa su lugar' +
-                 (v.edicion ? ' en "' + v.edicion + '"' : '') + '. Pedile que lo complete; cuando aparezca anotada, ' +
-                 'la alerta se va sola (o poné Sí en la columna Tally). ' + donde
+        // Leo, 18/10/2026: ya no se usa Tally; los datos entran a la planilla a mano o desde Tikzet.
+        texto: v.nombre + ' pagó en persona y falta anotarla',
+        detalle: 'No figura en la pestaña de inscriptos y no ocupa su lugar' +
+                 (v.edicion ? ' en "' + v.edicion + '"' : '') + '. Cargala ahí como una venta de Tikzet; ' +
+                 'cuando aparezca anotada, la alerta se va sola (o poné Sí en la columna Tally). ' + donde
       });
     }
   });

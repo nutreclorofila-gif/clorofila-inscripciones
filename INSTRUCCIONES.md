@@ -243,7 +243,9 @@ pestaña **«Pagos en persona»** de la Master: Nombre, Canal, Edición, Día ac
   arriba de todo en la portada, con el día: «viene a pagar HOY / MAÑANA / el dd/mm», o
   «sin día acordado». Si el día pasó y sigue Pendiente, avisa que no se marcó.
 - Al cobrar: Estado = **Pagó**. Si la persona todavía no aparece anotada en su edición,
-  sale una alerta media «falta el Tally», que se va sola cuando se anota (o con Sí en Tally).
+  sale una alerta media «falta anotarla», que se va sola cuando se carga en su pestaña de
+  inscriptos (o con Sí en la columna Tally). Desde el 18/10 Tally no se usa: se carga como
+  una venta de Tikzet.
 - **No vino** o **Cancelado** cierran la visita sin alerta.
 - La pestaña nunca cuenta como edición ni ocupa cupo.
 
