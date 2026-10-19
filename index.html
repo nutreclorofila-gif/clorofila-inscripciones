@@ -136,7 +136,7 @@
   /* Estados de "Eventos y empresas". */
   .chip.ev-confirmado, .chip.ev-cobrado, .chip.ev-auspicio { background: var(--verde-fondo); color: var(--verde); }
   .chip.ev-realizado, .chip.ev-propuesta { background: var(--ambar-fondo); color: var(--ambar); }
-  .chip.ev-consulta, .chip.ev-otro, .chip.ev-cancelado, .chip.ev-descartado { background: var(--crema); color: var(--tenue); }
+  .chip.ev-consulta, .chip.ev-otro, .chip.ev-cancelado, .chip.ev-descartado, .chip.ev-contactada { background: var(--crema); color: var(--tenue); }
   .grupo { padding: 14px; }
   .grupo .cab { display: flex; align-items: flex-start; gap: 10px; }
   .grupo .cab .quien { min-width: 0; flex: 1; }
@@ -1141,19 +1141,23 @@
       return eventos.filter(function (e) { return estados.indexOf(e.estado) !== -1; }).sort(porFecha);
     };
     var confirmados = de(['confirmado', 'realizado']);
-    // Auspicios: compromisos hechos, sin fecha ni cobro. Ni propuesta ni consulta.
-    var auspicios = de(['auspicio']);
-    // Todo lo que no sea confirmado, hecho, cobrado, cancelado o descartado: un estado
-    // que no se reconoce no puede hacer desaparecer al grupo.
+    // Estados con sección propia, sin fecha ni cobro: ni propuesta ni consulta, ni
+    // Cupos ni plata. Uno nuevo se agrega acá, en ESTADO_GRUPO y en leerEventos.
+    var propias = SECCIONES_PROPIAS.map(function (s) { return [s[1], de([s[0]])]; });
+    var conSeccion = ['confirmado', 'realizado', 'cobrado', 'cancelado', 'descartado']
+      .concat(SECCIONES_PROPIAS.map(function (s) { return s[0]; }));
+    // Todo lo demás: un estado que no se reconoce no puede hacer desaparecer al grupo.
     var abiertos = eventos.filter(function (e) {
-      return ['confirmado', 'realizado', 'cobrado', 'cancelado', 'descartado', 'auspicio'].indexOf(e.estado) === -1;
+      return conSeccion.indexOf(e.estado) === -1;
     }).sort(porFecha);
     // Los tres conteos van siempre, aunque sean cero: «Descartados (0)» dice que
     // no hay, y no que la app no lo mira.
     var cerrados = [['Cobrados', de(['cobrado'])], ['Cancelados', de(['cancelado'])], ['Descartados', de(['descartado'])]];
     var html = '';
     if (confirmados.length) html += '<div class="seccion">Confirmados (' + confirmados.length + ')</div>' + confirmados.map(tarjetaGrupo).join('');
-    if (auspicios.length) html += '<div class="seccion">Auspicios (' + auspicios.length + ')</div>' + auspicios.map(tarjetaGrupo).join('');
+    propias.forEach(function (p) {
+      if (p[1].length) html += '<div class="seccion">' + p[0] + ' (' + p[1].length + ')</div>' + p[1].map(tarjetaGrupo).join('');
+    });
     if (abiertos.length) html += '<div class="seccion">En propuesta o consulta (' + abiertos.length + ')</div>' + abiertos.map(tarjetaGrupo).join('');
     html += '<details><summary>' + cerrados.map(function (c) { return c[0] + ' (' + c[1].length + ')'; }).join(' · ') + '</summary>' +
       (cerrados.some(function (c) { return c[1].length; })
@@ -1166,8 +1170,10 @@
 
   var ESTADO_GRUPO = {
     confirmado: 'Confirmado', realizado: 'Hecho, falta cobrar', propuesta: 'Propuesta enviada',
-    consulta: 'Consulta', cobrado: 'Cobrado', cancelado: 'Cancelado', descartado: 'Descartado', auspicio: 'Auspicio'
+    consulta: 'Consulta', cobrado: 'Cobrado', cancelado: 'Cancelado', descartado: 'Descartado', auspicio: 'Auspicio', contactada: 'Contactada'
   };
+  // [estado, título de la sección]. Auspicio (ADESU) y Contactada (alianzas), 19/10.
+  var SECCIONES_PROPIAS = [['auspicio', 'Auspicios'], ['contactada', 'Contactadas']];
 
   function tarjetaGrupo(e) {
     var rotulo = ESTADO_GRUPO[e.estado] || e.estadoTexto || 'Sin estado';
