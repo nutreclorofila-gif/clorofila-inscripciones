@@ -1498,7 +1498,12 @@ function aplanarInscriptos(hojas) {
  */
 var SENIAS_DE_RESTRICCION = /restricci|alergi|al[eé]rgic|intoleran|cel[ií]ac|no[ ](?:puede|debe)[ ]comer|no[ ]come[ ]/i;
 // «No sé» también es que no tiene (Leo, 5/10: «si dicen no sé es que no tiene»).
-var RESPUESTA_NEGATIVA = /^(?:no|ningun[oa]?|nada|-+|n\/a|ns|nose|no[ ]s[eé]|no[ ]lo[ ]s[eé]|no[ ]sabe|no,?[ ]ningun[oa]|ningun[oa][ ](?:que[ ]sepa|conocida)|no[ ]tengo[ ]?(?:ninguna|alergias|restricciones)?|sin[ ](?:alergias|restricciones))[.!]?$/i;
+var RESPUESTA_NEGATIVA = /^(?:no|ningun[oa]?|nada|-+|n\/a|ns|nose|no[ ]s[eé]|no[ ]lo[ ]s[eé]|no[ ]sabe|no,?[ ]ningun[oa]|ningun[oa][ ](?:que[ ]sepa|conocida|alergia|restricci[oó]n)|no[ ]tengo[ ]?(?:ninguna|alergias|restricciones)?|sin[ ](?:alergias|restricciones))[.!]?$/i;
+// Una nota a mano cuenta solo si ES una restricción: empieza diciéndolo o lleva
+// el rótulo. «Mail y alergias los dio por WhatsApp» no es una (visto el 19/10).
+var NOTA_DE_RESTRICCION = /^\s*(?:restricci|alergi|al[eé]rgic|intoleran|cel[ií]ac|no[ ](?:puede|debe)[ ]comer|no[ ]come[ ])|(?:restricci[oó]n(?:[ ]alimentaria)?|alergias?)\s*:/i;
+// Una respuesta que no dice a qué («Leve», «Sí»): se muestra, pero aclarado.
+var RESPUESTA_VAGA = /^(?:s[ií]|leves?|poc[oa]s?|algo|algunas?|a[ ]veces)[.!]?$/i;
 
 function restriccionDe(fila, colAlergias) {
   var notas = [];
@@ -1506,7 +1511,12 @@ function restriccionDe(fila, colAlergias) {
     var t = String(fila[j] == null ? '' : fila[j]).trim();
     if (!t) continue;
     var esLaDeAlergias = j === colAlergias;
-    if (esLaDeAlergias ? !RESPUESTA_NEGATIVA.test(t) : SENIAS_DE_RESTRICCION.test(t)) {
+    if (esLaDeAlergias) {
+      // «Ninguna («No tengo ninguna alergia», 14/10)»: el no, con una aclaración atrás.
+      var nucleo = t.split(/\s*[(«"—]/)[0].replace(/[.,;:!\s]+$/, '');
+      if (RESPUESTA_NEGATIVA.test(t) || RESPUESTA_NEGATIVA.test(nucleo)) continue;
+      notas.push(RESPUESTA_VAGA.test(t) ? '«' + t + '» (no dijo a qué)' : t);
+    } else if (SENIAS_DE_RESTRICCION.test(t) && NOTA_DE_RESTRICCION.test(t)) {
       notas.push(t.replace(/^restricci[oó]n( alimentaria)?\s*:\s*/i, ''));
     }
   }
@@ -1590,7 +1600,9 @@ function leerEdicionesDelPanel(valores, formulas, hoy) {
       fecha: fecha ? fecha.toISOString() : null,
       inicio: inicio ? inicio.fecha.toISOString() : null,
       fechaEsMes: !!(inicio && inicio.esMes),
-      vigente: estaVigente(edicion, abierta, hoy),
+      // Cerrada y sin nadie anotado: no se hace (Leo, 19/10, por pastas del 29/10:
+      // «¿por qué aparece?»). No va entre lo que viene ni suma al cupo de arriba.
+      vigente: estaVigente(edicion, abierta, hoy) && (abierta || anotados > 0),
       esCurso: /curso de cocina/i.test(edicion),
       regla: analisis.regla || null,
       motivoFormula: analisis.motivo || '',
@@ -2353,7 +2365,9 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
   //           que dependen de estar Abiertas para aparecer.
   todasLasEdiciones.forEach(function (ed) {
     if (!ed.estadoRaro) return;
-    if (!ed.vigente && ed.fecha) return;
+    // Por la fecha, no por vigente: una cerrada sin gente ya no es vigente, pero
+    // un Estado raro en algo que viene hay que verlo igual.
+    if (ed.fecha && !estaVigente(ed.edicion, ed.abierta, hoy)) return;
     alertas.push({
       nivel: 'media', tipo: 'estado_raro', edicion: ed.edicion,
       texto: 'Fila ' + ed.filaPanel + ' del Panel: no entiendo el Estado "' + ed.estado + '"',

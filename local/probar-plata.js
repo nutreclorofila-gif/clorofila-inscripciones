@@ -731,6 +731,42 @@ caso(
   }
 );
 caso(
+  'un taller cerrado y sin nadie anotado no está entre lo que viene',
+  'Leo, 19/10, por pastas del 29/10 (Cerrado, 0 anotados): «¿por qué aparece?»',
+  () => {
+    const vacio = conNotas(TAPEO, [], new Date(2026, 10, 1), 'Cerrado').ediciones[0];
+    const conGente = conNotas(TAPEO, [{ nombre: 'Rita', monto: '2600' }], new Date(2026, 10, 1), 'Cerrado').ediciones[0];
+    const abierto = conNotas(TAPEO, [], new Date(2026, 10, 1), 'Abierto').ediciones[0];
+    return (!vacio.vigente && conGente.vigente && abierto.vigente) || [vacio.vigente, conGente.vigente, abierto.vigente].join(',');
+  }
+);
+caso(
+  'un no con una aclaración atrás tampoco cuenta',
+  'visto el 19/10: «Ninguna («No tengo ninguna alergia», 14/10)» y «Ninguna restricción (lo dijo por IG…)» salían como restricciones',
+  () => {
+    const dichos = ['Ninguna («No tengo ninguna alergia», 14/10)', 'Ninguna restricción (lo dijo Guille por IG el 07/10/2026 6:29)', 'No — lo confirmó por mail'];
+    const r = restr(conNotas(TAPEO, dichos.map((a, i) => ({ nombre: 'P' + i, monto: '2600', alergias: a }))));
+    return r.length === 0 || 'contó como restricción: ' + r.map(x => x.texto).join(' | ');
+  }
+);
+caso(
+  'una respuesta que no dice a qué se muestra aclarada',
+  'visto el 19/10: «Leve» solo, en la tarjeta, no se entendía',
+  () => {
+    const r = restr(conNotas(TAPEO, [{ nombre: 'Vera', monto: '2600', alergias: 'Leve' }, { nombre: 'Zoe', monto: '2600', alergias: 'Sin pimienta (indicación médica)' }]));
+    return (r.length === 2 && r[0].texto === '«Leve» (no dijo a qué)' && r[1].texto === 'Sin pimienta (indicación médica)') || JSON.stringify(r);
+  }
+);
+caso(
+  'una nota que solo menciona «alergias» no es una restricción',
+  'visto el 19/10: «Inscripción manual… Mail y alergias los dio por WhatsApp» salía entera en la tarjeta',
+  () => {
+    const r = restr(conNotas(TAPEO, [{ nombre: 'Rita', monto: '2600', nota: 'Inscripción manual. Mail y alergias los dio por WhatsApp.' },
+      { nombre: 'Sara', monto: '2600', nota: 'Celíaca, avisó por mail' }]));
+    return (r.length === 1 && r[0].nombre === 'Sara') || JSON.stringify(r);
+  }
+);
+caso(
   'pero «no sé si es celiaquía» sí cuenta',
   'solo la respuesta entera es un no; una duda sobre una alergia hay que verla',
   () => restr(conNotas(TAPEO, [{ nombre: 'Uma', monto: '2600', alergias: 'No sé si soy celíaca' }])).length === 1 || 'la descartó'
