@@ -1243,7 +1243,9 @@ function leerEventos(filas, hoy) {
                : /^confirm/.test(e) ? 'confirmado' : /^realiz/.test(e) ? 'realizado'
                : /^cobrad/.test(e) ? 'cobrado' : /^cancel|^anul|^no va|^perdid/.test(e) ? 'cancelado'
              // Descartado: lo descartó Clorofila (no le sirve), distinto de un grupo que se cayó.
-             : /^descart/.test(e) ? 'descartado' : 'otro';
+             : /^descart/.test(e) ? 'descartado'
+             // Auspicio: un compromiso hecho, sin fecha ni cobro («Auspicio sí», ADESU, 19/10).
+             : /^auspici/.test(e) ? 'auspicio' : 'otro';
     var total = parsearMonto(f[13]), sena = parsearMonto(f[14]), saldo = parsearMonto(f[15]);
     if (saldo === null && total !== null) saldo = total - (sena || 0);
     var chat = texto(6);

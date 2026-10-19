@@ -703,6 +703,14 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
     console.log('  ok    sin cobrados, cancelados ni descartados, los tres conteos dicen 0');
   } else { fallas++; console.log('  FALLA los conteos en cero: ' + (sinCerrados.match(/<summary>[^<]*/) || ['sin plegado'])[0]); }
 
+  corridos++;
+  const conAuspicio = cargarUI(Object.assign({}, datosBase, { eventos: [eventos[0], g({ grupo: 'Auspicio Uno', estado: 'auspicio', estadoTexto: 'Auspicio sí' })] }));
+  const ha = conAuspicio.vistaGrupos(), ca = conAuspicio.gruposEnCupos().map(x => x.grupo).join(',');
+  const iA = ha.indexOf('Auspicios (1)'), iP = ha.indexOf('En propuesta o consulta (1)');
+  if (iA !== -1 && iP !== -1 && iA < ha.indexOf('Auspicio Uno') && ha.indexOf('Auspicio Uno') < iP && /ev-auspicio">Auspicio</.test(ha) && ca.indexOf('Auspicio Uno') === -1) {
+    console.log('  ok    los auspicios van en su sección, no entre las propuestas ni en Cupos');
+  } else { fallas++; console.log('  FALLA los auspicios: ' + [iA, ha.indexOf('Auspicio Uno'), iP, ca.indexOf('Auspicio Uno')].join(',')); }
+
   const sinServidor = Object.assign({}, datosBase); delete sinServidor.eventos;
   correr('solapa Grupos con un servidor viejo (sin eventos)', () => cargarUI(sinServidor).vistaGrupos());
   correr('solapa Grupos vacía', () => cargarUI(Object.assign({}, datosBase, { eventos: [] })).vistaGrupos());

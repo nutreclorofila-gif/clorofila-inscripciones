@@ -134,7 +134,7 @@
   .chip.parcial  { background: var(--ambar-fondo); color: var(--ambar); }
   .chip.sin_pago, .chip.revisar { background: var(--rojo-fondo); color: var(--rojo); }
   /* Estados de "Eventos y empresas". */
-  .chip.ev-confirmado, .chip.ev-cobrado { background: var(--verde-fondo); color: var(--verde); }
+  .chip.ev-confirmado, .chip.ev-cobrado, .chip.ev-auspicio { background: var(--verde-fondo); color: var(--verde); }
   .chip.ev-realizado, .chip.ev-propuesta { background: var(--ambar-fondo); color: var(--ambar); }
   .chip.ev-consulta, .chip.ev-otro, .chip.ev-cancelado, .chip.ev-descartado { background: var(--crema); color: var(--tenue); }
   .grupo { padding: 14px; }
@@ -1139,16 +1139,19 @@
       return eventos.filter(function (e) { return estados.indexOf(e.estado) !== -1; }).sort(porFecha);
     };
     var confirmados = de(['confirmado', 'realizado']);
+    // Auspicios: compromisos hechos, sin fecha ni cobro. Ni propuesta ni consulta.
+    var auspicios = de(['auspicio']);
     // Todo lo que no sea confirmado, hecho, cobrado, cancelado o descartado: un estado
     // que no se reconoce no puede hacer desaparecer al grupo.
     var abiertos = eventos.filter(function (e) {
-      return ['confirmado', 'realizado', 'cobrado', 'cancelado', 'descartado'].indexOf(e.estado) === -1;
+      return ['confirmado', 'realizado', 'cobrado', 'cancelado', 'descartado', 'auspicio'].indexOf(e.estado) === -1;
     }).sort(porFecha);
     // Los tres conteos van siempre, aunque sean cero: «Descartados (0)» dice que
     // no hay, y no que la app no lo mira.
     var cerrados = [['Cobrados', de(['cobrado'])], ['Cancelados', de(['cancelado'])], ['Descartados', de(['descartado'])]];
     var html = '';
     if (confirmados.length) html += '<div class="seccion">Confirmados (' + confirmados.length + ')</div>' + confirmados.map(tarjetaGrupo).join('');
+    if (auspicios.length) html += '<div class="seccion">Auspicios (' + auspicios.length + ')</div>' + auspicios.map(tarjetaGrupo).join('');
     if (abiertos.length) html += '<div class="seccion">En propuesta o consulta (' + abiertos.length + ')</div>' + abiertos.map(tarjetaGrupo).join('');
     html += '<details><summary>' + cerrados.map(function (c) { return c[0] + ' (' + c[1].length + ')'; }).join(' · ') + '</summary>' +
       (cerrados.some(function (c) { return c[1].length; })
@@ -1161,7 +1164,7 @@
 
   var ESTADO_GRUPO = {
     confirmado: 'Confirmado', realizado: 'Hecho, falta cobrar', propuesta: 'Propuesta enviada',
-    consulta: 'Consulta', cobrado: 'Cobrado', cancelado: 'Cancelado', descartado: 'Descartado'
+    consulta: 'Consulta', cobrado: 'Cobrado', cancelado: 'Cancelado', descartado: 'Descartado', auspicio: 'Auspicio'
   };
 
   function tarjetaGrupo(e) {

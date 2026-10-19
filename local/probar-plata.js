@@ -1177,8 +1177,8 @@ caso(
   'el Estado se escribe a mano: «cancelado», «Cobrado», «Realizado» o vacío no pueden caer todos en lo mismo',
   () => {
     const e = conEventos([{ grupo: 'a', estado: 'Consulta' }, { grupo: 'b', estado: 'realizado' }, { grupo: 'c', estado: 'Cobrado' },
-      { grupo: 'd', estado: 'Cancelado' }, { grupo: 'e', estado: '' }, { grupo: 'f', estado: 'algo raro' }, { grupo: 'g', estado: 'Descartado' }]).eventos;
-    return e.map(x => x.estado).join(',') === 'consulta,realizado,cobrado,cancelado,consulta,otro,descartado' || e.map(x => x.estado).join(',');
+      { grupo: 'd', estado: 'Cancelado' }, { grupo: 'e', estado: '' }, { grupo: 'f', estado: 'algo raro' }, { grupo: 'g', estado: 'Descartado' }, { grupo: 'h', estado: 'Auspicio sí' }]).eventos;
+    return e.map(x => x.estado).join(',') === 'consulta,realizado,cobrado,cancelado,consulta,otro,descartado,auspicio' || e.map(x => x.estado).join(',');
   }
 );
 caso(

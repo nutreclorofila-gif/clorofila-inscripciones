@@ -224,7 +224,9 @@ cupo ni da alertas.
   tal cual. Para ordenar se usa el primer día que aparezca en la fecha («jueves 10/12 o
   17/12» → 10/12).
 - El Estado se lee por cómo empieza: Consulta, Propuesta…, Confirmado…, Realizado, Cobrado,
-  Cancelado, Descartado. Vacío cuenta como Consulta. **Descartado** es distinto de
+  Cancelado, Descartado, Auspicio. Vacío cuenta como Consulta. **Auspicio** (todo lo que empiece
+  así, ej. «Auspicio sí»): un compromiso hecho, sin fecha ni cobro; va en su sección
+  «Auspicios», entre los confirmados y las propuestas, y no aparece en Cupos. **Descartado** es distinto de
   Cancelado (lo descartó Clorofila, no se cayó el grupo), pero va al mismo plegado.
 - El link del chat solo se muestra si empieza con `https://`.
 - **Al teléfono no viajan** el mail, el celular, el medio de pago, el comprobante, la factura
