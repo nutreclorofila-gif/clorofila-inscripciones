@@ -704,12 +704,19 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
   } else { fallas++; console.log('  FALLA los conteos en cero: ' + (sinCerrados.match(/<summary>[^<]*/) || ['sin plegado'])[0]); }
 
   corridos++;
-  const conAuspicio = cargarUI(Object.assign({}, datosBase, { eventos: [eventos[0], g({ grupo: 'Auspicio Uno', estado: 'auspicio', estadoTexto: 'Auspicio sí' })] }));
+  const conAuspicio = cargarUI(Object.assign({}, datosBase, { eventos: [eventos[0], g({ grupo: 'Auspicio Uno', estado: 'auspicio', estadoTexto: 'Auspicio sí' }),
+    g({ grupo: 'Alianza Uno', estado: 'contactada', estadoTexto: 'Contactada 19/10', total: 5000 })] }));
   const ha = conAuspicio.vistaGrupos(), ca = conAuspicio.gruposEnCupos().map(x => x.grupo).join(',');
   const iA = ha.indexOf('Auspicios (1)'), iP = ha.indexOf('En propuesta o consulta (1)');
   if (iA !== -1 && iP !== -1 && iA < ha.indexOf('Auspicio Uno') && ha.indexOf('Auspicio Uno') < iP && /ev-auspicio">Auspicio</.test(ha) && ca.indexOf('Auspicio Uno') === -1) {
     console.log('  ok    los auspicios van en su sección, no entre las propuestas ni en Cupos');
   } else { fallas++; console.log('  FALLA los auspicios: ' + [iA, ha.indexOf('Auspicio Uno'), iP, ca.indexOf('Auspicio Uno')].join(',')); }
+  corridos++;
+  const iC = ha.indexOf('Contactadas (1)'), tC = ha.slice(ha.indexOf('Alianza Uno'), ha.indexOf('Alianza Uno') + 900);
+  if (iC !== -1 && iC < ha.indexOf('Alianza Uno') && ha.indexOf('Alianza Uno') < iP && /ev-contactada">Contactada</.test(ha)
+      && !/Saldo/.test(tC) && ca.indexOf('Alianza Uno') === -1) {
+    console.log('  ok    las contactadas van en su sección, sin saldo, no entre las propuestas ni en Cupos');
+  } else { fallas++; console.log('  FALLA las contactadas: ' + [iC, ha.indexOf('Alianza Uno'), iP, /Saldo/.test(tC)].join(',')); }
 
   const sinServidor = Object.assign({}, datosBase); delete sinServidor.eventos;
   correr('solapa Grupos con un servidor viejo (sin eventos)', () => cargarUI(sinServidor).vistaGrupos());
