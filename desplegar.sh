@@ -78,5 +78,10 @@ curl -sL "https://script.google.com/macros/s/${URL_EN_USO}/exec?formato=json&pin
 echo
 echo "=== 5/5  Publicando la página ==="
 local/publicar-pagina.sh   # la sube a gh-pages y comprueba que quedó igual
+
+echo
+echo "=== Lo que la app le muestra a Leo ==="
+# No frena nada: avisa si algo de la planilla se ve raro en el celular (19/10).
+node local/revisar-app.js || true
 echo
 echo "LISTO"
