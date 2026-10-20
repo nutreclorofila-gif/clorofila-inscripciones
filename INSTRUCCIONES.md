@@ -560,7 +560,7 @@ pruebas tampoco imprimen nombres por pantalla: esa salida se pega en cualquier l
 
 `node local/revisar-app.js` pide a la app real lo que hoy le muestra a Leo y lista lo que se ve
 raro, con la fila de la Master y el arreglo: restricciones con texto de trámite, recordatorios
-Pendiente que son seguimiento de un chat (van Delegado), avisos que nombran Tally, textos largos
+Pendiente que son seguimiento de un chat o un trámite de una sesión, como «verificar su celular» (van Delegado), avisos que nombran Tally, textos largos
 debajo de cada persona, Estados de grupos que no se entienden y actividades sin fecha legible.
 Lo corre la rutina «Check inscripciones» (paso 4c, 10 y 18 h), que arregla la planilla en el
 momento, y también `desplegar.sh` al final. Leo, 19/10/2026: «¿por qué no queda bien

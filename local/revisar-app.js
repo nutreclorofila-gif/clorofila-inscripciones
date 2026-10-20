@@ -22,6 +22,8 @@ const URL_API = (WEB.match(/URL_API = "([^"]+)"/) || [])[1];
 const TRAMITE = /tally|pag[oóa]|comprobante|inscrip|transfer|\$|mercado ?pago|whatsapp|mail|cuota|se le (?:dijo|escribi)|leo \d|\d{1,2}\/\d{1,2}/i;
 // Un recordatorio Pendiente que es seguimiento de una conversación (va Delegado).
 const SEGUIMIENTO = /¿\s*(?:eligi|contest|respond|se hace|le lleg|confirm[oó]|vuelve|vino)|sin respuesta|no contest|no respondi/i;
+// Un trámite que hace una sesión, no Leo (20/10: «Melania…: verificar su celular»).
+const TRAMITE_DE_SESION = /:\s*(?:verificar|confirmar|conseguir|pedir(?:le)?|corregir|cargar|actualizar|revisar)\s+(?:su|el|la|los|las)\s+(?:celular|mail|correo|nombre|n[uú]mero|dato|fila|comprobante)/i;
 
 const tapar = (t) => String(t || '')
   .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '<mail>')
@@ -46,8 +48,8 @@ function revisar(est) {
 
   // 2) Recordatorios Pendiente que son seguimiento de un chat (Leo, 15/10: van Delegado).
   (est.alertas || []).filter((a) => a.tipo === 'recordatorio').forEach((a) => {
-    if (SEGUIMIENTO.test(a.texto) && !/cuota|debe|pag|cobr/i.test(a.texto)) {
-      add(`Recordatorio Pendiente que es seguimiento de un chat: «${a.texto.slice(0, 120)}»`,
+    if ((SEGUIMIENTO.test(a.texto) || TRAMITE_DE_SESION.test(a.texto)) && !/cuota|debe|pag|cobr/i.test(a.texto)) {
+      add(`Recordatorio Pendiente que es seguimiento de un chat o un trámite: «${a.texto.slice(0, 120)}»`,
         'pestaña «Recordatorios» (buscar por el Qué)',
         'Estado «Delegado» y «Lo hace: Seguimiento» al principio del Detalle. En la app quedan solo visitas, deudas y decisiones de Leo.');
     }
