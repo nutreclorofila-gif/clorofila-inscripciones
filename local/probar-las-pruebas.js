@@ -551,7 +551,7 @@ const MUTACIONES = [
 ];
 
 const original = {};
-[CODIGO, INDEX, PREVIEW, WEB, GENERAR_WEB, PUBLICAR, DESPLEGAR].forEach(f => { original[f] = fs.readFileSync(f, 'utf8'); });
+[CODIGO, INDEX, PREVIEW, WEB, GENERAR_WEB, PUBLICAR, DESPLEGAR, REVISOR].forEach(f => { original[f] = fs.readFileSync(f, 'utf8'); });
 const restaurar = () => Object.keys(original).forEach(f => fs.writeFileSync(f, original[f]));
 process.on('exit', restaurar);
 process.on('SIGINT', () => { restaurar(); process.exit(1); });
