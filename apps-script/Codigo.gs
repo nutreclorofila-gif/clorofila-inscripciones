@@ -633,6 +633,11 @@ function estaCubiertoPorOtro(fila) {
   return /mismo pago|acompañante|acompanante|ya fue enviado por|gift card/.test(texto);
 }
 
+function esInvitado(fila) {
+  var texto = (fila.comprobante || '') + ' ' + (fila.nombre || '') + ' ' + (fila.medioPago || '') + ' ' + (fila.montoTexto || '');
+  return /invitad[oa]|cortes[ií]a|sin cargo/i.test(texto);
+}
+
 /**
  * Identificador de pago para detectar el mismo comprobante repetido en varias
  * filas. Se queda con la tira de dígitos más larga del comprobante, que es lo
@@ -1659,6 +1664,13 @@ function pagoSaldado(texto) {
   return /^(completo|saldado|dado por completo|no se reclama)/.test(String(texto || '').trim().toLowerCase());
 }
 
+// «a las» solo delante de una hora («19:00», «9», «9.30 h»). Una franja escrita
+// («después de las 9») salía «HOY a las después de las 9» (22/10).
+function aLaHora(hora) {
+  if (!hora) return '';
+  return /^\d{1,2}(?:[:.]\d{2})?\s*(?:h|hs)?$/i.test(hora) ? ' a las ' + hora : ', ' + hora;
+}
+
 function evaluarPago(f, ed) {
   var p = {
     nombre: f.nombre, email: f.email, celular: f.celular, horario: f.horario,
@@ -1679,7 +1691,13 @@ function evaluarPago(f, ed) {
   p.saldo = 0;
 
   if (monto === null || monto === 0) {
-    if (estaCubiertoPorOtro(f)) {
+    // Un invitado de Leo no paga: con «0» en el monto salía «El monto no se
+    // entiende» (22/10). Tiene que decir que es invitado en el nombre, el
+    // comprobante o el medio de pago; un «0» solo sigue yendo a revisar.
+    if (esInvitado(f)) {
+      p.estadoPago = 'cubierto';
+      p.nota = 'Invitado, sin cargo';
+    } else if (estaCubiertoPorOtro(f)) {
       p.estadoPago = 'cubierto';
       p.nota = 'Lo cubre otro pago';
     } else if (f.montoTexto) {
@@ -2570,7 +2588,7 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
         var cuando = dias === 0 ? 'HOY' : dias === 1 ? 'MAÑANA' : 'el ' + v.dia.slice(0, 5);
         texto = dias < 0
           ? v.nombre + ': tenía que venir a pagar el ' + v.dia.slice(0, 5) + ' — ¿vino?'
-          : v.nombre + ' viene al estudio a pagar — ' + cuando + (v.hora ? ' a las ' + v.hora : '');
+          : v.nombre + ' viene al estudio a pagar — ' + cuando + aLaHora(v.hora);
       }
       // Si la edición dice "sin confirmar", lo que hay que decidir es el grupo,
       // no solo el día: tiene que estar en el título, que es lo que se ve.
@@ -2623,7 +2641,7 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
     var dias = r.fecha ? Math.round((r.fecha - hoyDia) / 86400000) : null;
     var cuando = dias === null ? 'sin fecha'
                : dias < 0 ? 'era para el ' + r.dia.slice(0, 5) + ', ¿se hizo?'
-               : (dias === 0 ? 'HOY' : dias === 1 ? 'MAÑANA' : 'el ' + r.dia.slice(0, 5)) + (r.hora ? ' a las ' + r.hora : '');
+               : (dias === 0 ? 'HOY' : dias === 1 ? 'MAÑANA' : 'el ' + r.dia.slice(0, 5)) + aLaHora(r.hora);
     alertas.push({
       nivel: dias === null || dias <= 1 ? 'alta' : 'media', tipo: 'recordatorio', edicion: '', clave: r.clave,
       texto: r.que + ' — ' + cuando,

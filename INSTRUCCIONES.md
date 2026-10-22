@@ -562,6 +562,16 @@ pruebas tampoco imprimen nombres por pantalla: esa salida se pega en cualquier l
 raro, con la fila de la Master y el arreglo: restricciones con texto de trámite, recordatorios
 Pendiente que son seguimiento de un chat o un trámite de una sesión, como «verificar su celular» (van Delegado), avisos que nombran Tally, textos largos
 debajo de cada persona, Estados de grupos que no se entienden y actividades sin fecha legible.
+Desde el 22/10 cuenta como seguimiento todo recordatorio que nombra el chat («(IG)», «(WA, tapeo)»),
+pregunta «¿compró…?» o «¿es la misma…?», dice «esperar respuesta», «eligió», «dice que pagó» o
+«audios sin escuchar», salvo que sea una deuda («cuota», «debe», «viene a pagar»). También marca un
+nombre con una nota adentro («Fulano (invitado de Leo; faltan…)»). Sus casos están en
+`local/casos-limite.js`, sección 14.
+
+Dos textos de la app, 22/10: la hora de un recordatorio o una visita lleva «a las» solo si es una
+hora («19:00», «9»); si está escrita («después de las 9») va después de una coma. Un inscripto con
+monto 0 que dice «invitado», «cortesía» o «sin cargo» en el nombre, el comprobante o el medio de
+pago queda «Cubierto» con la nota «Invitado, sin cargo»; un 0 solo sigue yendo a revisar.
 Lo corre la rutina «Check inscripciones» (paso 4c, 10 y 18 h), que arregla la planilla en el
 momento, y también `desplegar.sh` al final. Leo, 19/10/2026: «¿por qué no queda bien
 automatizado todo?».

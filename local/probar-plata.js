@@ -992,6 +992,14 @@ caso(
   }
 );
 caso(
+  'una hora escrita con palabras no lleva «a las» delante',
+  '22/10: salía «HOY a las después de las 9»',
+  () => {
+    const a = tipos(conRec([['Pasar por el estudio', '01/11/2026', 'después de las 9', '', 'Pendiente', 'Prueba', '']]), 'recordatorio');
+    return (a.length === 1 && /HOY, después de las 9/.test(a[0].texto) && !/a las después/.test(a[0].texto)) || (a[0] || {}).texto;
+  }
+);
+caso(
   'un recordatorio para dentro de una semana se ve, pero como media',
   'todavía no es urgente: no tiene que tapar lo de hoy',
   () => {

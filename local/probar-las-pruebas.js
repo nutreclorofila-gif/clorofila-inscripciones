@@ -35,6 +35,7 @@ const WEB = path.join(base, 'web', 'index.html');
 const GENERAR_WEB = path.join(base, 'local', 'generar-web.js');
 const PUBLICAR = path.join(base, 'local', 'publicar-pagina.sh');
 const DESPLEGAR = path.join(base, 'desplegar.sh');
+const REVISOR = path.join(base, 'local', 'revisar-app.js');
 
 // La base tiene que estar en verde. Si verificar.sh ya falla sin tocar nada,
 // cada mutación "se detecta" por la falla que ya estaba y el resultado da un
@@ -51,6 +52,18 @@ const MUTACIONES = [
   ['el gris vuelve al de antes, con contraste flojo', INDEX, "    --tenue: #6B6B62;\n", "    --tenue: #7A7A70;\n"],
   ['el numerito vuelve a blanco', INDEX, "background: var(--rojo); color: var(--papel);\n    font-size: 12px;", "background: var(--rojo); color: #fff;\n    font-size: 12px;"],
   ['los renglones de Alertas vuelven a 28 px', INDEX, "padding: 12px 0; min-height: 44px; box-sizing: border-box; }\n  details.rec > summary::after", "padding: 4px 0; }\n  details.rec > summary::after"],
+  ['el revisor deja pasar los recordatorios que nombran el chat', REVISOR,
+   "  /\\((?:WA|IG|WhatsApp|Instagram)\\b/.source\n", "  /$^/.source\n"],
+  ['el revisor marca como seguimiento a quien debe plata', REVISOR,
+   "const DEUDA = /cuota|", "const DEUDA = /$^/i; //"],
+  ['el revisor deja pasar un nombre con una nota adentro', REVISOR,
+   "} else if (/;|\\([^)]{20,}\\)/.test(p.nombre || '')) {", "} else if (false) {"],
+  ['la hora escrita vuelve a salir «a las después de las 9»', CODIGO,
+   "? ' a las ' + hora : ', ' + hora;", "? ' a las ' + hora : ' a las ' + hora;"],
+  ['el invitado con monto 0 vuelve a «El monto no se entiende»', CODIGO,
+   "return /invitad[oa]|cortes[ií]a|sin cargo/i.test(texto);", "return false;"],
+  ['un 0 sin decir invitado pasa a sin cargo', CODIGO,
+   "return /invitad[oa]|cortes[ií]a|sin cargo/i.test(texto);", "return /invitad[oa]|cortes[ií]a|sin cargo|^\\s*0/i.test(texto) || fila.montoTexto === '0';"],
   ['los acompañantes vuelven a amontonarse arriba', INDEX,
    "return m ? m[1] + ' \\uffff' : n;", "return n;"],
   ['los números de los anulados viajan al teléfono', CODIGO,

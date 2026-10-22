@@ -145,6 +145,23 @@ caso(
   }
 );
 
+caso(
+  'un invitado de Leo con monto 0 queda sin cargo, no como monto que no se entiende',
+  '22/10: el invitado del tapeo salía como aviso de pago con «El monto no se entiende: "0"»',
+  () => {
+    const p = G.evaluarPago({ nombre:'Invitado Prueba (invitado de Leo)', comprobante:'', montoTexto:'0', medioPago:'' }, { esCurso: false });
+    return (p.estadoPago === 'cubierto' && /Invitado/.test(p.nota)) || 'quedó como "' + p.estadoPago + '" (' + p.nota + ')';
+  }
+);
+caso(
+  'un 0 sin decir invitado sigue yendo a revisar',
+  'un 0 puede ser alguien que todavía no pagó: darlo por bueno escondería una deuda',
+  () => {
+    const p = G.evaluarPago({ nombre:'Fulana Prueba', comprobante:'', montoTexto:'0', medioPago:'' }, { esCurso: false });
+    return p.estadoPago === 'revisar' || 'quedó como "' + p.estadoPago + '"';
+  }
+);
+
 console.log('\n--- 7. Una fila no puede contarse dos veces ---');
 caso(
   'dos ediciones del Panel con la misma regla no duplican a la misma persona',
@@ -387,6 +404,55 @@ caso(
   () => {
     const e = conSobrecupo('Abierto', FORMULA13);
     return deTipo13(e, 'panel_lleno').length === 0 || 'alertas: ' + lista13(e);
+  }
+);
+
+console.log('\n--- 14. El revisor de lo que ve Leo ---');
+const { revisar } = require('./revisar-app.js');
+const rec = (texto) => ({ tipo: 'recordatorio', texto: texto, detalle: 'En la pestaña "Recordatorios", fila 9.' });
+const marcados = (textos) => revisar({ alertas: textos.map(rec) }).map((h) => h.que);
+caso(
+  'el revisor marca los seguimientos de chats cargados como Pendiente',
+  '22/10: pasaron ocho («¿compró…?», «esperar respuesta», «(IG)», «audios sin escuchar»…) y Leo los veía en la app',
+  () => {
+    const seguimientos = [
+      'Fulana (IG): ¿compró la entrada de pastas? — HOY',
+      'Audios sin escuchar: Fulana y Mengano, WhatsApp — HOY',
+      'Fulana (WA, anuncio): ¿es la misma que pagó el 18/10? — HOY',
+      'Fulana (Empresa Prueba): esperar respuesta a las preguntas de Leo — HOY',
+      'Fulana (IG, tapeo): eligió el viernes 13/11 — HOY',
+      'Fulana (WA, tapeo): «para noviembre me anoto» — HOY',
+      'Mengano (IG): dice que pagó pastas 7/11 — HOY',
+      'Mengano (invitado): cargar nombre completo y mail cuando los mande — sin fecha'
+    ];
+    const m = marcados(seguimientos);
+    const faltan = seguimientos.filter((t) => !m.some((x) => x.indexOf(t.slice(0, 30)) !== -1));
+    if (faltan.length) return 'no marcó: ' + faltan.join(' | ');
+    return revisar({ alertas: [rec(seguimientos[0])] })[0].donde === 'pestaña «Recordatorios» fila 9' ||
+      'no dice la fila: ' + revisar({ alertas: [rec(seguimientos[0])] })[0].donde;
+  }
+);
+caso(
+  'y deja las deudas, las visitas y las decisiones de Leo',
+  'Leo, 15/10: en la app quedan «alguien que pasa por el espacio, alguien que falta pagar»',
+  () => {
+    const m = marcados([
+      'CUOTAS ATRASADAS del curso de agosto: Fulana (WA) debe la 3 — era para el 15/10, ¿se hizo?',
+      'Fulana (team building, 10 pers.): elegir fecha entre el 3 y el 11/11, y precio — HOY',
+      'Empresa Prueba (Fulana): pidió propuesta de team building para 25 personas — sin fecha',
+      'Mengano (IG) viene a pagar el tapeo — MAÑANA'
+    ]);
+    return m.length === 0 || 'marcó de más: ' + m.join(' | ');
+  }
+);
+caso(
+  'el revisor marca un nombre con una nota adentro',
+  '22/10: «Fulano (invitado de Leo; faltan nombre completo y mail)» se veía así en la tarjeta',
+  () => {
+    const ed = (nombre) => ({ ediciones: [{ vigente: true, fecha: '2026-11-13', personas: [{ nombre: nombre, hoja: 'Prueba', fila: 7 }] }] });
+    const malo = revisar(ed('Mengano Prueba (invitado de Leo; faltan nombre completo y mail)')).length;
+    const bueno = revisar(ed('Acompañante sin nombre de Fulana')).length + revisar(ed('Mengano Prueba (invitado)')).length;
+    return (malo === 1 && bueno === 0) || 'malo ' + malo + ', buenos marcados ' + bueno;
   }
 );
 
