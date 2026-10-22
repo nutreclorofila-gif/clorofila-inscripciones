@@ -391,6 +391,12 @@ caso('una fecha que existe, no',
      [], tiposDe(conAlertas({}), 'fecha_rara'));
 caso('3 de 4 lugares ocupados (75%): aviso de casi lleno',
      ['info'], tiposDe(conAlertas({ cupo: 4, anotados: 3 }), 'casi_lleno'));
+// 22/10: decía «quedan 1 lugar».
+const textosDe = (e, t) => e.alertas.filter(a => a.tipo === t).map(a => a.texto.replace(/^.*: /, ''));
+caso('con 1 libre dice «queda 1 lugar»',
+     ['queda 1 lugar'], textosDe(conAlertas({ cupo: 4, anotados: 3 }), 'casi_lleno'));
+caso('con 2 libres dice «quedan 2 lugares»',
+     ['quedan 2 lugares'], textosDe(conAlertas({ cupo: 8, anotados: 6 }), 'casi_lleno'));
 caso('2 de 4 (50%), todavía no',
      [], tiposDe(conAlertas({ cupo: 4, anotados: 2 }), 'casi_lleno'));
 

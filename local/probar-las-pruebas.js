@@ -60,6 +60,8 @@ const MUTACIONES = [
    "/Recordatorios\", fila (\\d+)\\.?\\s*$/.exec(a.detalle || '')", "/fila (\\d+)/.exec(a.detalle || '')"],
   ['el revisor deja pasar un nombre con una nota adentro', REVISOR,
    "} else if (/;|\\([^)]{20,}\\)/.test(p.nombre || '')) {", "} else if (false) {"],
+  ['el aviso vuelve a decir «quedan 1 lugar»', CODIGO,
+   "(ed.quedan === 1 ? ': queda 1 lugar' :", "(false ? ': queda 1 lugar' :"],
   ['la hora escrita vuelve a salir «a las después de las 9»', CODIGO,
    "? ' a las ' + hora : ', ' + hora;", "? ' a las ' + hora : ' a las ' + hora;"],
   ['el invitado con monto 0 vuelve a «El monto no se entiende»', CODIGO,

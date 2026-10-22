@@ -2510,7 +2510,7 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
     if (ed.cupo > 0 && ed.quedan > 0 && ed.ocupacion >= 0.7) {
       alertas.push({
         nivel: 'info', tipo: 'casi_lleno', edicion: ed.edicion,
-        texto: ed.edicion + ': quedan ' + ed.quedan + ' lugar' + (ed.quedan === 1 ? '' : 'es'),
+        texto: ed.edicion + (ed.quedan === 1 ? ': queda 1 lugar' : ': quedan ' + ed.quedan + ' lugares'),
         detalle: 'Está al ' + Math.round(ed.ocupacion * 100) + '% del cupo.'
       });
     }
