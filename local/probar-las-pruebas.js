@@ -56,6 +56,8 @@ const MUTACIONES = [
    "  /\\((?:WA|IG|WhatsApp|Instagram)\\b/.source\n", "  /$^/.source\n"],
   ['el revisor marca como seguimiento a quien debe plata', REVISOR,
    "const DEUDA = /cuota|", "const DEUDA = /$^/i; //"],
+  ['el revisor vuelve a dar la primera fila que nombra el Detalle', REVISOR,
+   "/Recordatorios\", fila (\\d+)\\.?\\s*$/.exec(a.detalle || '')", "/fila (\\d+)/.exec(a.detalle || '')"],
   ['el revisor deja pasar un nombre con una nota adentro', REVISOR,
    "} else if (/;|\\([^)]{20,}\\)/.test(p.nombre || '')) {", "} else if (false) {"],
   ['la hora escrita vuelve a salir «a las después de las 9»', CODIGO,

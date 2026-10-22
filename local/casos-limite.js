@@ -409,7 +409,9 @@ caso(
 
 console.log('\n--- 14. El revisor de lo que ve Leo ---');
 const { revisar } = require('./revisar-app.js');
-const rec = (texto) => ({ tipo: 'recordatorio', texto: texto, detalle: 'En la pestaña "Recordatorios", fila 9.' });
+// El Detalle nombra otra fila antes (22/10: «pagó, Noviembre fila 3»), como en la planilla real.
+const rec = (texto) => ({ tipo: 'recordatorio', texto: texto,
+  detalle: 'Lo hace: Inscripciones. Ya pagó, Noviembre fila 3. Cuando esté, poné Hecho. En la pestaña "Recordatorios", fila 9.' });
 const marcados = (textos) => revisar({ alertas: textos.map(rec) }).map((h) => h.que);
 caso(
   'el revisor marca los seguimientos de chats cargados como Pendiente',

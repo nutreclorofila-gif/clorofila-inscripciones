@@ -54,8 +54,11 @@ function revisar(est) {
   // 2) Recordatorios Pendiente que son seguimiento de un chat (Leo, 15/10: van Delegado).
   (est.alertas || []).filter((a) => a.tipo === 'recordatorio').forEach((a) => {
     if ((SEGUIMIENTO.test(a.texto) || TRAMITE_DE_SESION.test(a.texto)) && !DEUDA.test(a.texto)) {
+      // La fila es la del final («En la pestaña "Recordatorios", fila N.»): el
+      // Detalle que escribió la sesión puede nombrar otra antes (22/10: «Noviembre fila 3»).
+      const fila = (/Recordatorios", fila (\d+)\.?\s*$/.exec(a.detalle || '') || [])[1];
       add(`Recordatorio Pendiente que es seguimiento de un chat o un trámite: «${a.texto.slice(0, 120)}»`,
-        'pestaña «Recordatorios»' + ((/fila (\d+)/.exec(a.detalle || '') || [])[1] ? ' fila ' + /fila (\d+)/.exec(a.detalle)[1] : ' (buscar por el Qué)'),
+        'pestaña «Recordatorios»' + (fila ? ' fila ' + fila : ' (buscar por el Qué)'),
         'Estado «Delegado» y «Lo hace: Seguimiento» al principio del Detalle. En la app quedan solo visitas, deudas y decisiones de Leo.');
     }
   });
