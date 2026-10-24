@@ -739,6 +739,24 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
     console.log('  ok    las contactadas van plegadas en «En conversación», sin saldo, y no en Cupos');
   } else { fallas++; console.log('  FALLA las contactadas: ' + [iC, ha.indexOf('Alianza Uno'), iP, /Saldo/.test(tC)].join(',')); }
 
+  // 24/10: el próximo paso largo va en dos renglones y entero al tocarlo; la seña de una propuesta es pedida.
+  corridos++;
+  const largo = 'Esperar respuesta. '.repeat(12) + '<img src=x onerror=alert(1)>';
+  const hp = cargarUI(Object.assign({}, datosBase, { eventos: [
+    g({ grupo: 'Paso Largo', estado: 'propuesta', proximoPaso: largo, total: 10000, sena: 2000, saldo: 8000 }),
+    g({ grupo: 'Paso Corto', estado: 'confirmado', proximoPaso: 'Cobrar el saldo', total: 10000, sena: 2000, saldo: 8000 })] })).vistaGrupos();
+  const tLargo = hp.slice(hp.indexOf('Paso Largo')), tCorto = hp.slice(hp.indexOf('Paso Corto'), hp.indexOf('Paso Corto') + 1200);
+  if (/<details class="paso"><summary><b>Próximo paso:<\/b> Esperar respuesta/.test(tLargo) && !/<img/.test(hp)
+      && /<div class="paso"><b>Próximo paso:<\/b> Cobrar el saldo<\/div>/.test(tCorto)
+      && /\.grupo details\.paso:not\(\[open\]\) > summary \{[^}]*-webkit-line-clamp: 2/.test(fs.readFileSync(path.join(base, 'apps-script', 'Index.html'), 'utf8'))) {
+    console.log('  ok    el próximo paso largo va en dos renglones y se abre al tocarlo; el corto, entero; los dos escapados');
+  } else { fallas++; console.log('  FALLA el próximo paso: ' + tLargo.slice(0, 300)); }
+  corridos++;
+  const tProp = tLargo.slice(0, 1500);
+  if (/Seña pedida <b>/.test(tProp) && !/Saldo/.test(tProp.slice(0, tProp.indexOf('Próximo paso'))) && /Seña <b>/.test(tCorto) && /Saldo <b>/.test(tCorto)) {
+    console.log('  ok    en una propuesta dice «Seña pedida» y no lleva saldo; en un confirmado, seña y saldo');
+  } else { fallas++; console.log('  FALLA la seña: ' + tProp.slice(0, 400).replace(/<[^>]+>/g, ' ')); }
+
   // Leo, 24/10: «aparecen muchos grupos que no están confirmados ni nada… es mucha información».
   corridos++;
   const charla = h.slice(h.indexOf('<details><summary>En conversación (1)'), h.indexOf('<details><summary>Cobrados'));

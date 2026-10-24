@@ -219,8 +219,10 @@ cupo ni da alertas.
   **cobrados, cancelados y descartados**, plegados al final con el conteo de cada uno
   («Cobrados (1) · Cancelados (2) · Descartados (0)»). Los tres conteos van siempre,
   aunque sean cero.
-- En una propuesta o consulta va solo el total: el saldo aparece cuando hay seña o el
-  grupo está confirmado o hecho.
+- En una propuesta o consulta va el total y, si está cargada, la «Seña pedida» (la que se le
+  pidió, no una pagada); el saldo aparece solo cuando el grupo está confirmado o hecho (24/10).
+- Un **próximo paso** de más de 140 caracteres va cortado en dos renglones; al tocarlo se lee
+  entero (24/10: muchos son casi una copia del chat).
 - Los **confirmados y los hechos** van **también en Cupos**, mezclados por fecha con los
   cursos y talleres: «Grupo privado», el nombre, fecha y horario, y personas. El saldo a
   cobrar, el próximo paso y el chat aparecen al tocar la tarjeta (en Cupos, que es la

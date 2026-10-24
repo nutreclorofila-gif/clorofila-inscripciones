@@ -148,6 +148,9 @@
   /* El grupo abierto en Cupos: el detalle ya es crema y ya tiene margen. */
   .detalle .grupo { padding: 4px 0 2px; }
   .detalle .grupo .paso { background: var(--papel); }
+  /* Un próximo paso largo: dos renglones y, al tocarlo, entero (24/10). */
+  .grupo details.paso > summary { color: var(--texto); font-size: 14px; padding: 0; min-height: 0; }
+  .grupo details.paso:not([open]) > summary { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
   /* --- avisos --- */
   .aviso { border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; border: 1px solid transparent; }
@@ -1205,15 +1208,26 @@
   // (alianzas), 19/10. Sin «a la vista» va plegada en «En conversación» (24/10).
   var SECCIONES_PROPIAS = [['auspicio', 'Auspicios', true], ['contactada', 'Contactadas', false]];
 
+  // Leo, 24/10 («bien, seguí»): el próximo paso suele ser casi una copia del chat.
+  // Si es largo va en dos renglones y se lee entero al tocarlo.
+  var PASO_CORTO = 140;
+  function pasoHtml(texto) {
+    if (!texto) return '';
+    var t = '<b>Próximo paso:</b> ' + esc(texto);
+    return texto.length <= PASO_CORTO ? '<div class="paso">' + t + '</div>'
+      : '<details class="paso"><summary>' + t + '</summary></details>';
+  }
+
   function tarjetaGrupo(e) {
     var rotulo = ESTADO_GRUPO[e.estado] || e.estadoTexto || 'Sin estado';
     var sub = [e.contacto && e.contacto !== e.grupo ? e.contacto : '', e.tipo].filter(Boolean).join(' · ');
     var cuando = [e.fechaTexto, e.horario].filter(Boolean).join(' · ');
     var plataTxt = [];
     if (e.total !== null && e.total !== undefined) plataTxt.push('Total <b>' + plata(e.total) + '</b>');
-    if (e.sena) plataTxt.push('Seña <b>' + plata(e.sena) + '</b>');
-    // El saldo solo tiene sentido con algo pagado o acordado: en una propuesta, «Total $14.700 · Saldo $14.700» confunde.
-    var conSaldo = e.sena || e.estado === 'confirmado' || e.estado === 'realizado';
+    // En una propuesta la Seña es la que se le PIDIÓ, no una pagada (24/10): dice
+    // «Seña pedida» y no lleva saldo, que daba a entender que ya había pagado.
+    var conSaldo = e.estado === 'confirmado' || e.estado === 'realizado';
+    if (e.sena) plataTxt.push((conSaldo ? 'Seña' : 'Seña pedida') + ' <b>' + plata(e.sena) + '</b>');
     if (conSaldo && e.saldo !== null && e.saldo !== undefined && e.total) plataTxt.push('Saldo <b>' + plata(e.saldo) + '</b>');
     if (!plataTxt.length && e.precio) plataTxt.push('<b>' + plata(e.precio) + '</b> por persona');
     return '<div class="tarjeta"><div class="grupo">' +
@@ -1224,7 +1238,7 @@
         (e.personas ? ' · ' + esc(e.personas) + (/^\d+$/.test(e.personas) ? (e.personas === '1' ? ' persona' : ' personas') : '') : '') + '</div>' +
       (e.formato ? '<div class="dato">' + esc(e.formato) + '</div>' : '') +
       (plataTxt.length ? '<div class="dato">' + plataTxt.join(' · ') + '</div>' : '') +
-      (e.proximoPaso ? '<div class="paso"><b>Próximo paso:</b> ' + esc(e.proximoPaso) + '</div>' : '') +
+      pasoHtml(e.proximoPaso) +
       (e.chat ? '<div class="contacto" style="padding-top:10px"><a href="' + esc(e.chat) + '" target="_blank" rel="noopener">Abrir el chat' +
         (e.canal ? ' (' + esc(e.canal) + ')' : '') + '</a></div>' : '') +
     '</div></div>';
