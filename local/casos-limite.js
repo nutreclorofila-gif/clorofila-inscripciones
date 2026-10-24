@@ -154,6 +154,14 @@ caso(
   }
 );
 caso(
+  'quien usa un pago a favor con monto 0 queda cubierto',
+  '24/10: pagó un taller que no se hizo y lo usa para otro; salía «El monto no se entiende»',
+  () => {
+    const p = G.evaluarPago({ nombre:'Fulana Prueba (taller a favor)', comprobante:'', montoTexto:'0', medioPago:'' }, { esCurso: false });
+    return (p.estadoPago === 'cubierto' && /a favor/.test(p.nota)) || 'quedó como "' + p.estadoPago + '" (' + p.nota + ')';
+  }
+);
+caso(
   'un 0 sin decir invitado sigue yendo a revisar',
   'un 0 puede ser alguien que todavía no pagó: darlo por bueno escondería una deuda',
   () => {

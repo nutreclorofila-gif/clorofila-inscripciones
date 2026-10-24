@@ -76,6 +76,8 @@ const MUTACIONES = [
    "? ' a las ' + hora : ', ' + hora;", "? ' a las ' + hora : ' a las ' + hora;"],
   ['el invitado con monto 0 vuelve a «El monto no se entiende»', CODIGO,
    "return /invitad[oa]|cortes[ií]a|sin cargo/i.test(texto);", "return false;"],
+  ['un pago a favor vuelve a «El monto no se entiende»', CODIGO,
+   "return /\\ba favor\\b/i.test(texto);", "return false;"],
   ['un 0 sin decir invitado pasa a sin cargo', CODIGO,
    "return /invitad[oa]|cortes[ií]a|sin cargo/i.test(texto);", "return /invitad[oa]|cortes[ií]a|sin cargo|^\\s*0/i.test(texto) || fila.montoTexto === '0';"],
   ['los acompañantes vuelven a amontonarse arriba', INDEX,

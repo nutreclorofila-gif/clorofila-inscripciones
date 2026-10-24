@@ -585,7 +585,9 @@ nombre con una nota adentro («Fulano (invitado de Leo; faltan…)»). Sus casos
 Dos textos de la app, 22/10: la hora de un recordatorio o una visita lleva «a las» solo si es una
 hora («19:00», «9»); si está escrita («después de las 9») va después de una coma. Un inscripto con
 monto 0 que dice «invitado», «cortesía» o «sin cargo» en el nombre, el comprobante o el medio de
-pago queda «Cubierto» con la nota «Invitado, sin cargo»; un 0 solo sigue yendo a revisar.
+pago queda «Cubierto» con la nota «Invitado, sin cargo»; si dice «a favor» («(taller a favor)»:
+pagó antes algo que no se hizo y lo usa acá, 24/10), queda «Cubierto» con «Usa un pago a favor».
+Un 0 solo sigue yendo a revisar.
 Lo corre la rutina «Check inscripciones» (paso 4c, 10 y 18 h), que arregla la planilla en el
 momento, y también `desplegar.sh` al final. Leo, 19/10/2026: «¿por qué no queda bien
 automatizado todo?».

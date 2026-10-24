@@ -638,6 +638,11 @@ function esInvitado(fila) {
   return /invitad[oa]|cortes[ií]a|sin cargo/i.test(texto);
 }
 
+function usaPagoAFavor(fila) {
+  var texto = (fila.comprobante || '') + ' ' + (fila.nombre || '') + ' ' + (fila.medioPago || '') + ' ' + (fila.montoTexto || '');
+  return /\ba favor\b/i.test(texto);
+}
+
 /**
  * Identificador de pago para detectar el mismo comprobante repetido en varias
  * filas. Se queda con la tira de dígitos más larga del comprobante, que es lo
@@ -1701,6 +1706,11 @@ function evaluarPago(f, ed) {
     if (esInvitado(f)) {
       p.estadoPago = 'cubierto';
       p.nota = 'Invitado, sin cargo';
+    } else if (usaPagoAFavor(f)) {
+      // Pagó antes algo que no se hizo y lo usa acá (24/10: un taller de mayo
+      // que se suspendió). Lo que pagó no está en ninguna pestaña: no se suma.
+      p.estadoPago = 'cubierto';
+      p.nota = 'Usa un pago a favor';
     } else if (estaCubiertoPorOtro(f)) {
       p.estadoPago = 'cubierto';
       p.nota = 'Lo cubre otro pago';
