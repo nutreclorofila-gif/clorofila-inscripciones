@@ -25,6 +25,8 @@ const SEGUIMIENTO = new RegExp([
   /sin respuesta|no contest|no respondi|esperar (?:la )?respuesta|\beligi[oó]\b|audios? sin escuchar|dice que pag/.source,
   /\((?:WA|IG|WhatsApp|Instagram)\b/.source
 ].join('|'), 'i');
+// Una nota de trámite metida en el nombre.
+const NOTA_EN_EL_NOMBRE = /;|\([^)]*\b(?:falta|faltan|cargar|pendiente|mail|celular|pag[oóa]|confirm|verificar)[^)]*\)/i;
 // Lo que sí es de Leo aunque nombre el chat: alguien que debe o viene a pagar.
 const DEUDA = /cuota|\bdeben?\b|falta pagar|viene a pagar|a cobrar|cobrarle/i;
 // Un trámite que hace una sesión, no Leo (20/10: «Melania…: verificar su celular»).
@@ -80,8 +82,9 @@ function revisar(est) {
       });
       if (/\d{6,}|@/.test(p.nombre || '')) {
         add(`Nombre con números o mail: «${p.nombre}»`, `«${p.hoja}» fila ${p.fila}`, 'Dejar solo el nombre y apellido.');
-      } else if (/;|\([^)]{20,}\)/.test(p.nombre || '')) {
-        // 22/10: «Fulano (invitado de Leo; faltan nombre completo y mail)».
+      } else if (NOTA_EN_EL_NOMBRE.test(p.nombre || '')) {
+        // 22/10: «Fulano (invitado de Leo; faltan nombre completo y mail)». Una
+        // aclaración de quién es («(padre de Fulana)») no es una nota y queda.
         add(`Nombre con una nota adentro: «${p.nombre}»`, `«${p.hoja}» fila ${p.fila}`,
           'Dejar el nombre (y «invitado» si lo es); lo que falta cargar va a un recordatorio Delegado.');
       }

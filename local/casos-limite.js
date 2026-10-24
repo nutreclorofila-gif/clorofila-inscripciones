@@ -461,7 +461,8 @@ caso(
   () => {
     const ed = (nombre) => ({ ediciones: [{ vigente: true, fecha: '2026-11-13', personas: [{ nombre: nombre, hoja: 'Prueba', fila: 7 }] }] });
     const malo = revisar(ed('Mengano Prueba (invitado de Leo; faltan nombre completo y mail)')).length;
-    const bueno = revisar(ed('Acompañante sin nombre de Fulana')).length + revisar(ed('Mengano Prueba (invitado)')).length;
+    const bueno = revisar(ed('Acompañante sin nombre de Fulana')).length + revisar(ed('Mengano Prueba (invitado)')).length +
+      revisar(ed('Mengano Prueba (padre de Fulana Prueba)')).length + revisar(ed('Fulana Prueba (taller a favor)')).length;
     return (malo === 1 && bueno === 0) || 'malo ' + malo + ', buenos marcados ' + bueno;
   }
 );
