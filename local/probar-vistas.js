@@ -750,8 +750,9 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
   const hs = cargarUI(Object.assign({}, datosBase, { eventos: [g({ grupo: 'Propuesta Con Seña', estado: 'propuesta', sena: 2000, total: 10000, saldo: 8000 }),
     g({ grupo: 'Consulta Sola', estado: 'consulta' })] })).vistaGrupos();
   const arriba = hs.slice(0, hs.indexOf('<details>'));
-  if (/Con seña \(1\)/.test(arriba) && arriba.indexOf('Propuesta Con Seña') !== -1 && arriba.indexOf('Consulta Sola') === -1) {
-    console.log('  ok    una propuesta con seña queda a la vista; una consulta sin seña, plegada');
+  if (!/Con seña/.test(arriba) && arriba.indexOf('Propuesta Con Seña') === -1 && arriba.indexOf('Consulta Sola') === -1
+      && hs.indexOf('<summary>En conversación (2)') !== -1) {
+    console.log('  ok    una propuesta con la seña pedida también va plegada (la seña no está pagada)');
   } else { fallas++; console.log('  FALLA con seña: ' + arriba.slice(0, 300)); }
   corridos++;
   const soloCharla = cargarUI(Object.assign({}, datosBase, { eventos: [g({ grupo: 'Consulta Sola', estado: 'consulta' })] })).vistaGrupos();
@@ -862,8 +863,8 @@ else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' vece
     ['en Alertas lo de HOY va antes que lo que no tiene fecha', a.indexOf('Cosa de prueba número 5') < a.indexOf('Cosa de prueba número 6') && (() => {
       const e2 = JSON.parse(JSON.stringify(est)); e2.alertas.reverse();
       const a2 = cargarUI(e2).vistaAlertas(); return a2.indexOf('número 1<') < a2.indexOf('número 9<'); })()],
-    ['la visita al estudio va primero', /pend-fila[\s\S]*?Visita Prueba viene al estudio a pagar<[\s\S]*Cosa de prueba número 1/.test(c)],
-    ['cada renglón de la portada dice cuándo', /pend-c">hoy</.test(c) && /pend-c">a pagar</.test(c)],
+    ['la visita al estudio va primero', /pend-fila[\s\S]*?Visita Prueba viene a pagar<[\s\S]*Cosa de prueba número 1/.test(c)],
+    ['cada renglón de la portada dice cuándo', /pend-c">hoy</.test(c) && /pend-c">sin día</.test(c)],
     ['dentro de "Hoy" no se repite "— HOY" en cada línea', !/número 1 — HOY/.test(c)],
     ['en Alertas los recordatorios también van agrupados', /grupo-recs">Hoy</.test(a) && /grupo-recs">Más adelante</.test(a)],
     ['en Alertas cada recordatorio y la visita tienen su detalle, plegado', (a.match(/<details class="rec/g) || []).length === 11 && a.includes('Detalle largo de la cosa 3')],

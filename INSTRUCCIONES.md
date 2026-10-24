@@ -100,7 +100,7 @@ una alerta alta en vez de dejar de mostrar ediciones en silencio.
 
 | Solapa | Qué hay |
 |---|---|
-| **Cupos** | Una tarjeta por edición vigente (una que está **Cerrada y sin nadie anotado** no se hace: no aparece ni suma al cupo de arriba) con `anotados / cupo` en número grande, barra de ocupación, cobrado y cuántos deben. Se toca la tarjeta y se despliega la gente. Si hay gente esperando, el pie lo dice, y en verde *"esperando, y hay lugar"* cuando hay lugar libre. Quien está en la lista de espera pero ya se anotó en esa misma edición (mismo mail o mismo celular) no cuenta como que espera, ni acá ni en Alertas. Entre las ediciones, por fecha, los grupos privados confirmados de «Eventos y empresas» (ver *Grupos*), que no suman a ningún cupo. Abajo, las ediciones que ya pasaron, colapsadas, y la gente de la lista de espera que no se pudo atar a una fecha, con lo que escribió que quiere. |
+| **Cupos** | Una tarjeta por edición vigente (una que está **Cerrada y sin nadie anotado** no se hace: no aparece ni suma al cupo de arriba) con `anotados / cupo` en número grande, barra de ocupación, cobrado y cuántos deben. Se toca la tarjeta y se despliega la gente. Si hay gente esperando, el pie lo dice, y en verde *"esperando, y hay lugar"* cuando hay lugar libre. Quien está en la lista de espera pero ya se anotó en esa misma edición (mismo mail o mismo celular) no cuenta como que espera, ni acá ni en Alertas. Entre las ediciones, por fecha, los grupos privados confirmados de «Eventos y empresas» (ver *Grupos*), que no suman a ningún cupo. Abajo, las ediciones pasadas o cerradas, colapsadas, y la gente de la lista de espera que no se pudo atar a una fecha, con lo que escribió que quiere. |
 | **Plata** | Cobrado total de lo que viene, desglose por edición, lista de quién debe y cuánto, y el bloque de Tikzet. Incluye el curso que ya empezó y se sigue pagando en cuotas, aunque haya cerrado la inscripción: ahí figura solo quien está en la pestaña "Pagos en cuotas". |
 | **Gente** | Todos los inscriptos con buscador por nombre, mail o celular, y su estado de pago. |
 | **Alertas** | Solo lo que necesita que alguien haga algo: descuadres, sobrecupo, pagos incompletos, Tikzet sin cargar, y *"Hay 2 lugares en … y Fulana está esperando"* cuando se libera lugar en una edición abierta con gente en la lista de espera (un aviso por edición). Si no hay nada, no hay nada. |
@@ -210,11 +210,12 @@ cupo ni da alertas.
   formato, total, seña y saldo (o el precio por persona si todavía no hay total), el estado
   con color, el **próximo paso** y un botón **Abrir el chat** (columna G).
 - A la vista, solo lo que está en pie: los **confirmados** (y los hechos que falta cobrar),
-  por fecha; las propuestas o consultas **con seña**, en «Con seña», y los **auspicios**. Si no
-  hay ninguno, dice «No hay grupos confirmados.». Las **propuestas y consultas sin seña** (y los
+  por fecha, y los **auspicios**. Si no
+  hay ninguno, dice «No hay grupos confirmados.». Las **propuestas y consultas** (y los
   de un estado que no se reconoce) y las **contactadas** van plegadas en «En conversación (n)»:
   Leo, 24/10, «aparecen muchos grupos que no están confirmados ni nada, que solamente nosotros
-  les escribimos; es mucha información». Los
+  les escribimos; es mucha información». La Seña cargada en una propuesta es la que se le pidió,
+  no una pagada: no la saca del plegado. Los
   **cobrados, cancelados y descartados**, plegados al final con el conteo de cada uno
   («Cobrados (1) · Cancelados (2) · Descartados (0)»). Los tres conteos van siempre,
   aunque sean cero.
