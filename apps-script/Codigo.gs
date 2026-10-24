@@ -2253,8 +2253,12 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
   });
 
   // b) Sobrecupo. (Con el cupo sin cargar, quedan es null y null < 0 da false.)
+  //    Solo antes de que empiece: Leo, 24/10, sobre el curso de octubre ya en
+  //    marcha con uno de más, «el cartel rojo no tiene sentido». Ya no hay nada que hacer.
+  var hoyCero = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
   ediciones.forEach(function (ed) {
-    if (ed.quedan < 0) {
+    var empezo = ed.inicio && new Date(ed.inicio) < hoyCero;
+    if (ed.quedan < 0 && !empezo) {
       alertas.push({
         nivel: ed.abierta ? 'alta' : 'media', tipo: 'sobrecupo', edicion: ed.edicion,
         texto: ed.edicion + ': hay ' + Math.abs(ed.quedan) + ' persona' + (Math.abs(ed.quedan) === 1 ? '' : 's') + ' de más',

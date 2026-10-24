@@ -347,7 +347,7 @@ console.log('\n--- 13. Sobrecupo, fórmula ilegible y Panel lleno ---');
 // sin la de sobrecupo, un taller con gente de más se ve como uno lleno; sin la
 // de fórmula, una edición con gente se ve vacía y no se sabe por qué.
 const ED13 = 'Taller de prueba — 20/10/2026';
-function conSobrecupo(estado, formula, panelLleno) {
+function conSobrecupo(estado, formula, panelLleno, hoy) {
   return G.construirEstado({
     panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'],
                    ['Taller de prueba', ED13, '1', '2', '-1', estado]],
@@ -356,8 +356,8 @@ function conSobrecupo(estado, formula, panelLleno) {
       fila({nombre:'Ana', monto:'2600', edicion:ED13}),
       fila({nombre:'Beto', monto:'2600', edicion:ED13})
     ]},
-    extras: {}, panelLleno: panelLleno, generadoEn: HOY.toISOString()
-  }, HOY);
+    extras: {}, panelLleno: panelLleno, generadoEn: (hoy || HOY).toISOString()
+  }, hoy || HOY);
 }
 const FORMULA13 = "=COUNTIF('Inscriptos Octubre 2026'!K:K;\"" + ED13 + "\")";
 const deTipo13 = (e, t) => e.alertas.filter(a => a.tipo === t);
@@ -381,6 +381,17 @@ caso(
     const e = conSobrecupo('Cerrado', FORMULA13);
     const a = deTipo13(e, 'sobrecupo');
     return (a.length === 1 && a[0].nivel === 'media') || 'alertas: ' + lista13(e);
+  }
+);
+caso(
+  'si ya empezó, el sobrecupo no avisa',
+  'Leo, 24/10: el curso de octubre ya en marcha con uno de más daba un cartel rojo que «no tiene sentido»',
+  () => {
+    const e = conSobrecupo('Abierto', FORMULA13, false, new Date(2026, 9, 21, 10));
+    if (deTipo13(e, 'sobrecupo').length) return 'avisó: ' + lista13(e);
+    // El mismo día todavía avisa: la gente de más viene esa noche.
+    const ese = conSobrecupo('Abierto', FORMULA13, false, new Date(2026, 9, 20, 10));
+    return deTipo13(ese, 'sobrecupo').length === 1 || 'el mismo día no avisó: ' + lista13(ese);
   }
 );
 caso(

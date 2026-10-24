@@ -564,6 +564,13 @@ cuántas son y cuántas se detectan lo dice el script al terminar, no este docum
 público. Para los ejemplos van números y nombres inventados con la misma forma. Las
 pruebas tampoco imprimen nombres por pantalla: esa salida se pega en cualquier lado.
 
+## Sobrecupo
+
+Avisa cuando una edición tiene más anotados que cupo, **solo hasta el día en que empieza**
+(ese día incluido). Una vez que empezó ya no hay nada que hacer: Leo, 24/10, sobre el curso de
+octubre en marcha con uno de más, «el cartel rojo no tiene sentido». La tarjeta sigue diciendo
+«15 de 14».
+
 ## Gift cards en Cupos
 
 Leo, 24/10: «lo que no aparece son las gift cards» (estaban solo al final de Plata). En Cupos,
