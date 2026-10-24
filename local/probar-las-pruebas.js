@@ -519,7 +519,7 @@ const MUTACIONES = [
    'x.edicion === e.edicion && !x.yaAnotado', 'x.edicion === e.edicion'],
   // Alertas que funcionaban pero ninguna prueba hacía saltar (hasta el 23/9).
   ['el sobrecupo deja de avisarse', CODIGO,
-   'if (ed.quedan < 0) {', 'if (false) {'],
+   'if (ed.quedan < 0 && !empezo) {', 'if (false) {'],
   ['el sobrecupo de una edición cerrada sale como urgente', CODIGO,
    "nivel: ed.abierta ? 'alta' : 'media', tipo: 'sobrecupo'", "nivel: 'alta', tipo: 'sobrecupo'"],
   ['una fórmula que no se entiende deja de avisarse', CODIGO,
