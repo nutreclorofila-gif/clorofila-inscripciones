@@ -983,7 +983,7 @@ function construirEstado(crudo, ahora) {
       pendientes: cobrando.reduce(function (a, e) { return a + e.pendientes.length; }, 0),
       enEspera: espera.length,
       // Cobradas y sin usar: las pendientes de pago NO entran acá.
-      giftSinUsar: gift.filter(function (g) { return !g.usada && !g.pendiente; }).length,
+      giftSinUsar: gift.filter(function (g) { return !g.usada && !g.pendiente && !g.anulada; }).length,
       giftPendientes: gift.filter(function (g) { return g.pendiente; }).length,
       // Va en el resumen y no colgado del array: las propiedades de un array no
       // sobreviven a JSON.stringify y nunca llegarían al navegador.
@@ -1334,6 +1334,9 @@ function leerGiftCards(filas) {
     if (monto === null) sinMonto = true;
 
     var usada = estaUsada(estado) || !!usadaPor || !!fechaUso;
+    // Anulada (o devuelta): no es plata cobrada ni un lugar futuro. Contaba como
+    // «sin usar» (24/10: 5 en vez de 4).
+    var anulada = !usada && /^(anulad|cancelad|devuelt|reembols)/i.test(String(estado || '').trim());
 
     return {
       nombre: quien,
@@ -1346,10 +1349,11 @@ function leerGiftCards(filas) {
       // Canjeada si lo dice el estado, o si hay alguien anotado como que la usó,
       // o si tiene fecha de uso. Cualquiera de las tres alcanza.
       usada: usada,
+      anulada: anulada,
       // Tres situaciones: pendiente de pago (entró sola, Leo todavía no confirmó
       // que pagaron), cobrada sin usar y usada. Una pendiente NO es plata
       // cobrada ni un lugar futuro. Si ya figura usada, manda eso.
-      pendiente: !usada && estaPendiente(estado),
+      pendiente: !usada && !anulada && estaPendiente(estado),
       fila: o._fila
     };
   }).filter(function (x) { return x.nombre || x.email || x.monto; });

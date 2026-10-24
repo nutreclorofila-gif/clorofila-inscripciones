@@ -960,6 +960,21 @@
     filas.sort(function (a, b) { return a.t === b.t ? 0 : (a.t < b.t ? -1 : 1); });
     html += filas.map(function (f) { return f.html; }).join('');
 
+    // Leo, 24/10: «lo que no aparece son las gift cards». Estaban solo al final de
+    // Plata. Acá van quién y para qué, sin montos: Cupos es la portada.
+    var gifts = giftSinUsar();
+    var giftsPend = (DATOS.giftCards || []).filter(function (g) { return g.pendiente && !g.usada && !g.anulada; });
+    if (gifts.length || giftsPend.length) {
+      html += '<div class="seccion">Gift cards sin usar (' + gifts.length + ')</div>' +
+        gifts.map(function (g) {
+          return '<div class="persona"><div class="quien"><div class="nom">' + esc(g.nombre || '(sin nombre)') + '</div>' +
+            '<div class="sub">' + esc([g.actividad || '', g.deQuien ? 'se la regaló ' + g.deQuien : ''].filter(Boolean).join(' · ')) +
+            '</div></div></div>';
+        }).join('') +
+        (giftsPend.length ? '<div class="vacio">' + giftsPend.length + (giftsPend.length === 1
+          ? ' gift card espera que confirmes el pago' : ' gift cards esperan que confirmes el pago') + ' (en Plata).</div>' : '');
+    }
+
     if (pasadas.length) {
       html += '<details><summary>Ver las ' + pasadas.length + ' ediciones que ya pasaron</summary>' +
         pasadas.map(tarjeta).join('') + '</details>';
@@ -984,6 +999,11 @@
         sueltos.map(function (x, i) { return enEspera(x, 'esp-suelta-' + i); }).join('');
     }
     return html;
+  }
+
+  /** Las gift cards cobradas que todavía no se usaron (ni pendientes de pago ni anuladas). */
+  function giftSinUsar() {
+    return (DATOS.giftCards || []).filter(function (g) { return !g.usada && !g.pendiente && !g.anulada; });
   }
 
   /** Los grupos de «Eventos y empresas» que van también en Cupos: Confirmado… y Realizado. */
@@ -1259,9 +1279,9 @@
 
     // Gift cards: las cobradas sin usar son plata ya cobrada y un lugar futuro.
     // Las pendientes de pago todavía no: van aparte, para que Leo las confirme.
-    var gc = DATOS.giftCards || [];
+    var gc = (DATOS.giftCards || []).filter(function (g) { return !g.anulada; });
     var pendGift = gc.filter(function (g) { return g.pendiente && !g.usada; });
-    var sinUsar = gc.filter(function (g) { return !g.usada && !g.pendiente; });
+    var sinUsar = giftSinUsar();
     var cobradas = gc.length - pendGift.length;
     if (gc.length) {
       html += '<div class="seccion">Gift cards</div>' +
@@ -1275,7 +1295,7 @@
               plata(sinUsar.reduce(function (a, g) { return a + (g.monto || 0); }, 0)) +
               '</b>cobrado por adelantado</span>') +
           '</div>' +
-          '<div class="pie"><span>' + cobradas + ' vendidas en total</span>' +
+          '<div class="pie"><span>' + cobradas + (cobradas === 1 ? ' vendida' : ' vendidas') + ' en total</span>' +
           '<span>' + (r.giftSinMonto
             ? 'Sin importe cargado en la planilla.'
             : 'Cada una sin usar es un lugar que alguien va a ocupar.') + '</span></div>' +

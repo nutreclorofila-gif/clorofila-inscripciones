@@ -511,6 +511,27 @@ console.log('\n--- La tarjeta abierta de Cupos ---');
     /Olga Inventada/.test(gift) && /Pablo Inventado/.test(gift) && /la compró Sara Inventada/.test(gift));
   chequeo('y no la que ya se usó', !/Rita Inventada/.test(gift));
 
+  // Leo, 24/10: «lo que no aparece son las gift cards». Van también en Cupos, sin plata.
+  {
+    const conAnulada = conGift(HGC.concat('Monto'), [
+      ['GC-921', 'Taller de tapeo', 'Sara Inventada', 'sara@ejemplo.com', '01/07/2026', 'Olga Inventada', '', 'Libre', '', '', '1000'],
+      ['GC-922', 'Cena y taller', 'Tito Inventado', 'tito@ejemplo.com', '01/07/2026', 'Nora Inventada', '', 'Anulada', '', '', '5200'],
+      ['GC-923', 'Taller de tapeo', 'Ana Inventada', 'ana@ejemplo.com', '01/07/2026', 'Lía Inventada', '', 'Pendiente', '', '', '2600']]);
+    probarEstado('Gift cards con una anulada', conAnulada);
+    const uc = cargarUI(conAnulada), cu = uc.vistaCupos(), pl = seccion(uc.vistaPlata());
+    const secc = cu.slice(cu.indexOf('Gift cards sin usar'));
+    const chc = (nombre, cond) => {
+      corridos++;
+      if (cond) console.log('  ok    ' + nombre);
+      else { fallas++; console.log('  FALLA ' + nombre + '\n        Cupos: ' + secc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 300)); }
+    };
+    chc('en Cupos van las gift cards sin usar, con quién se la regaló y sin montos',
+      /Gift cards sin usar \(1\)/.test(cu) && /Olga Inventada/.test(secc) && /se la regaló Sara Inventada/.test(secc) && !/\$/.test(secc.slice(0, secc.indexOf('</div></div></div>') + 20)));
+    chc('la pendiente de pago se cuenta aparte, sin nombre', /1 gift card espera que confirmes el pago/.test(secc) && !/Lía Inventada/.test(cu));
+    chc('la anulada no aparece ni cuenta, en Cupos ni en Plata',
+      !/Nora Inventada/.test(cu) && !/Nora Inventada/.test(pl) && conAnulada.resumen.giftSinUsar === 1 && /1 vendida en total/.test(pl) && pl.indexOf(uc.plata(5200)) === -1);
+  }
+
   // Pendientes de pago (Estado «Pendiente»): no suman a lo cobrado ni a las sin
   // usar, y salen aparte con comprador, qué regala e importe.
   {

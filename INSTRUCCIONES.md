@@ -561,6 +561,14 @@ cuántas son y cuántas se detectan lo dice el script al terminar, no este docum
 público. Para los ejemplos van números y nombres inventados con la misma forma. Las
 pruebas tampoco imprimen nombres por pantalla: esa salida se pega en cualquier lado.
 
+## Gift cards en Cupos
+
+Leo, 24/10: «lo que no aparece son las gift cards» (estaban solo al final de Plata). En Cupos,
+debajo de las actividades, va «Gift cards sin usar (n)»: a quién se la regalaron, para qué y
+quién se la regaló, sin montos (Cupos es la portada). Las pendientes de pago se cuentan en una
+línea, sin nombre; su detalle y los importes están en Plata. Una gift card con Estado
+«Anulada», «Cancelada», «Devuelta» o «Reembolsada» no se muestra ni se cuenta en ningún lado.
+
 ## Revisar lo que ve Leo
 
 `node local/revisar-app.js` pide a la app real lo que hoy le muestra a Leo y lista lo que se ve
