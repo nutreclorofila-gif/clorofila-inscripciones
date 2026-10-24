@@ -960,8 +960,23 @@
     filas.sort(function (a, b) { return a.t === b.t ? 0 : (a.t < b.t ? -1 : 1); });
     html += filas.map(function (f) { return f.html; }).join('');
 
+    // Leo, 24/10: «lo que no aparece son las gift cards». Estaban solo al final de
+    // Plata. Acá van quién y para qué, sin montos: Cupos es la portada.
+    var gifts = giftSinUsar();
+    var giftsPend = (DATOS.giftCards || []).filter(function (g) { return g.pendiente && !g.usada && !g.anulada; });
+    if (gifts.length || giftsPend.length) {
+      html += '<div class="seccion">Gift cards sin usar (' + gifts.length + ')</div>' +
+        gifts.map(function (g) {
+          return '<div class="persona"><div class="quien"><div class="nom">' + esc(g.nombre || '(sin nombre)') + '</div>' +
+            '<div class="sub">' + esc([g.actividad || '', g.deQuien ? 'se la regaló ' + g.deQuien : ''].filter(Boolean).join(' · ')) +
+            '</div></div></div>';
+        }).join('') +
+        (giftsPend.length ? '<div class="vacio">' + giftsPend.length + (giftsPend.length === 1
+          ? ' gift card espera que confirmes el pago' : ' gift cards esperan que confirmes el pago') + ' (en Plata).</div>' : '');
+    }
+
     if (pasadas.length) {
-      html += '<details><summary>Ver las ' + pasadas.length + ' ediciones que ya pasaron</summary>' +
+      html += '<details><summary>Ver las ' + pasadas.length + ' ediciones pasadas o cerradas</summary>' +
         pasadas.map(tarjeta).join('') + '</details>';
     }
     if (DATOS.fueraDeCupo.length) {
@@ -984,6 +999,11 @@
         sueltos.map(function (x, i) { return enEspera(x, 'esp-suelta-' + i); }).join('');
     }
     return html;
+  }
+
+  /** Las gift cards cobradas que todavía no se usaron (ni pendientes de pago ni anuladas). */
+  function giftSinUsar() {
+    return (DATOS.giftCards || []).filter(function (g) { return !g.usada && !g.pendiente && !g.anulada; });
   }
 
   /** Los grupos de «Eventos y empresas» que van también en Cupos: Confirmado… y Realizado. */
@@ -1143,7 +1163,7 @@
     var confirmados = de(['confirmado', 'realizado']);
     // Estados con sección propia, sin fecha ni cobro: ni propuesta ni consulta, ni
     // Cupos ni plata. Uno nuevo se agrega acá, en ESTADO_GRUPO y en leerEventos.
-    var propias = SECCIONES_PROPIAS.map(function (s) { return [s[1], de([s[0]])]; });
+    var propias = SECCIONES_PROPIAS.map(function (s) { return [s[1], de([s[0]]), s[2]]; });
     var conSeccion = ['confirmado', 'realizado', 'cobrado', 'cancelado', 'descartado']
       .concat(SECCIONES_PROPIAS.map(function (s) { return s[0]; }));
     // Todo lo demás: un estado que no se reconoce no puede hacer desaparecer al grupo.
@@ -1153,12 +1173,21 @@
     // Los tres conteos van siempre, aunque sean cero: «Descartados (0)» dice que
     // no hay, y no que la app no lo mira.
     var cerrados = [['Cobrados', de(['cobrado'])], ['Cancelados', de(['cancelado'])], ['Descartados', de(['descartado'])]];
-    var html = '';
-    if (confirmados.length) html += '<div class="seccion">Confirmados (' + confirmados.length + ')</div>' + confirmados.map(tarjetaGrupo).join('');
-    propias.forEach(function (p) {
-      if (p[1].length) html += '<div class="seccion">' + p[0] + ' (' + p[1].length + ')</div>' + p[1].map(tarjetaGrupo).join('');
-    });
-    if (abiertos.length) html += '<div class="seccion">En propuesta o consulta (' + abiertos.length + ')</div>' + abiertos.map(tarjetaGrupo).join('');
+    // Leo, 24/10: «aparecen muchos grupos que no están confirmados ni nada, que
+    // solamente nosotros les escribimos; es mucha información». A la vista, solo lo
+    // que está en pie (confirmado, hecho, auspicio); la charla va plegada. La Seña
+    // de una propuesta es la que se le PIDIÓ, no una pagada: no la saca del plegado.
+    var enCharla = abiertos;
+    var seccion = function (titulo, lista) {
+      return lista.length ? '<div class="seccion">' + titulo + ' (' + lista.length + ')</div>' + lista.map(tarjetaGrupo).join('') : '';
+    };
+    var html = seccion('Confirmados', confirmados);
+    propias.forEach(function (p) { if (p[2]) html += seccion(p[0], p[1]); });
+    if (!html) html = '<div class="vacio">No hay grupos confirmados.</div>';
+    var plegados = [['Propuestas y consultas', enCharla]].concat(propias.filter(function (p) { return !p[2]; }));
+    var nCharla = plegados.reduce(function (n, p) { return n + p[1].length; }, 0);
+    html += '<details><summary>En conversación (' + nCharla + ')</summary>' +
+      (nCharla ? plegados.map(function (p) { return seccion(p[0], p[1]); }).join('') : '<div class="vacio">Ninguno por ahora.</div>') + '</details>';
     html += '<details><summary>' + cerrados.map(function (c) { return c[0] + ' (' + c[1].length + ')'; }).join(' · ') + '</summary>' +
       (cerrados.some(function (c) { return c[1].length; })
         ? cerrados.filter(function (c) { return c[1].length; }).map(function (c) {
@@ -1172,8 +1201,9 @@
     confirmado: 'Confirmado', realizado: 'Hecho, falta cobrar', propuesta: 'Propuesta enviada',
     consulta: 'Consulta', cobrado: 'Cobrado', cancelado: 'Cancelado', descartado: 'Descartado', auspicio: 'Auspicio', contactada: 'Contactada'
   };
-  // [estado, título de la sección]. Auspicio (ADESU) y Contactada (alianzas), 19/10.
-  var SECCIONES_PROPIAS = [['auspicio', 'Auspicios'], ['contactada', 'Contactadas']];
+  // [estado, título de la sección, a la vista]. Auspicio (ADESU) y Contactada
+  // (alianzas), 19/10. Sin «a la vista» va plegada en «En conversación» (24/10).
+  var SECCIONES_PROPIAS = [['auspicio', 'Auspicios', true], ['contactada', 'Contactadas', false]];
 
   function tarjetaGrupo(e) {
     var rotulo = ESTADO_GRUPO[e.estado] || e.estadoTexto || 'Sin estado';
@@ -1249,9 +1279,9 @@
 
     // Gift cards: las cobradas sin usar son plata ya cobrada y un lugar futuro.
     // Las pendientes de pago todavía no: van aparte, para que Leo las confirme.
-    var gc = DATOS.giftCards || [];
+    var gc = (DATOS.giftCards || []).filter(function (g) { return !g.anulada; });
     var pendGift = gc.filter(function (g) { return g.pendiente && !g.usada; });
-    var sinUsar = gc.filter(function (g) { return !g.usada && !g.pendiente; });
+    var sinUsar = giftSinUsar();
     var cobradas = gc.length - pendGift.length;
     if (gc.length) {
       html += '<div class="seccion">Gift cards</div>' +
@@ -1265,7 +1295,7 @@
               plata(sinUsar.reduce(function (a, g) { return a + (g.monto || 0); }, 0)) +
               '</b>cobrado por adelantado</span>') +
           '</div>' +
-          '<div class="pie"><span>' + cobradas + ' vendidas en total</span>' +
+          '<div class="pie"><span>' + cobradas + (cobradas === 1 ? ' vendida' : ' vendidas') + ' en total</span>' +
           '<span>' + (r.giftSinMonto
             ? 'Sin importe cargado en la planilla.'
             : 'Cada una sin usar es un lugar que alguien va a ocupar.') + '</span></div>' +
@@ -1406,7 +1436,9 @@
     var grupos = agrupar(recs);
     var del = function (n) { var g = grupos.filter(function (x) { return x.nombre === n; })[0]; return g ? g.items : []; };
     var renglones = visitas.map(function (a) {
-      return { t: String(a.texto || '').split(' — ')[0], c: 'a pagar', alta: true };
+      // 24/10: decía «viene al estudio a pagar · a pagar» y no cuándo.
+      var partes = String(a.texto || '').split(' — ');
+      return { t: partes[0].replace(' viene al estudio a pagar', ' viene a pagar'), c: cuandoVisita(partes[1]), alta: true };
     }).concat(['Atrasado', 'Hoy', 'Mañana'].reduce(function (l, n) {
       return l.concat(del(n).map(function (a) { return { t: corto(a), c: n === 'Atrasado' ? 'atrasado' : n.toLowerCase(), alta: true }; }));
     }, []));
@@ -1423,6 +1455,12 @@
           '<span class="pend-t">' + esc(r.t) + '</span><span class="pend-c">' + esc(r.c) + '</span></div>';
       }).join('') +
       '<div class="pend-pie"><span>' + esc(mas.join(' · ')) + '</span><span>ver todo ›</span></div></div>';
+  }
+
+  /** «el 27/10 a las 19:00» → «27/10 19:00»; «día a confirmar» → «sin día». */
+  function cuandoVisita(s) {
+    if (!s) return 'a pagar';
+    return s.replace(/^el /, '').replace(/^día a confirmar$/, 'sin día').replace(' a las ', ' ').toLowerCase();
   }
 
   /* ---------- alertas ---------- */
