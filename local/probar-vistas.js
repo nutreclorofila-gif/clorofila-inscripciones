@@ -589,8 +589,8 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
     console.log('  ok    arriba los confirmados por fecha, después las propuestas, al final lo cobrado');
   } else { fallas++; console.log('  FALLA el orden de los grupos: ' + ['Confirmado Pronto','Confirmado Tarde','Propuesta Uno','Cobrado Viejo'].map(pos).join(', ')); }
   corridos++;
-  const plegado = h.slice(h.indexOf('<details>'));
-  if (h.indexOf('<details>') !== -1 && plegado.indexOf('Cobrado Viejo') !== -1 && plegado.indexOf('</details>') > plegado.indexOf('Cobrado Viejo')) {
+  const plegado = h.slice(h.indexOf('<details><summary>Cobrados'));
+  if (h.indexOf('<details><summary>Cobrados') !== -1 && plegado.indexOf('Cobrado Viejo') !== -1 && plegado.indexOf('</details>') > plegado.indexOf('Cobrado Viejo')) {
     console.log('  ok    lo cobrado y lo cancelado quedan plegados');
   } else { fallas++; console.log('  FALLA lo cobrado no quedó adentro del plegado'); }
   corridos++;
@@ -707,16 +707,36 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
   const conAuspicio = cargarUI(Object.assign({}, datosBase, { eventos: [eventos[0], g({ grupo: 'Auspicio Uno', estado: 'auspicio', estadoTexto: 'Auspicio sí' }),
     g({ grupo: 'Alianza Uno', estado: 'contactada', estadoTexto: 'Contactada 19/10', total: 5000 })] }));
   const ha = conAuspicio.vistaGrupos(), ca = conAuspicio.gruposEnCupos().map(x => x.grupo).join(',');
-  const iA = ha.indexOf('Auspicios (1)'), iP = ha.indexOf('En propuesta o consulta (1)');
+  const iA = ha.indexOf('Auspicios (1)'), iP = ha.indexOf('<summary>En conversación (');
   if (iA !== -1 && iP !== -1 && iA < ha.indexOf('Auspicio Uno') && ha.indexOf('Auspicio Uno') < iP && /ev-auspicio">Auspicio</.test(ha) && ca.indexOf('Auspicio Uno') === -1) {
     console.log('  ok    los auspicios van en su sección, no entre las propuestas ni en Cupos');
   } else { fallas++; console.log('  FALLA los auspicios: ' + [iA, ha.indexOf('Auspicio Uno'), iP, ca.indexOf('Auspicio Uno')].join(',')); }
   corridos++;
   const iC = ha.indexOf('Contactadas (1)'), tC = ha.slice(ha.indexOf('Alianza Uno'), ha.indexOf('Alianza Uno') + 900);
-  if (iC !== -1 && iC < ha.indexOf('Alianza Uno') && ha.indexOf('Alianza Uno') < iP && /ev-contactada">Contactada</.test(ha)
+  if (iC !== -1 && iP < iC && iC < ha.indexOf('Alianza Uno') && ha.indexOf('Alianza Uno') < ha.indexOf('<summary>Cobrados') && /ev-contactada">Contactada</.test(ha)
       && !/Saldo/.test(tC) && ca.indexOf('Alianza Uno') === -1) {
-    console.log('  ok    las contactadas van en su sección, sin saldo, no entre las propuestas ni en Cupos');
+    console.log('  ok    las contactadas van plegadas en «En conversación», sin saldo, y no en Cupos');
   } else { fallas++; console.log('  FALLA las contactadas: ' + [iC, ha.indexOf('Alianza Uno'), iP, /Saldo/.test(tC)].join(',')); }
+
+  // Leo, 24/10: «aparecen muchos grupos que no están confirmados ni nada… es mucha información».
+  corridos++;
+  const charla = h.slice(h.indexOf('<details><summary>En conversación (1)'), h.indexOf('<details><summary>Cobrados'));
+  if (h.indexOf('<details><summary>En conversación (1)') !== -1 && charla.indexOf('Propuesta Uno') !== -1
+      && h.slice(0, h.indexOf('<details>')).indexOf('Propuesta Uno') === -1) {
+    console.log('  ok    las propuestas y consultas sin seña van plegadas en «En conversación», con su conteo');
+  } else { fallas++; console.log('  FALLA las propuestas no quedaron plegadas: ' + (h.match(/<summary>[^<]*/g) || []).join(' | ')); }
+  corridos++;
+  const hs = cargarUI(Object.assign({}, datosBase, { eventos: [g({ grupo: 'Propuesta Con Seña', estado: 'propuesta', sena: 2000, total: 10000, saldo: 8000 }),
+    g({ grupo: 'Consulta Sola', estado: 'consulta' })] })).vistaGrupos();
+  const arriba = hs.slice(0, hs.indexOf('<details>'));
+  if (/Con seña \(1\)/.test(arriba) && arriba.indexOf('Propuesta Con Seña') !== -1 && arriba.indexOf('Consulta Sola') === -1) {
+    console.log('  ok    una propuesta con seña queda a la vista; una consulta sin seña, plegada');
+  } else { fallas++; console.log('  FALLA con seña: ' + arriba.slice(0, 300)); }
+  corridos++;
+  const soloCharla = cargarUI(Object.assign({}, datosBase, { eventos: [g({ grupo: 'Consulta Sola', estado: 'consulta' })] })).vistaGrupos();
+  if (/^<div class="vacio">No hay grupos confirmados\.<\/div><details><summary>En conversación \(1\)/.test(soloCharla)) {
+    console.log('  ok    sin confirmados lo dice, y la charla sigue plegada abajo');
+  } else { fallas++; console.log('  FALLA sin confirmados: ' + soloCharla.slice(0, 200)); }
 
   const sinServidor = Object.assign({}, datosBase); delete sinServidor.eventos;
   correr('solapa Grupos con un servidor viejo (sin eventos)', () => cargarUI(sinServidor).vistaGrupos());

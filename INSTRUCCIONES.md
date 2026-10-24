@@ -209,8 +209,12 @@ cupo ni da alertas.
 - Una tarjeta por fila con Empresa / grupo: contacto y tipo, fecha y horario, personas,
   formato, total, seña y saldo (o el precio por persona si todavía no hay total), el estado
   con color, el **próximo paso** y un botón **Abrir el chat** (columna G).
-- Arriba los **confirmados** (y los hechos que falta cobrar), por fecha. Después los que
-  están en **propuesta o consulta** (y los de un estado que no se reconoce). Los
+- A la vista, solo lo que está en pie: los **confirmados** (y los hechos que falta cobrar),
+  por fecha; las propuestas o consultas **con seña**, en «Con seña», y los **auspicios**. Si no
+  hay ninguno, dice «No hay grupos confirmados.». Las **propuestas y consultas sin seña** (y los
+  de un estado que no se reconoce) y las **contactadas** van plegadas en «En conversación (n)»:
+  Leo, 24/10, «aparecen muchos grupos que no están confirmados ni nada, que solamente nosotros
+  les escribimos; es mucha información». Los
   **cobrados, cancelados y descartados**, plegados al final con el conteo de cada uno
   («Cobrados (1) · Cancelados (2) · Descartados (0)»). Los tres conteos van siempre,
   aunque sean cero.
@@ -226,9 +230,10 @@ cupo ni da alertas.
 - El Estado se lee por cómo empieza: Consulta, Propuesta…, Confirmado…, Realizado, Cobrado,
   Cancelado, Descartado, Auspicio, Contactada. Vacío cuenta como Consulta. **Auspicio** (todo lo que empiece
   así, ej. «Auspicio sí»): un compromiso hecho, sin fecha ni cobro; va en su sección
-  «Auspicios», entre los confirmados y las propuestas, y no aparece en Cupos. **Contactada**
-  (ej. «Contactada 19/10»): una alianza en conversación, sin cobro; igual, en «Contactadas».
-  Un estado nuevo así se agrega en `SECCIONES_PROPIAS` (Index.html), `ESTADO_GRUPO` y `leerEventos`. **Descartado** es distinto de
+  «Auspicios», a la vista debajo de los confirmados, y no aparece en Cupos. **Contactada**
+  (ej. «Contactada 19/10»): una alianza en conversación, sin cobro; va en «Contactadas», dentro
+  del plegado «En conversación». Un estado nuevo así se agrega en `SECCIONES_PROPIAS`
+  (Index.html, con `true` si va a la vista), `ESTADO_GRUPO` y `leerEventos`. **Descartado** es distinto de
   Cancelado (lo descartó Clorofila, no se cayó el grupo), pero va al mismo plegado.
 - El link del chat solo se muestra si empieza con `https://`.
 - **Al teléfono no viajan** el mail, el celular, el medio de pago, el comprobante, la factura

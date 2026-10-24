@@ -1141,7 +1141,7 @@
     var confirmados = de(['confirmado', 'realizado']);
     // Estados con sección propia, sin fecha ni cobro: ni propuesta ni consulta, ni
     // Cupos ni plata. Uno nuevo se agrega acá, en ESTADO_GRUPO y en leerEventos.
-    var propias = SECCIONES_PROPIAS.map(function (s) { return [s[1], de([s[0]])]; });
+    var propias = SECCIONES_PROPIAS.map(function (s) { return [s[1], de([s[0]]), s[2]]; });
     var conSeccion = ['confirmado', 'realizado', 'cobrado', 'cancelado', 'descartado']
       .concat(SECCIONES_PROPIAS.map(function (s) { return s[0]; }));
     // Todo lo demás: un estado que no se reconoce no puede hacer desaparecer al grupo.
@@ -1151,12 +1151,21 @@
     // Los tres conteos van siempre, aunque sean cero: «Descartados (0)» dice que
     // no hay, y no que la app no lo mira.
     var cerrados = [['Cobrados', de(['cobrado'])], ['Cancelados', de(['cancelado'])], ['Descartados', de(['descartado'])]];
-    var html = '';
-    if (confirmados.length) html += '<div class="seccion">Confirmados (' + confirmados.length + ')</div>' + confirmados.map(tarjetaGrupo).join('');
-    propias.forEach(function (p) {
-      if (p[1].length) html += '<div class="seccion">' + p[0] + ' (' + p[1].length + ')</div>' + p[1].map(tarjetaGrupo).join('');
-    });
-    if (abiertos.length) html += '<div class="seccion">En propuesta o consulta (' + abiertos.length + ')</div>' + abiertos.map(tarjetaGrupo).join('');
+    // Leo, 24/10: «aparecen muchos grupos que no están confirmados ni nada, que
+    // solamente nosotros les escribimos; es mucha información». A la vista, solo lo
+    // que está en pie (confirmado, hecho, con seña, auspicio); la charla va plegada.
+    var conSena = abiertos.filter(function (e) { return e.sena; });
+    var enCharla = abiertos.filter(function (e) { return !e.sena; });
+    var seccion = function (titulo, lista) {
+      return lista.length ? '<div class="seccion">' + titulo + ' (' + lista.length + ')</div>' + lista.map(tarjetaGrupo).join('') : '';
+    };
+    var html = seccion('Confirmados', confirmados) + seccion('Con seña', conSena);
+    propias.forEach(function (p) { if (p[2]) html += seccion(p[0], p[1]); });
+    if (!html) html = '<div class="vacio">No hay grupos confirmados.</div>';
+    var plegados = [['Propuestas y consultas', enCharla]].concat(propias.filter(function (p) { return !p[2]; }));
+    var nCharla = plegados.reduce(function (n, p) { return n + p[1].length; }, 0);
+    html += '<details><summary>En conversación (' + nCharla + ')</summary>' +
+      (nCharla ? plegados.map(function (p) { return seccion(p[0], p[1]); }).join('') : '<div class="vacio">Ninguno por ahora.</div>') + '</details>';
     html += '<details><summary>' + cerrados.map(function (c) { return c[0] + ' (' + c[1].length + ')'; }).join(' · ') + '</summary>' +
       (cerrados.some(function (c) { return c[1].length; })
         ? cerrados.filter(function (c) { return c[1].length; }).map(function (c) {
@@ -1170,8 +1179,9 @@
     confirmado: 'Confirmado', realizado: 'Hecho, falta cobrar', propuesta: 'Propuesta enviada',
     consulta: 'Consulta', cobrado: 'Cobrado', cancelado: 'Cancelado', descartado: 'Descartado', auspicio: 'Auspicio', contactada: 'Contactada'
   };
-  // [estado, título de la sección]. Auspicio (ADESU) y Contactada (alianzas), 19/10.
-  var SECCIONES_PROPIAS = [['auspicio', 'Auspicios'], ['contactada', 'Contactadas']];
+  // [estado, título de la sección, a la vista]. Auspicio (ADESU) y Contactada
+  // (alianzas), 19/10. Sin «a la vista» va plegada en «En conversación» (24/10).
+  var SECCIONES_PROPIAS = [['auspicio', 'Auspicios', true], ['contactada', 'Contactadas', false]];
 
   function tarjetaGrupo(e) {
     var rotulo = ESTADO_GRUPO[e.estado] || e.estadoTexto || 'Sin estado';
