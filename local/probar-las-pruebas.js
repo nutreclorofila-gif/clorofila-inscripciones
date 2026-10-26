@@ -77,7 +77,7 @@ const MUTACIONES = [
   ['un grupo cancelado sigue avisando la seña sin verificar', CODIGO,
    "    if (!g.senaSinVerificar || ['cancelado', 'descartado', 'cobrado'].indexOf(g.estado) !== -1) return;\n", "    if (!g.senaSinVerificar) return;\n"],
   ['una seña verificada avisa como sin verificar', CODIGO,
-   "senaSinVerificar: /sin verific|falta verific|no verificad|pendiente de (?:verific|aprob)/i.test(texto(17))", "senaSinVerificar: /verific/i.test(texto(17))"],
+   "senaSinVerificar: /sin verific|falta verific|no verificad|pendiente[ ]de[ ](?:verific|aprob)/i.test(texto(17))", "senaSinVerificar: /verific/i.test(texto(17))"],
   ['el sobrecupo vuelve a avisar en un curso que ya empezó', CODIGO,
    "if (ed.quedan < 0 && !empezo) {", "if (ed.quedan < 0) {"],
   ['el sobrecupo deja de avisar el mismo día', CODIGO,

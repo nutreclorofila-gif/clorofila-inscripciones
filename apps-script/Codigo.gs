@@ -1272,7 +1272,7 @@ function leerEventos(filas, hoy) {
       estado: estado, estadoTexto: texto(18),
       ultimoContacto: texto(19), proximoPaso: texto(20),
       // Solo si la seña está sin verificar en el banco; el comprobante no viaja.
-      senaSinVerificar: /sin verific|falta verific|no verificad|pendiente de (?:verific|aprob)/i.test(texto(17))
+      senaSinVerificar: /sin verific|falta verific|no verificad|pendiente[ ]de[ ](?:verific|aprob)/i.test(texto(17))
     });
   });
   return res;
