@@ -1141,6 +1141,23 @@ const ev = (o) => ['13/10/2026', o.grupo || '', o.contacto || '', o.email || '',
 const conEventos = (filas) => armar('Taller de tapeo — 16/11/2026', 12, [{nombre:'A',monto:'2600'}], null, null,
   { 'Eventos y empresas': [HEV].concat(filas.map(ev)) });
 caso(
+  'una seña de grupo sin verificar en el banco da aviso alto, con el monto solo en el detalle',
+  'Inscripciones, 26/10: la seña de un tapeo privado estaba «sin verificar» y Leo no la veía en la app',
+  () => {
+    const e = conEventos([
+      { grupo: 'Grupo Sin Verificar', estado: 'Confirmado con seña', sena: '4320', comprobante: 'Transferencia 22/9; sin verificar en el banco' },
+      { grupo: 'Grupo Verificado', estado: 'Confirmado con seña', sena: '3300', comprobante: 'Transacción 999; verificado en el banco' },
+      { grupo: 'Grupo Cancelado', estado: 'Cancelado', sena: '1000', comprobante: 'sin verificar' }]);
+    const a = tipos(e, 'sin_verificar');
+    if (a.length !== 1) return 'esperaba 1 aviso, hay ' + a.length + ': ' + a.map(x => x.texto).join(' | ');
+    if (a[0].nivel !== 'alta' || !/Grupo Sin Verificar: la seña está sin verificar/.test(a[0].texto) || /\$/.test(a[0].texto)) return a[0].nivel + ' ' + a[0].texto;
+    if (!/\$ ?4\.320/.test(a[0].detalle) || !/fila 2/.test(a[0].detalle) || !a[0].conPlata) return a[0].detalle;
+    // El comprobante no viaja al teléfono: solo la marca.
+    const tel = JSON.stringify(G.paraElTelefono(e).eventos);
+    return !/Transferencia 22\/9|Transacción 999/.test(tel) || 'el comprobante viajó al teléfono';
+  }
+);
+caso(
   'lee un grupo confirmado con su plata y su fecha',
   'es lo que Leo pidió ver en el celu: cuándo, cuántos, cuánto y qué falta',
   () => {

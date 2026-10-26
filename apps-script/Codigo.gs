@@ -963,7 +963,7 @@ function construirEstado(crudo, ahora) {
   var visitas = leerVisitas((crudo.extras || {})[HOJA_VISITAS]);
   var recordatorios = leerRecordatorios((crudo.extras || {})[HOJA_RECORDATORIOS], crudo.respuestas);
   var eventos = leerEventos((crudo.extras || {})[HOJA_EVENTOS], hoy);
-  var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas, espera, gift, cuotas, sinMes, visitas, recordatorios);
+  var alertas = detectarAlertas(ediciones, filas, usadas, hoy, duplicadas, espera, gift, cuotas, sinMes, visitas, recordatorios, eventos);
 
   return {
     forma: FORMA_ESTADO,
@@ -1270,7 +1270,9 @@ function leerEventos(filas, hoy) {
       personas: texto(11), precio: parsearMonto(f[12]),
       total: total, sena: sena, saldo: saldo,
       estado: estado, estadoTexto: texto(18),
-      ultimoContacto: texto(19), proximoPaso: texto(20)
+      ultimoContacto: texto(19), proximoPaso: texto(20),
+      // Solo si la seña está sin verificar en el banco; el comprobante no viaja.
+      senaSinVerificar: /sin verific|falta verific|no verificad|pendiente de (?:verific|aprob)/i.test(texto(17))
     });
   });
   return res;
@@ -2139,7 +2141,7 @@ function mediana(nums) {
   return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2;
 }
 
-function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, esperaGlobal, giftGlobal, cuotas, sinMes, visitas, recordatorios) {
+function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, esperaGlobal, giftGlobal, cuotas, sinMes, visitas, recordatorios, eventos) {
   var alertas = [];
   // Una edición que ya pasó no se arregla: alertar sobre ella es solo ruido.
   var ediciones = todasLasEdiciones.filter(function (e) { return e.vigente; });
@@ -2351,6 +2353,19 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
                  ' de ' + p.hoja + '), y esos ' + plata(p.enDuda) + ' están sumando al cobrado de "' +
                  ed.edicion + '".'
       });
+    });
+  });
+
+  // f-quater-b) Señas de grupos sin verificar en el banco. Inscripciones, 26/10:
+  //    la de un tapeo privado estaba así y Leo no la veía en la app. Se marca con
+  //    «sin verificar» en el Comprobante (R) de «Eventos y empresas».
+  (eventos || []).forEach(function (g) {
+    if (!g.senaSinVerificar || ['cancelado', 'descartado', 'cobrado'].indexOf(g.estado) !== -1) return;
+    alertas.push({
+      nivel: 'alta', tipo: 'sin_verificar', edicion: '',
+      texto: g.grupo + ': la seña está sin verificar en el banco',
+      detalle: (g.sena ? 'Seña de ' + plata(g.sena) + '. ' : '') + 'Cuando la veas en el banco, sacá «sin verificar» ' +
+               'del Comprobante (columna R) de «' + HOJA_EVENTOS + '», fila ' + g.fila + '.'
     });
   });
 

@@ -564,6 +564,16 @@ cuántas son y cuántas se detectan lo dice el script al terminar, no este docum
 público. Para los ejemplos van números y nombres inventados con la misma forma. Las
 pruebas tampoco imprimen nombres por pantalla: esa salida se pega en cualquier lado.
 
+## Pagos por confirmar en el banco
+
+Salen en rojo en la portada, sin montos («Fulana: hay un pago sin verificar»; el monto, al tocar):
+- **Inscriptos**: «pago verificado» (columna I) que empieza con «no», «pendiente», «sin verificar»,
+  «falta verificar»… Una compra de Tikzet pendiente de aprobación se carga con «Pendiente de
+  aprobación» ahí.
+- **Grupos** (26/10, pedido de Inscripciones): el Comprobante (columna R de «Eventos y empresas»)
+  dice «sin verificar», «falta verificar», «no verificado» o «pendiente de aprobación», y el grupo
+  no está cancelado, descartado ni cobrado. El comprobante no viaja al teléfono: solo la marca.
+
 ## Sobrecupo
 
 Avisa cuando una edición tiene más anotados que cupo, **solo hasta el día en que empieza**
