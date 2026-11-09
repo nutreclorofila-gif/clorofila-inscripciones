@@ -574,9 +574,24 @@ Salen en rojo en la portada, sin montos («Fulana: hay un pago sin verificar»; 
   dice «sin verificar», «falta verificar», «no verificado» o «pendiente de aprobación», y el grupo
   no está cancelado, descartado ni cobrado. El comprobante no viaja al teléfono: solo la marca.
 
+## Formulario del curso (9/11, pedido de «ordenar sheet»)
+
+- «sin verificar — posible duplicado de la fila N» en «pago verificado» sale como «Fulana: posible
+  pago duplicado, sin verificar», distinto de un pago sin verificar común.
+- «Código GC-… (cubre una parte)» en el medio de pago: lo que cubre la gift card va a la cuenta del
+  curso aunque sea menos que una seña, y queda debiendo el resto (antes: «Monto demasiado chico»).
+- Una fila con «PRUEBA» en la Edición no aparece entre los que no ocupan cupo.
+
+## Bajas con cuotas
+
+Quien tiene «Baja …» en la Edición de inscriptos y cuotas en «Pagos en cuotas» no sale como «no la
+encuentro anotada» (9/11: era falso). Si le quedan cuotas en Pendiente, sale «se dio de baja y le
+quedan cuotas pendientes»; pasándolas a Anulada deja de aparecer.
+
 ## Sobrecupo
 
-Avisa cuando una edición tiene más anotados que cupo, **solo hasta el día en que empieza**
+Avisa cuando una edición tiene más anotados que cupo (y «queda 1 lugar» cuando está casi llena),
+**solo hasta el día en que empieza**
 (ese día incluido). Una vez que empezó ya no hay nada que hacer: Leo, 24/10, sobre el curso de
 octubre en marcha con uno de más, «el cartel rojo no tiene sentido». La tarjeta sigue diciendo
 «15 de 14».

@@ -395,6 +395,41 @@ caso(
   }
 );
 caso(
+  'si ya empezó, tampoco avisa «queda 1 lugar»',
+  '9/11: el curso de octubre, en marcha y Abierto todo el año, daba «queda 1 lugar»',
+  () => {
+    const casi = (hoy) => G.construirEstado({
+      panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'], ['Taller de prueba', ED13, '4', '3', '1', 'Abierto']],
+      panelFormulas: [['','','','','',''], ['','','', FORMULA13, '','']],
+      hojas: { 'Inscriptos Octubre 2026': [H, fila({nombre:'Ana', monto:'2600', edicion:ED13}),
+        fila({nombre:'Beto', monto:'2600', edicion:ED13}), fila({nombre:'Caro', monto:'2600', edicion:ED13})] },
+      extras: {}, generadoEn: hoy.toISOString()
+    }, hoy);
+    const antes = casi(HOY), despues = casi(new Date(2026, 9, 21, 10));
+    return (deTipo13(antes, 'casi_lleno').length === 1 && deTipo13(despues, 'casi_lleno').length === 0) || lista13(antes) + ' / ' + lista13(despues);
+  }
+);
+caso(
+  'una gift card que cubre una parte del curso queda debiendo el resto, no «monto chico»',
+  'formulario del curso, 9/11: «Código GC-105 (cubre una parte)» con lo que cubre en el monto, que puede ser menos de $1.000',
+  () => {
+    const p = G.evaluarPago({ nombre:'Fulana', comprobante:'', montoTexto:'800', medioPago:'Código GC-105 (cubre una parte)' }, { esCurso: true });
+    if (p.estadoPago !== 'parcial' || !(p.saldo > 0)) return 'quedó ' + p.estadoPago + ' (' + p.nota + ')';
+    const q = G.evaluarPago({ nombre:'Fulana', comprobante:'', montoTexto:'800', medioPago:'transferencia' }, { esCurso: true });
+    return q.estadoPago === 'revisar' || 'un monto chico sin gift card quedó ' + q.estadoPago;
+  }
+);
+caso(
+  'las filas de prueba del formulario no aparecen entre los que no ocupan cupo',
+  'ordenar sheet, 9/11: «Curso de cocina — Marzo 2027 (PRUEBA, anulada)» no es gente',
+  () => {
+    const r = G.listarFueraDeCupo([
+      { clave: 'a', nombre: 'Prueba', hoja: 'Inscriptos Marzo 2027', edicion: 'Curso de cocina — Marzo 2027 (PRUEBA, anulada)' },
+      { clave: 'b', nombre: 'Doble', hoja: 'Inscriptos Marzo 2027', edicion: 'Curso de cocina — Marzo 2027 (posible duplicado)' }], {}, HOY);
+    return (r.length === 1 && r[0].nombre === 'Doble') || r.map(x => x.nombre).join(',');
+  }
+);
+caso(
   'con el número de Anotados escrito a mano, avisa que no puede leer la fórmula',
   'la edición queda con 0 personas aunque tenga gente: sin la alerta, parece vacía',
   () => {

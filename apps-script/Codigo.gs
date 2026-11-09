@@ -1403,6 +1403,8 @@ function estaPendiente(texto) {
 function listarFueraDeCupo(filas, usadas, hoy) {
   return filas.filter(function (f) {
     if (usadas[f.clave] || !f.edicion) return false;
+    // Las pruebas del formulario del curso («… (PRUEBA, anulada)», 9/11) no son gente.
+    if (/\bPRUEBA\b/.test(f.edicion)) return false;
     return estaVigente(f.hoja, false, hoy) || estaVigente(f.edicion, false, hoy);
   }).map(function (f) {
     return {
@@ -1729,7 +1731,11 @@ function evaluarPago(f, ed) {
   // En el curso no hay otra red: detectarMontosRaros solo mira talleres. Un monto
   // que no puede ser ni una seña es algo que se leyó mal, y tratarlo como seña
   // inventa una deuda de casi el total.
-  if (ed.esCurso && monto < PRECIOS.cursoMinimo) {
+  // Una gift card que cubre una parte del curso (formulario del curso, 9/11):
+  // H tiene lo que cubre, que puede ser menos que una seña. No es un monto mal
+  // leído: va a la cuenta del curso y queda debiendo el resto.
+  var giftParcial = /c[oó]digo\s+GC-\d+.*cubre una parte/i.test(f.medioPago || '');
+  if (ed.esCurso && monto < PRECIOS.cursoMinimo && !giftParcial) {
     p.estadoPago = 'revisar';
     p.nota = 'Monto demasiado chico para el curso: "' + f.montoTexto + '"';
     return p;
@@ -2348,7 +2354,9 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
         nivel: 'alta', tipo: 'sin_verificar', edicion: ed.edicion,
         // El monto va en el detalle, no en el texto: el texto se muestra en la
         // portada y ahí no se muestra plata.
-        texto: p.nombre + ': hay un pago sin verificar',
+        // «sin verificar — posible duplicado de la fila N» (formulario del curso,
+        // 9/11): no es un pago más por confirmar, puede ser el mismo dos veces.
+        texto: p.nombre + (/duplicad/i.test(p.verificado) ? ': posible pago duplicado, sin verificar' : ': hay un pago sin verificar'),
         detalle: 'La planilla dice "' + p.verificado + '" en la columna pago verificado (fila ' + p.fila +
                  ' de ' + p.hoja + '), y esos ' + plata(p.enDuda) + ' están sumando al cobrado de "' +
                  ed.edicion + '".'
@@ -2540,7 +2548,10 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
 
   // h) Casi lleno (buena noticia, pero hay que actuar).
   abiertas.forEach(function (ed) {
-    if (ed.cupo > 0 && ed.quedan > 0 && ed.ocupacion >= 0.7) {
+    // Un curso que ya empezó sigue Abierto todo el año: «queda 1 lugar» ahí no
+    // pide nada (9/11, curso de octubre). Igual que el sobrecupo.
+    var yaEmpezo = ed.inicio && new Date(ed.inicio) < hoyCero;
+    if (ed.cupo > 0 && ed.quedan > 0 && ed.ocupacion >= 0.7 && !yaEmpezo) {
       alertas.push({
         nivel: 'info', tipo: 'casi_lleno', edicion: ed.edicion,
         texto: ed.edicion + (ed.quedan === 1 ? ': queda 1 lugar' : ': quedan ' + ed.quedan + ' lugares'),
@@ -2583,8 +2594,28 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
     var k = c.email || normalizarNombre(c.nombre);
     (sueltas[k] = sueltas[k] || []).push(c);
   });
+  // Una baja («Baja …» en la Edición de inscriptos) sí está anotada: decir «no
+  // la encuentro» era falso (9/11). Avisa solo si le quedan cuotas pendientes.
+  var bajas = {};
+  (filas || []).forEach(function (f) {
+    if (!/^baja/i.test(String(f.edicion || '').trim())) return;
+    if (f.email) bajas[String(f.email).trim().toLowerCase()] = true;
+    if (f.nombre) bajas[normalizarNombre(f.nombre)] = true;
+  });
   Object.keys(sueltas).forEach(function (k) {
     var cs = sueltas[k];
+    if (bajas[k] || bajas[normalizarNombre(cs[0].nombre)]) {
+      var pend = cs.filter(function (c) { return c.pendiente; });
+      if (!pend.length) return;
+      alertas.push({
+        nivel: 'media', tipo: 'cuota_de_baja', edicion: '',
+        texto: (cs[0].nombre || cs[0].email) + ' se dio de baja y le quedan cuotas pendientes',
+        detalle: 'En "Pagos en cuotas" (fila' + (pend.length === 1 ? ' ' : 's ') +
+                 pend.map(function (c) { return c.fila; }).join(', ') + ') siguen en Pendiente. Si no se cobran, ' +
+                 'pasalas a Anulada y deja de aparecer.'
+      });
+      return;
+    }
     alertas.push({
       nivel: 'media', tipo: 'cuota_sin_inscripta', edicion: '',
       texto: (cs[0].nombre || cs[0].email) + ' tiene cuotas pero no la encuentro anotada',

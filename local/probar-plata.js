@@ -494,6 +494,38 @@ caso(
   }
 );
 caso(
+  'una baja con cuotas no dice «no la encuentro anotada»: avisa solo si le quedan pendientes',
+  '9/11: dos alumnos dados de baja salían como «tiene cuotas pero no la encuentro anotada», y sí estaban, como baja',
+  () => {
+    const conBaja = (estados) => {
+      const crudo = {
+        panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'], ['Curso de cocina', CURSO, '15', '1', '14', 'Abierto']],
+        panelFormulas: [['','','','','',''], ['','','', "=COUNTIF('Inscriptos Noviembre 2026'!K:K;B2)", '','']],
+        hojas: { 'Inscriptos Noviembre 2026': [H, fila({ nombre: 'Ana', email: 'ana@ejemplo.uy', monto: '4800', edicion: CURSO }),
+          fila({ nombre: 'Beto Baja', email: 'beto@ejemplo.uy', monto: '4800', edicion: 'Baja 29/10/2026 — era ' + CURSO })] },
+        extras: { 'Pagos en cuotas': [HC].concat(estados.map((st, i) => cuota({ nombre: 'Beto Baja', email: 'beto@ejemplo.uy', n: i + 1, monto: '4800', estado: st }))) }
+      };
+      return G.construirEstado(crudo, HOY);
+    };
+    const e = conBaja(['Pagada', 'Pendiente']);
+    if (tipos(e, 'cuota_sin_inscripta').length) return 'dijo que no la encuentra';
+    const a = tipos(e, 'cuota_de_baja');
+    if (a.length !== 1 || !/Beto Baja se dio de baja y le quedan cuotas pendientes/.test(a[0].texto) || !/fila 3/.test(a[0].detalle)) return JSON.stringify(a);
+    const sinPend = conBaja(['Pagada', 'Anulada']);
+    return (tipos(sinPend, 'cuota_de_baja').length === 0 && tipos(sinPend, 'cuota_sin_inscripta').length === 0) || 'avisó sin cuotas pendientes';
+  }
+);
+caso(
+  'un posible pago duplicado se avisa distinto de un pago sin verificar',
+  'formulario del curso, 9/11: «sin verificar — posible duplicado de la fila N» puede ser el mismo pago dos veces',
+  () => {
+    const e = armar('Taller de pastas — 12/11/2026', 12, [{nombre:'Doble',monto:'2600',verificado:'sin verificar — posible duplicado de la fila 3'},
+      {nombre:'Simple',monto:'2600',verificado:'sin verificar'}]);
+    const t = tipos(e, 'sin_verificar').map(a => a.texto).join(' | ');
+    return (/Doble: posible pago duplicado, sin verificar/.test(t) && /Simple: hay un pago sin verificar/.test(t)) || t;
+  }
+);
+caso(
   'el curso que ya empezó sigue en lo que falta cobrar, pero solo quien figura en cuotas',
   'la edición de agosto cerró la inscripción y su nombre no tiene fecha: sin esto, las cuotas por cobrar no aparecían en ningún lado',
   () => {
