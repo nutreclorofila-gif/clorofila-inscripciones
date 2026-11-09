@@ -430,6 +430,22 @@ caso(
   }
 );
 caso(
+  'una fila de prueba no avisa que no entra; un posible duplicado lo dice así',
+  '9/11: aparecieron «PRUEBA Claude 1, 2 y 3 no entra en ninguna edición» al probar el formulario del curso',
+  () => {
+    const e = G.construirEstado({
+      panelValores: [['Actividad','Edición','Cupo','Anotados','Quedan','Estado'], ['Taller de prueba', ED13, '12', '1', '11', 'Abierto']],
+      panelFormulas: [['','','','','',''], ['','','', FORMULA13, '','']],
+      hojas: { 'Inscriptos Octubre 2026': [H, fila({nombre:'Ana', monto:'2600', edicion:ED13}),
+        fila({nombre:'PRUEBA Uno', monto:'1', edicion:'Taller de prueba — 20/10/2026 (PRUEBA, anulada)'}),
+        fila({nombre:'Beto Doble', monto:'2600', edicion:'Taller de prueba — 20/10/2026 (posible duplicado)'})] },
+      extras: {}, generadoEn: HOY.toISOString()
+    }, HOY);
+    const h = deTipo13(e, 'huerfana').map(a => a.texto);
+    return (h.length === 1 && /Beto Doble: posible inscripción duplicada, no cuenta en el cupo/.test(h[0])) || h.join(' | ') || '(ninguna)';
+  }
+);
+caso(
   'con el número de Anotados escrito a mano, avisa que no puede leer la fórmula',
   'la edición queda con 0 personas aunque tenga gente: sin la alerta, parece vacía',
   () => {

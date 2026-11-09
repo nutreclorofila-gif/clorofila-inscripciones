@@ -580,7 +580,9 @@ Salen en rojo en la portada, sin montos («Fulana: hay un pago sin verificar»; 
   pago duplicado, sin verificar», distinto de un pago sin verificar común.
 - «Código GC-… (cubre una parte)» en el medio de pago: lo que cubre la gift card va a la cuenta del
   curso aunque sea menos que una seña, y queda debiendo el resto (antes: «Monto demasiado chico»).
-- Una fila con «PRUEBA» en la Edición no aparece entre los que no ocupan cupo.
+- Una fila con «PRUEBA» en la Edición no aparece entre los que no ocupan cupo ni da el aviso de
+  que no entra en ninguna edición. Una con «(posible duplicado)» sale como «Fulana: posible
+  inscripción duplicada, no cuenta en el cupo».
 
 ## Bajas con cuotas
 

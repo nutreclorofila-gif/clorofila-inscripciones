@@ -1400,11 +1400,16 @@ function estaPendiente(texto) {
  * ninguna edición: gift cards, reubicados, lista de espera. No son errores,
  * pero conviene tenerlos a la vista para que no se olviden.
  */
+// Las pruebas del formulario del curso («… (PRUEBA, anulada)», 9/11) no son gente:
+// no van a fuera de cupo ni dan el aviso de que no entran en ninguna edición.
+function esFilaDePrueba(f) {
+  return /\bPRUEBA\b/.test(f.edicion || '');
+}
+
 function listarFueraDeCupo(filas, usadas, hoy) {
   return filas.filter(function (f) {
     if (usadas[f.clave] || !f.edicion) return false;
-    // Las pruebas del formulario del curso («… (PRUEBA, anulada)», 9/11) no son gente.
-    if (/\bPRUEBA\b/.test(f.edicion)) return false;
+    if (esFilaDePrueba(f)) return false;
     return estaVigente(f.hoja, false, hoy) || estaVigente(f.edicion, false, hoy);
   }).map(function (f) {
     return {
@@ -2305,11 +2310,14 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
     var intencional = PREFIJOS_INTENCIONALES.some(function (p) {
       return f.edicion.toLowerCase().indexOf(p.toLowerCase()) === 0;
     });
-    if (intencional || !f.edicion) return;
+    if (intencional || !f.edicion || esFilaDePrueba(f)) return;
     if (!estaVigente(f.hoja, false, hoy) && !estaVigente(f.edicion, false, hoy)) return;
     alertas.push({
       nivel: 'media', tipo: 'huerfana', edicion: f.edicion,
-      texto: (f.nombre || 'Una fila sin nombre') + ' no entra en ninguna edición del Panel',
+      // «(posible duplicado)» lo pone el formulario del curso (9/11): no es una
+      // edición mal escrita, es alguien que puede haberse anotado dos veces.
+      texto: (f.nombre || 'Una fila sin nombre') + (/posible duplicad/i.test(f.edicion)
+        ? ': posible inscripción duplicada, no cuenta en el cupo' : ' no entra en ninguna edición del Panel'),
       detalle: 'Su Edición dice "' + f.edicion + '". Está en ' + f.hoja + ', fila ' + f.fila + '.'
     });
   });
