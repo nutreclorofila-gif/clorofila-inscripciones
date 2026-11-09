@@ -421,7 +421,7 @@ const MUTACIONES = [
   ['los dólares se suman como pesos', CODIGO,
    "if (/u\\$s|us\\$|\\busd\\b|d[oó]lar/i.test(s)) return null;", ''],
   ['un monto absurdo en el curso vuelve a ser una seña', CODIGO,
-   'if (ed.esCurso && monto < PRECIOS.cursoMinimo) {', 'if (false) {'],
+   'if (ed.esCurso && monto < PRECIOS.cursoMinimo && !giftParcial) {', 'if (false) {'],
   ['una fórmula que cuenta en una pestaña que no existe no avisa', CODIGO,
    'if (ed.regla && !leidas[normalizarNombre(ed.regla.hoja)]) ed.pestanaInexistente = true;', ''],
   ['Anotados con #REF! vuelve a leerse como 0', CODIGO,
