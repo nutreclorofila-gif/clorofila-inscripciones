@@ -343,7 +343,7 @@ const MUTACIONES = [
   ['el próximo paso de los grupos deja de escaparse', INDEX,
    "var t = '<b>Próximo paso:</b> ' + esc(texto);", "var t = '<b>Próximo paso:</b> ' + texto;"],
   ['el paso largo cerrado ya no se corta en dos renglones', INDEX,
-   "-webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }", "}"],
+   ".grupo details.paso:not([open]) > summary { display: -webkit-box; -webkit-line-clamp: 2;", ".grupo details.paso:not([open]) > summary { display: block;"],
   ['el curso lleno y Abierto vuelve a pedir que lo cierren', CODIGO,
    'if (ed.abierta && !ed.esCurso && ed.cupo > 0 && ed.quedan === 0) {', 'if (ed.abierta && ed.cupo > 0 && ed.quedan === 0) {'],
   ['un taller lleno y Abierto deja de avisar', CODIGO,
