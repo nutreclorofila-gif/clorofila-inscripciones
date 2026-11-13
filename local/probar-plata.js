@@ -1066,6 +1066,33 @@ caso(
       || JSON.stringify(e.alertas.map(a => a.tipo + ':' + a.texto));
   }
 );
+// 13/11: Leo aprobó la transferencia en Tikzet, la rutina actualizó la fila y
+// el recordatorio «aprobar en Tikzet» siguió en la portada porque nadie le puso
+// Hecho. Leo: «hay cosas que ya se resolvieron».
+const REC_TIKZET = ['LEO: aprobar en Tikzet la transferencia de Persona Prueba (tapeo, 1 entrada, $2.600)', '01/11/2026', '', '', 'Pendiente', '', ''];
+caso(
+  'el recordatorio de aprobar en Tikzet se va solo cuando la fila ya no está pendiente',
+  '13/11: el pago estaba aprobado y el aviso seguía pidiéndole a Leo que lo aprobara',
+  () => {
+    const e = armar(ED_V, 15, [{ nombre: 'Persona Prueba', medio: 'Tikzet (transferencia)', comprobante: 'Tikzet - Pago aprobado (transferencia manual)', monto: '4800' }],
+                    null, null, { [REC]: [HREC, REC_TIKZET] });
+    return tipos(e, 'recordatorio').length === 0 || JSON.stringify(tipos(e, 'recordatorio').map(a => a.texto));
+  }
+);
+caso(
+  'el recordatorio de aprobar en Tikzet sigue mientras la fila diga pendiente de aprobación',
+  'si la portada lo esconde antes de tiempo, la persona se queda sin QR',
+  () => {
+    const e = armar(ED_V, 15, [{ nombre: 'Persona Prueba', medio: 'Tikzet (transferencia)', comprobante: 'Tikzet - Pago aprobado (transferencia manual)', monto: '4800', verificado: 'Pendiente de aprobación' }],
+                    null, null, { [REC]: [HREC, REC_TIKZET] });
+    return tipos(e, 'recordatorio').length === 1 || 'se escondió con la fila pendiente';
+  }
+);
+caso(
+  'el recordatorio de aprobar en Tikzet sigue si la persona todavía no está cargada',
+  'sin fila no hay prueba de que se aprobó',
+  () => tipos(conRec([REC_TIKZET]), 'recordatorio').length === 1 || 'se escondió sin fila'
+);
 caso(
   'la pestaña de recordatorios no se cuenta como una edición',
   'no es gente anotada',

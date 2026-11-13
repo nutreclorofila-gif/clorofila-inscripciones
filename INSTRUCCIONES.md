@@ -269,6 +269,9 @@ Hora, Detalle, Estado (Pendiente / Hecho / Cancelado), Quién lo cargó, Cargado
 
 - En la app: **alerta alta** si es para hoy, mañana, ya pasó («¿se hizo?») o no tiene fecha;
   **media** si falta más. Con Hecho o Cancelado se va sola.
+- **«Aprobar en Tikzet a X»** se va sola de la app cuando X ya está cargada con un pago de
+  Tikzet y ninguna de sus filas dice pendiente o sin verificar en «pago verificado» (13/11:
+  Leo había aprobado y el aviso seguía). Sin fila de X, sigue. En la planilla igual va Hecho.
 - **Delegado** (con «Lo hace: <sesión>» al principio del Detalle): lo resuelve una sesión, no Leo.
   **No aparece en la app** ni en los mails. Leo, 15/10/2026: «en la app quedan los pendientes
   importantes, no de conversaciones», como alguien que pasa por el estudio o alguien que debe

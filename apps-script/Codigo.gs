@@ -1213,6 +1213,21 @@ function leerRecordatorios(filas, respuestas) {
   return res;
 }
 
+/**
+ * Un recordatorio de «aprobar en Tikzet» cuya persona ya está cargada con un
+ * pago de Tikzet y ninguna de sus filas dice pendiente: Leo ya lo aprobó. Sin
+ * fila, o con alguna fila pendiente, sigue el aviso (sin aprobar no hay QR).
+ */
+function tikzetYaAprobado(r, filas) {
+  if (!/aprobar en tikzet/i.test(r.que)) return false;
+  var que = normalizarNombre(r.que);
+  var suyas = (filas || []).filter(function (f) {
+    var n = normalizarNombre(f.nombre);
+    return n.indexOf(' ') > 0 && que.indexOf(n) >= 0 && /tikzet/i.test(f.medioPago + ' ' + f.comprobante);
+  });
+  return suyas.length > 0 && suyas.every(function (f) { return !/pendiente|sin verific/i.test(f.verificado); });
+}
+
 /** Las visitas de "Pagos en persona" con nombre (sin el encabezado). */
 function leerVisitas(filas) {
   var res = [];
@@ -2697,6 +2712,10 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
     // falta pagar, no cada mensaje». No viaja al teléfono.
     if (r.estado === 'delegado') return;
     if (r.estado !== 'pendiente') return;
+    // «Aprobar en Tikzet a X»: cuando Leo aprueba, la rutina saca el «Pendiente
+    // de aprobación» de la fila de X, pero nadie le pone Hecho al recordatorio
+    // y seguía en la portada (13/11, Leo: «hay cosas que ya se resolvieron»).
+    if (tikzetYaAprobado(r, filas)) return;
     // Leo ya contestó desde la app: deja de ser suyo hasta que una sesión lo haga.
     if (r.respuesta) {
       var c = new Date(r.respuesta.cuando);

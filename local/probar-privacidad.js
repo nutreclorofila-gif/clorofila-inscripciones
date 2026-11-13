@@ -26,6 +26,10 @@ const PROPIOS = ['nutreclorofila@gmail.com'];
 for (const t of tablas) {
   // La primera fila es el encabezado: «Cargado el» no es el nombre de nadie.
   for (const fila of t.slice(1)) {
+    // Las filas de prueba del formulario (edición con PRUEBA, como en
+    // esFilaDePrueba) traen datos inventados, como el 099123456 de los
+    // ejemplos: no son de nadie (13/11).
+    if (/\bPRUEBA\b/.test(String(fila[10] || ''))) continue;
     for (const celda of fila) {
       const c = String(celda || '').trim();
       (c.match(/[\w.+-]+@[\w-]+\.[\w.]+/g) || []).forEach(m => { if (!PROPIOS.includes(m.toLowerCase())) mails.add(m.toLowerCase()); });
