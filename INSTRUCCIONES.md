@@ -222,7 +222,8 @@ cupo ni da alertas.
 - En una propuesta o consulta va el total y, si está cargada, la «Seña pedida» (la que se le
   pidió, no una pagada); el saldo aparece solo cuando el grupo está confirmado o hecho (24/10).
 - Un **próximo paso** de más de 140 caracteres va cortado en dos renglones; al tocarlo se lee
-  entero (24/10: muchos son casi una copia del chat).
+  entero (24/10: muchos son casi una copia del chat). Lo mismo el **formato / menú** (13/11:
+  en esa columna quedan párrafos del chat y la tarjeta se veía rara).
 - Los **confirmados y los hechos** van **también en Cupos**, mezclados por fecha con los
   cursos y talleres: «Grupo privado», el nombre, fecha y horario, y personas. El saldo a
   cobrar, el próximo paso y el chat aparecen al tocar la tarjeta (en Cupos, que es la

@@ -751,6 +751,18 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
       && /\.grupo details\.paso:not\(\[open\]\) > summary \{[^}]*-webkit-line-clamp: 2/.test(fs.readFileSync(path.join(base, 'apps-script', 'Index.html'), 'utf8'))) {
     console.log('  ok    el próximo paso largo va en dos renglones y se abre al tocarlo; el corto, entero; los dos escapados');
   } else { fallas++; console.log('  FALLA el próximo paso: ' + tLargo.slice(0, 300)); }
+  // 13/11: en la columna del formato quedan párrafos copiados del chat; la
+  // tarjeta se veía rara. Largo: dos renglones y entero al tocarlo, como el paso.
+  corridos++;
+  const hf = cargarUI(Object.assign({}, datosBase, { eventos: [
+    g({ grupo: 'Formato Largo', estado: 'confirmado', formato: 'Pidió una propuesta a medida. '.repeat(8) + '<b>x</b>', total: 10000, sena: 2000, saldo: 8000 }),
+    g({ grupo: 'Formato Corto', estado: 'confirmado', formato: 'Tapeo privado', total: 10000, sena: 2000, saldo: 8000 })] })).vistaGrupos();
+  const fLargo = hf.slice(hf.indexOf('Formato Largo'), hf.indexOf('Formato Corto')), fCorto = hf.slice(hf.indexOf('Formato Corto'), hf.indexOf('Formato Corto') + 1200);
+  if (/<details class="dato"><summary>Pidió una propuesta/.test(fLargo) && !/<b>x<\/b>/.test(hf)
+      && /<div class="dato">Tapeo privado<\/div>/.test(fCorto)
+      && /\.grupo details\.dato:not\(\[open\]\) > summary \{[^}]*-webkit-line-clamp: 2/.test(fs.readFileSync(path.join(base, 'apps-script', 'Index.html'), 'utf8'))) {
+    console.log('  ok    el formato largo va en dos renglones y se abre al tocarlo; el corto, entero; escapados');
+  } else { fallas++; console.log('  FALLA el formato largo: ' + fLargo.slice(0, 300)); }
   corridos++;
   const tProp = tLargo.slice(0, 1500);
   if (/Seña pedida <b>/.test(tProp) && !/Saldo/.test(tProp.slice(0, tProp.indexOf('Próximo paso'))) && /Seña <b>/.test(tCorto) && /Saldo <b>/.test(tCorto)) {
