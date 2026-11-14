@@ -129,7 +129,8 @@ var PROP_RESPUESTA = 'respuesta:';
 var MAX_LARGO_RESPUESTA = 1000;
 
 /** Prefijos de la columna K que son intencionales, no errores de carga. */
-var PREFIJOS_INTENCIONALES = ['Reubicado', 'Lista de espera', 'Cancelado', 'Anulado', 'Gift card'];
+// «En espera»: pagó otra fecha y entra solo si queda lugar (14/11); no ocupa cupo.
+var PREFIJOS_INTENCIONALES = ['Reubicado', 'Lista de espera', 'En espera', 'Cancelado', 'Anulado', 'Gift card'];
 
 
 /* ======================================================================
@@ -2352,6 +2353,9 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
   // f) Plata que falta en ediciones abiertas.
   abiertas.forEach(function (ed) {
     ed.pendientes.forEach(function (p) {
+      // Un pago sin verificar ya tiene su aviso alto (f-quater): dos por lo
+      // mismo, y uno con todo el texto de la columna, confunden (14/11).
+      if (p.enDuda) return;
       alertas.push({
         nivel: p.estadoPago === 'revisar' ? 'media' : 'media',
         tipo: 'pago', edicion: ed.edicion,

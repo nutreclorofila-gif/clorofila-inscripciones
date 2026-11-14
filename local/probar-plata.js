@@ -154,6 +154,15 @@ caso(
   }
 );
 caso(
+  'el pago sin verificar sale una sola vez, no también como «falta que pague»',
+  '14/11: el giro sin verificar de una persona salía dos veces en la portada, una con todo el texto de la columna',
+  () => {
+    const e = armar('Taller de pastas — 12/11/2026', 12, [{nombre:'Dudoso',monto:'2600',verificado:'sin verificar, volver a mirar el lunes'}]);
+    const t = e.alertas.filter(x => /Dudoso/.test(x.texto)).map(x => x.tipo);
+    return (t.length === 1 && t[0] === 'sin_verificar') || t.join(', ');
+  }
+);
+caso(
   'un "sí" no molesta',
   'marcar que está verificado tiene que ser lo normal, no disparar nada',
   () => {

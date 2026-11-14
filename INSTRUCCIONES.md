@@ -582,6 +582,10 @@ Salen en rojo en la portada, sin montos («Fulana: hay un pago sin verificar»; 
 
 - «sin verificar — posible duplicado de la fila N» en «pago verificado» sale como «Fulana: posible
   pago duplicado, sin verificar», distinto de un pago sin verificar común.
+- Un pago sin verificar sale **una sola vez** (el aviso rojo), no también como «falta que pague»
+  con todo el texto de la columna (14/11).
+- «EN ESPERA: …» en la Edición (pagó otra fecha y entra solo si queda lugar, 14/11) no ocupa
+  cupo y no avisa que no entra en ninguna edición.
 - «Código GC-… (cubre una parte)» en el medio de pago: lo que cubre la gift card va a la cuenta del
   curso aunque sea menos que una seña, y queda debiendo el resto (antes: «Monto demasiado chico»).
 - Una fila con «PRUEBA» en la Edición no aparece entre los que no ocupan cupo ni da el aviso de

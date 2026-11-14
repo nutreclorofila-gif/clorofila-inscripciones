@@ -430,7 +430,7 @@ caso(
   }
 );
 caso(
-  'una fila de prueba no avisa que no entra; un posible duplicado lo dice así',
+  'una fila de prueba o en espera no avisa que no entra; un posible duplicado lo dice así',
   '9/11: aparecieron «PRUEBA Claude 1, 2 y 3 no entra en ninguna edición» al probar el formulario del curso',
   () => {
     const e = G.construirEstado({
@@ -438,6 +438,7 @@ caso(
       panelFormulas: [['','','','','',''], ['','','', FORMULA13, '','']],
       hojas: { 'Inscriptos Octubre 2026': [H, fila({nombre:'Ana', monto:'2600', edicion:ED13}),
         fila({nombre:'PRUEBA Uno', monto:'1', edicion:'Taller de prueba — 20/10/2026 (PRUEBA, anulada)'}),
+        fila({nombre:'Ceci Espera', monto:'2600', edicion:'EN ESPERA: taller del 27/10 solo si queda lugar'}),
         fila({nombre:'Beto Doble', monto:'2600', edicion:'Taller de prueba — 20/10/2026 (posible duplicado)'})] },
       extras: {}, generadoEn: HOY.toISOString()
     }, HOY);
