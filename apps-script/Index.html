@@ -52,8 +52,8 @@
   h1 { margin: 0; font-size: 19px; letter-spacing: -0.01em; font-weight: 700; }
   .sello { font-size: 12px; color: var(--tenue); }
   .refrescar {
-    border: 1px solid var(--linea); background: var(--papel); color: var(--texto);
-    border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px; cursor: pointer;
+    border: 1px solid var(--linea); background: var(--papel); color: var(--verde);
+    border-radius: 999px; padding: 7px 16px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
     min-height: 44px;
   }
   .refrescar:active { transform: scale(0.97); }
@@ -171,7 +171,11 @@
   .punto.alta { background: var(--rojo); }
   .pend-t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pend-c { font-size: 12px; color: var(--tenue); flex: none; }
-  .pend-pie { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--tenue); padding-top: 4px; }
+  .pend-pie { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--tenue); padding-top: 6px; }
+  /* «Ver todo» y «Ver todos los cupos»: botones de verdad, no texto gris (Leo, 14/11:
+     «mejorá los botones, ver todo por ejemplo»). */
+  .boton-ir { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border-radius: 999px;
+              background: var(--verde-fondo); color: var(--verde); font-size: 14px; font-weight: 600; flex: none; }
   /* Próximas fechas de Inicio: un renglón por fecha, se toca para abrirla en Cupos. */
   .prox { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font: inherit;
           color: var(--texto); background: var(--papel); border: 1px solid var(--linea); border-radius: 12px;
@@ -181,11 +185,13 @@
   .prox-que { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .prox-nom { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .prox-marca { color: var(--ambar); }
+  .prox-ok { color: var(--verde); font-weight: 600; }
   .prox-est { font-size: 13px; color: var(--tenue); }
   .prox-est b { color: var(--texto); font-weight: 600; }
   .prox-ir { flex: none; color: var(--tenue); font-size: 18px; }
-  .ver-cupos { display: block; width: 100%; margin: 4px 0 8px; padding: 12px; min-height: 44px; font: inherit;
-               font-size: 14px; color: var(--verde); background: none; border: none; cursor: pointer; text-align: right; }
+  .ver-cupos { display: block; width: 100%; margin: 6px 0 8px; padding: 12px; min-height: 48px; font: inherit;
+               font-size: 15px; font-weight: 600; color: var(--verde); background: var(--verde-fondo);
+               border: none; border-radius: 12px; cursor: pointer; text-align: center; }
   .grupo-recs { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--tenue); margin: 10px 0 2px; }
   details.rec { border-left: 4px solid var(--linea); padding: 0 0 0 10px; margin-bottom: 4px; }
   details.rec.alta { border-left-color: var(--rojo); }
@@ -196,8 +202,8 @@
   details.rec .p { font-size: 13px; color: var(--tenue); padding-bottom: 6px; }
   /* Responder un recordatorio desde el celu (Leo, 5/10). */
   .responder {
-    border: 1px solid var(--linea); background: var(--papel); color: var(--verde);
-    border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 13px; font-weight: 600;
+    border: 1px solid var(--linea); background: var(--verde-fondo); color: var(--verde);
+    border-radius: 999px; padding: 6px 16px; font: inherit; font-size: 13px; font-weight: 600;
     cursor: pointer; margin: 2px 0 8px; min-height: 44px;
   }
   .responder[disabled] { opacity: 0.5; }
@@ -227,20 +233,29 @@
   .persona { cursor: pointer; }
   .contacto { display: flex; gap: 8px; padding: 2px 0 10px; flex-wrap: wrap; }
   .contacto a, .contacto button {
-    flex: 1 1 auto; min-width: 116px; text-align: center; text-decoration: none;
-    font: inherit; font-size: 13px; font-weight: 600; padding: 9px 12px;
-    border-radius: 10px; border: 1px solid var(--linea);
-    background: var(--papel); color: var(--verde); cursor: pointer;
+    flex: 1 1 auto; min-width: 116px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center;
+    text-align: center; text-decoration: none;
+    font: inherit; font-size: 14px; font-weight: 600; padding: 9px 12px;
+    border-radius: 12px; border: 1px solid var(--linea);
+    background: var(--verde-fondo); color: var(--verde); cursor: pointer;
   }
   .contacto .apagado { color: var(--tenue); border-style: dashed; }
   .cuando { font-size: 12px; color: var(--tenue); font-weight: 600; }
   .cuando.ya { color: var(--rojo); }
   .cuando.pronto { color: var(--ambar); }
   .copiar {
-    width: 100%; margin-top: 8px; padding: 10px; border-radius: 10px;
-    border: 1px solid var(--linea); background: var(--papel); color: var(--texto);
-    font: inherit; font-size: 13px; cursor: pointer;
+    width: 100%; margin-top: 8px; padding: 10px; min-height: 44px; border-radius: 12px;
+    border: 1px solid var(--linea); background: var(--papel); color: var(--verde);
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
   }
+  /* Todos los botones se hunden un poco al tocarlos: se nota que respondieron. */
+  .solapa, .refrescar, .responder, .copiar, .contacto a, .contacto button, .prox, .ver-cupos, .pend, .puerta button {
+    transition-property: transform, background-color, opacity; transition-duration: 120ms; transition-timing-function: ease-out;
+  }
+  .solapa:active, .responder:active, .copiar:active, .contacto a:active, .contacto button:active,
+  .prox:active, .ver-cupos:active, .pend:active, .puerta button:active { transform: scale(0.97); }
+  .solapa:focus-visible, .refrescar:focus-visible, .responder:focus-visible, .copiar:focus-visible,
+  .prox:focus-visible, .ver-cupos:focus-visible, .cabeza:focus-visible { outline: 2px solid var(--verde); outline-offset: 2px; }
   .veces {
     display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 999px;
     background: var(--crema); color: var(--dorado); font-size: 12px; font-weight: 700;
@@ -994,7 +1009,7 @@
       que = g.grupo;
       estado = 'Grupo privado' + (g.personas ? ' · ' + esc(g.personas) + (/^\d+$/.test(g.personas) ? ' pers.' : '') : '');
       // 14/11, Leo: «aparece confirmado pero no sé si pagaron la seña». Sin montos.
-      marcas.push(g.sena ? 'seña cobrada' : 'sin seña cargada');
+      if (g.sena) estado += ' · <span class="prox-ok">seña cobrada</span>'; else marcas.push('sin seña cargada');
     }
     return '<button class="prox" type="button" data-abrir="' + esc(id) + '">' +
       '<span class="prox-dia' + (dias <= 1 ? ' ya' : '') + '">' + dia + '</span>' +
@@ -1529,7 +1544,7 @@
         return '<div class="pend-fila"><span class="punto' + (r.alta ? ' alta' : '') + '"></span>' +
           '<span class="pend-t">' + esc(r.t) + '</span><span class="pend-c">' + esc(r.c) + '</span></div>';
       }).join('') +
-      '<div class="pend-pie"><span>' + esc(mas.join(' · ')) + '</span><span>ver todo ›</span></div></div>';
+      '<div class="pend-pie"><span>' + esc(mas.join(' · ')) + '</span><span class="boton-ir">Ver todo ›</span></div></div>';
   }
 
   /** «el 27/10 a las 19:00» → «27/10 19:00»; «día a confirmar» → «sin día». */

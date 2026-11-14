@@ -2392,9 +2392,9 @@ function detectarAlertas(todasLasEdiciones, filas, usadas, hoy, duplicadas, espe
         // «sin verificar — posible duplicado de la fila N» (formulario del curso,
         // 9/11): no es un pago más por confirmar, puede ser el mismo dos veces.
         texto: p.nombre + (/duplicad/i.test(p.verificado) ? ': posible pago duplicado, sin verificar' : ': hay un pago sin verificar'),
-        detalle: 'La planilla dice "' + p.verificado + '" en la columna pago verificado (fila ' + p.fila +
-                 ' de ' + p.hoja + '), y esos ' + plata(p.enDuda) + ' están sumando al cobrado de "' +
-                 ed.edicion + '".'
+        // Corto (14/11, Leo: «poné más corta la info de Mary»): la nota, la plata y dónde.
+        detalle: plata(p.enDuda) + ' que ya suman a lo cobrado. En la planilla: «' + p.verificado +
+                 '» (fila ' + p.fila + ' de ' + p.hoja + ').'
       });
     });
   });
