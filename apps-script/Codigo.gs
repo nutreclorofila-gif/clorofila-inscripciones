@@ -1123,7 +1123,10 @@ function leerEspera(filas, ediciones) {
       edicion: ligarAEdicion(texto, ediciones),
       fila: o._fila
     };
-  }).filter(function (x) { return x.nombre || x.email; });
+  }).filter(function (x) { return x.nombre || x.email; })
+    // «RESUELTO 29/10: anotado en el 20/11 (no queda en espera)»: ya no espera
+    // nada, y en Cupos salía como «Esperan lugar, pero no sé para qué fecha» (14/11).
+    .filter(function (x) { return !/^resuelt|no queda en espera/i.test(String(x.quiere || '')); });
 
   // Sin esto, una lista vacía y una pestaña que no se supo leer se ven igual
   // desde afuera: las dos dan cero.
@@ -1779,7 +1782,9 @@ function evaluarPago(f, ed) {
   if (pagoDesmentido(f.verificado)) {
     p.estadoPago = 'revisar';
     p.enDuda = p.monto;
-    p.nota = 'Marcado "' + f.verificado + '" en la columna pago verificado';
+    // Corto: en Plata salía entera la nota de la columna (14/11). La nota sigue
+    // en el detalle del aviso rojo.
+    p.nota = /duplicad/i.test(f.verificado) ? 'Posible pago duplicado, sin verificar' : 'Pago sin verificar en el banco';
   }
   return p;
 }

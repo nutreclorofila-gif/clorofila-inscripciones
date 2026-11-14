@@ -593,6 +593,10 @@ Salen en rojo en la portada, sin montos («Fulana: hay un pago sin verificar»; 
   pago duplicado, sin verificar», distinto de un pago sin verificar común.
 - Un pago sin verificar sale **una sola vez** (el aviso rojo), no también como «falta que pague»
   con todo el texto de la columna (14/11).
+- En Plata, «Falta que paguen», dice corto «Pago sin verificar en el banco» (antes, la nota
+  entera de la columna). La nota completa queda en el detalle del aviso, en Alertas.
+- En la lista de espera, una fila cuyo «Espera para» empieza con «RESUELTO» o dice «no queda en
+  espera» ya no cuenta como que espera (14/11).
 - «EN ESPERA: …» en la Edición (pagó otra fecha y entra solo si queda lugar, 14/11) no ocupa
   cupo y no avisa que no entra en ninguna edición.
 - «Código GC-… (cubre una parte)» en el medio de pago: lo que cubre la gift card va a la cuenta del

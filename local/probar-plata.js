@@ -154,6 +154,27 @@ caso(
   }
 );
 caso(
+  'en Plata, el pago sin verificar dice eso, corto, y no toda la nota de la columna',
+  '14/11: en «Falta que paguen» salía entero «Marcado "sin verificar — 14/11 …; volver a mirar el lunes"…»',
+  () => {
+    const e = armar('Taller de pastas — 12/11/2026', 12, [{nombre:'Dudoso',monto:'2600',verificado:'sin verificar — nota larga, volver a mirar el lunes'}]);
+    const p = e.ediciones[0].personas[0];
+    return p.nota === 'Pago sin verificar en el banco' || p.nota;
+  }
+);
+caso(
+  'quien figura RESUELTO en la lista de espera ya no espera',
+  '14/11: en Cupos salían dos personas «RESUELTO 29/10: anotado en el 20/11 (no queda en espera)» como si esperaran',
+  () => {
+    const e = armar('Taller de pastas — 12/11/2026', 12, [{nombre:'A',monto:'2600'}], null, null, { 'Lista de espera': [
+      ['LISTA DE ESPERA: se llena sola.'], ['nombre','email','celular','Espera para'],
+      ['Ya Resuelta','r@x.com','099111222','RESUELTO 29/10: anotada en el taller del 20/11 (no queda en espera)'],
+      ['Sigue Esperando','s@x.com','099111333','Taller de pastas 12/11/2026']] });
+    const n = (e.espera || []).map(x => x.nombre).join(', ');
+    return n === 'Sigue Esperando' || n;
+  }
+);
+caso(
   'el pago sin verificar sale una sola vez, no también como «falta que pague»',
   '14/11: el giro sin verificar de una persona salía dos veces en la portada, una con todo el texto de la columna',
   () => {
