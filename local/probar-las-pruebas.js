@@ -434,7 +434,7 @@ const MUTACIONES = [
   ['vuelve a tomar la fila 1 como encabezados a ciegas', CODIGO,
    'var inicio = filaDeEncabezados(filas);', 'var inicio = 0;'],
   ['la lista de espera ilegible deja de avisarse', CODIGO,
-   "lista.noSeSupoLeer = crudas.length > 0 && lista.length === 0;", 'lista.noSeSupoLeer = false;'],
+   "lista.noSeSupoLeer = crudas.length > 0 && leidas.length === 0;", 'lista.noSeSupoLeer = false;'],
   ['una gift card canjeada vuelve a figurar sin usar', CODIGO,
    "var usada = estaUsada(estado) || !!usadaPor || !!fechaUso;", 'var usada = estaUsada(estado);'],
   ['una columna vuelve a alimentar dos campos', CODIGO,
