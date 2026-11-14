@@ -175,6 +175,16 @@ caso(
   }
 );
 caso(
+  'una lista de espera con todo resuelto no avisa que no se pudo leer',
+  '14/11: con las dos filas en RESUELTO salió «Hay 2 en la lista de espera y no pude leer ninguna»',
+  () => {
+    const e = armar('Taller de pastas — 12/11/2026', 12, [{nombre:'A',monto:'2600'}], null, null, { 'Lista de espera': [
+      ['LISTA DE ESPERA: se llena sola.'], ['nombre','email','celular','Espera para'],
+      ['Ya Resuelta','r@x.com','099111222','RESUELTO 29/10: anotada en el taller del 20/11 (no queda en espera)']] });
+    return (tipos(e, 'espera_ilegible').length === 0 && (e.espera || []).length === 0) || JSON.stringify(e.alertas.map(a => a.tipo));
+  }
+);
+caso(
   'el pago sin verificar sale una sola vez, no también como «falta que pague»',
   '14/11: el giro sin verificar de una persona salía dos veces en la portada, una con todo el texto de la columna',
   () => {

@@ -1100,7 +1100,7 @@ function marcarRepetidores(ediciones) {
 function leerEspera(filas, ediciones) {
   var crudas = porEncabezado(filas);
 
-  var lista = crudas.map(function (o) {
+  var leidas = crudas.map(function (o) {
     // Una columna la agarra UN campo y nadie más, igual que en las gift cards:
     // sin esto, un encabezado como "Fecha del taller" se leía como la edición
     // que la persona quiere, y la alerta terminaba nombrando una fecha.
@@ -1123,16 +1123,17 @@ function leerEspera(filas, ediciones) {
       edicion: ligarAEdicion(texto, ediciones),
       fila: o._fila
     };
-  }).filter(function (x) { return x.nombre || x.email; })
-    // «RESUELTO 29/10: anotado en el 20/11 (no queda en espera)»: ya no espera
-    // nada, y en Cupos salía como «Esperan lugar, pero no sé para qué fecha» (14/11).
-    .filter(function (x) { return !/^resuelt|no queda en espera/i.test(String(x.quiere || '')); });
+  }).filter(function (x) { return x.nombre || x.email; });
+  // «RESUELTO 29/10: anotado en el 20/11 (no queda en espera)»: ya no espera
+  // nada, y en Cupos salía como «Esperan lugar, pero no sé para qué fecha» (14/11).
+  // Se leyó bien: cuenta como leída, no como pestaña ilegible.
+  var lista = leidas.filter(function (x) { return !/^resuelt|no queda en espera/i.test(String(x.quiere || '')); });
 
   // Sin esto, una lista vacía y una pestaña que no se supo leer se ven igual
   // desde afuera: las dos dan cero.
   lista.columnas = columnasDe(filas);
   lista.filasEnLaPestana = crudas.length;
-  lista.noSeSupoLeer = crudas.length > 0 && lista.length === 0;
+  lista.noSeSupoLeer = crudas.length > 0 && leidas.length === 0;
   lista.sinColumnaEdicion = lista.length > 0 && lista.every(function (x) { return !x.quiere; });
   return lista;
 }
