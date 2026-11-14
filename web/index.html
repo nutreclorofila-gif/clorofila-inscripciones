@@ -69,20 +69,14 @@
   .salir:active { opacity: 0.6; }
   .refrescar[disabled] { opacity: 0.5; }
 
-  /* --- tira de totales --- */
-  .totales { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0 4px; }
-  .total { background: var(--crema); border-radius: 14px; padding: 10px 8px; text-align: center; }
-  .total .n { font-size: 26px; font-weight: 700; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
-  .total .n.chico { font-size: 19px; }
-  .total .r { font-size: 12px; color: var(--tenue); text-transform: uppercase; letter-spacing: 0.04em; }
-
   /* --- solapas --- */
-  /* Cinco solapas: con más relleno, «Alertas» quedaba cortada en un celular de 375 px. */
-  nav { display: flex; gap: 4px; margin: 12px 0 16px; overflow-x: auto; scrollbar-width: none; }
+  /* Seis solapas desde que está Inicio (14/11): con más relleno, «Alertas» quedaba
+     cortada en un celular de 375 px. Medido: entran con 5 px a los costados y 3 entre ellas. */
+  nav { display: flex; gap: 3px; margin: 12px 0 16px; overflow-x: auto; scrollbar-width: none; }
   nav::-webkit-scrollbar { display: none; }
   .solapa {
-    flex: 0 0 auto; border: none; background: var(--crema); color: var(--texto);
-    border-radius: 999px; padding: 9px 9px; font: inherit; font-size: 14px; cursor: pointer;
+    flex: 1 0 auto; border: none; background: var(--crema); color: var(--texto);
+    border-radius: 999px; padding: 9px 5px; font: inherit; font-size: 14px; cursor: pointer;
     min-height: 44px;
   }
   .solapa[aria-selected="true"] { background: var(--verde); color: var(--fondo); font-weight: 600; }
@@ -178,6 +172,20 @@
   .pend-t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pend-c { font-size: 12px; color: var(--tenue); flex: none; }
   .pend-pie { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--tenue); padding-top: 4px; }
+  /* Próximas fechas de Inicio: un renglón por fecha, se toca para abrirla en Cupos. */
+  .prox { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font: inherit;
+          color: var(--texto); background: var(--papel); border: 1px solid var(--linea); border-radius: 12px;
+          padding: 10px 12px; margin-bottom: 6px; min-height: 48px; cursor: pointer; }
+  .prox-dia { flex: 0 0 66px; font-size: 13px; font-weight: 600; color: var(--tenue); }
+  .prox-dia.ya { color: var(--rojo); }
+  .prox-que { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .prox-nom { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prox-marca { color: var(--ambar); }
+  .prox-est { font-size: 13px; color: var(--tenue); }
+  .prox-est b { color: var(--texto); font-weight: 600; }
+  .prox-ir { flex: none; color: var(--tenue); font-size: 18px; }
+  .ver-cupos { display: block; width: 100%; margin: 4px 0 8px; padding: 12px; min-height: 44px; font: inherit;
+               font-size: 14px; color: var(--verde); background: none; border: none; cursor: pointer; text-align: right; }
   .grupo-recs { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--tenue); margin: 10px 0 2px; }
   details.rec { border-left: 4px solid var(--linea); padding: 0 0 0 10px; margin-bottom: 4px; }
   details.rec.alta { border-left-color: var(--rojo); }
@@ -276,7 +284,6 @@
   </header>
 
   <div id="error" class="error oculto"></div>
-  <div class="totales" id="totales"></div>
   <nav id="solapas" role="tablist"></nav>
   <main id="panel"></main>
 </div>
@@ -285,7 +292,7 @@
   // Apunta al Apps Script que lee la planilla. El PIN es lo que protege los datos.
   var URL_API = "https://script.google.com/macros/s/AKfycbzLD9WH9fQN7_yVuSzC1KtQ1PRabYKK5YBEKUkOmssRDLsV0SfRq-kM5HxgNYN6_FpT/exec";
   var DATOS = null;
-  var SOLAPA = 'cupos';
+  var SOLAPA = 'inicio';
   var ABIERTAS = {};
   var CLAVE_PIN = 'clorofila_pin';
   var CLAVE_CACHE = 'clorofila_ultimo';
@@ -555,7 +562,6 @@
   }
 
   function mostrarPuerta(mensaje) {
-    document.getElementById('totales').classList.add('oculto');
     document.getElementById('solapas').classList.add('oculto');
     document.getElementById('sello').textContent = '';
     document.getElementById('btnRefrescar').classList.add('oculto');
@@ -615,7 +621,6 @@
   }
 
   function abrirApp() {
-    document.getElementById('totales').classList.remove('oculto');
     document.getElementById('solapas').classList.remove('oculto');
     document.getElementById('btnRefrescar').classList.remove('oculto');
     document.getElementById('btnSalir').classList.remove('oculto');
@@ -799,30 +804,15 @@
   function pintarTodo() {
     document.getElementById('sello').textContent =
       'Datos de la planilla · ' + hora(DATOS.generadoEn);
-    pintarTotales();
     pintarSolapas();
     pintarPanel();
-  }
-
-  function pintarTotales() {
-    var r = DATOS.resumen;
-    // La plata NO va acá. Esta barra se ve apenas se abre la app, y la app se
-    // abre en el local, en la calle, con gente al lado. Lo cobrado vive en la
-    // solapa Plata, a un toque de distancia.
-    document.getElementById('totales').innerHTML =
-      caja(r.anotados + '<span style="font-size:.55em;color:var(--tenue)">/' + r.cupo + '</span>', 'anotados') +
-      caja(r.libres, 'lugares libres') +
-      caja(r.pendientes, r.pendientes === 1 ? 'pago pendiente' : 'pagos pendientes');
-  }
-  function caja(n, rotulo, chico) {
-    return '<div class="total"><div class="n' + (chico ? ' chico' : '') + '">' + n +
-           '</div><div class="r">' + rotulo + '</div></div>';
   }
 
   function pintarSolapas() {
     var altas = DATOS.resumen.alertasAltas;
     var total = DATOS.resumen.alertasTotal;
     var defs = [
+      ['inicio', 'Inicio', 0],
       ['cupos', 'Cupos', 0],
       ['plata', 'Plata', 0],
       ['gente', 'Gente', 0],
@@ -916,7 +906,8 @@
     // y Plata, y en Gente los "Debe" y en Alertas los pagos de hasta tres días
     // atrás parecían de ahora. El de versiones distintas, por lo mismo.
     var viejo = avisoDeCache() + avisoDeVersion();
-    if (SOLAPA === 'cupos') p.innerHTML = viejo + avisoDeNovedades() + vistaCupos();
+    if (SOLAPA === 'inicio') p.innerHTML = viejo + avisoDeNovedades() + vistaInicio();
+    else if (SOLAPA === 'cupos') p.innerHTML = viejo + vistaCupos();
     else if (SOLAPA === 'plata') p.innerHTML = viejo + vistaPlata();
     else if (SOLAPA === 'grupos') p.innerHTML = viejo + vistaGrupos();
     else if (SOLAPA === 'gente') {
@@ -940,18 +931,86 @@
     else p.innerHTML = viejo + vistaAlertas();
   }
 
+  /* ---------- inicio ---------- */
+  /**
+   * La pantalla principal (Leo, 14/11: «tendría que haber una pantalla principal
+   * y Cupos que sea una pestaña, pero que en la principal esté lo más importante
+   * de Cupos»). Solo lo importante: lo pendiente, lo urgente y las próximas
+   * fechas. Las gift cards, lo pasado y los anulados quedan en Cupos. Sin montos.
+   */
+  var DIAS_PROXIMAS = 14, MINIMO_PROXIMAS = 3;
+  function vistaInicio() {
+    // Los recordatorios van juntos en UNA tarjeta compacta (solo el título): el
+    // 5/10 hubo 12 alertas altas y la portada era una pared roja.
+    var urgentes = DATOS.alertas.filter(function (a) { return a.nivel === 'alta' && !esCargada(a); });
+    var html = tarjetaPendientes() + urgentes.map(avisoSinPlata).join('');
+    var prox = proximasFechas();
+    html += '<div class="seccion">Próximas fechas</div>' + (prox.length
+      ? prox.map(filaProxima).join('')
+      : '<div class="vacio">No hay talleres ni grupos en los próximos días.</div>');
+    html += '<button class="ver-cupos" type="button" data-ir="cupos">Ver todos los cupos ›</button>';
+    return html;
+  }
+
+  /**
+   * Lo que viene: talleres, cursos y grupos confirmados que todavía no
+   * empezaron, por fecha. Los de las próximas dos semanas y, si son menos de
+   * tres, los siguientes hasta completar tres.
+   */
+  function proximasFechas() {
+    var h = new Date(), hoy0 = new Date(h.getFullYear(), h.getMonth(), h.getDate()).getTime();
+    var items = DATOS.ediciones.filter(function (e) { return e.vigente; }).map(function (e) {
+      var d = new Date(e.inicio || e.fecha);
+      return { t: isNaN(d) ? NaN : new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(), e: e };
+    }).concat(gruposEnCupos().filter(function (g) { return g.estado === 'confirmado'; }).map(function (g) {
+      return { t: g.fecha ? fechaLocal(g.fecha).getTime() : NaN, g: g };
+    })).filter(function (x) { return !isNaN(x.t) && x.t >= hoy0; });
+    items.sort(function (a, b) { return a.t - b.t; });
+    var tope = hoy0 + DIAS_PROXIMAS * 86400000;
+    return items.filter(function (x, i) { return x.t <= tope || i < MINIMO_PROXIMAS; });
+  }
+
+  var DIAS_SEMANA = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+  /** Un renglón por fecha; al tocarlo se abre su tarjeta en Cupos. */
+  function filaProxima(x) {
+    var f = new Date(x.t), hoy = new Date();
+    var dias = Math.round((x.t - new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime()) / 86400000);
+    var dia = dias === 0 ? 'HOY' : dias === 1 ? 'mañana'
+            : DIAS_SEMANA[f.getDay()] + ' ' + f.getDate() + '/' + (f.getMonth() + 1);
+    var id, que, estado, marcas = [];
+    if (x.e) {
+      var e = x.e;
+      id = e.id;
+      que = e.titulo;
+      if (e.fechaEsMes) que += ' · ' + (e.subtitulo || e.edicion);
+      estado = e.cupo === null ? e.anotados + ' anotados'
+             : e.quedan > 0 ? e.anotados + ' de ' + e.cupo + ' · <b>' + e.quedan + (e.quedan === 1 ? ' libre' : ' libres') + '</b>'
+             : e.quedan === 0 ? '<b>Lleno</b>' : '<b>' + Math.abs(e.quedan) + ' de más</b>';
+      var r = (e.restricciones || []).length;
+      if (r) marcas.push(r === 1 ? '1 restricción' : r + ' restricciones');
+      var esperan = (DATOS.espera || []).filter(function (w) { return w.edicion === e.edicion && !w.yaAnotado; }).length;
+      if (esperan && e.quedan > 0 && e.abierta) marcas.push(esperan + (esperan === 1 ? ' espera' : ' esperan') + ' y hay lugar');
+    } else {
+      var g = x.g;
+      id = 'grupo-' + g.fila;
+      que = g.grupo;
+      estado = 'Grupo privado' + (g.personas ? ' · ' + esc(g.personas) + (/^\d+$/.test(g.personas) ? ' pers.' : '') : '');
+      // 14/11, Leo: «aparece confirmado pero no sé si pagaron la seña». Sin montos.
+      marcas.push(g.sena ? 'seña cobrada' : 'sin seña cargada');
+    }
+    return '<button class="prox" type="button" data-abrir="' + esc(id) + '">' +
+      '<span class="prox-dia' + (dias <= 1 ? ' ya' : '') + '">' + dia + '</span>' +
+      '<span class="prox-que"><span class="prox-nom">' + esc(que) + '</span>' +
+        '<span class="prox-est">' + estado +
+          (marcas.length ? ' · <span class="prox-marca">' + esc(marcas.join(' · ')) + '</span>' : '') + '</span></span>' +
+      '<span class="prox-ir">›</span></button>';
+  }
+
   /* ---------- cupos ---------- */
   function vistaCupos() {
     var vigentes = DATOS.ediciones.filter(function (e) { return e.vigente; });
     var pasadas = DATOS.ediciones.filter(function (e) { return !e.vigente; });
     var html = '';
-
-    // Los recordatorios van juntos en UNA tarjeta compacta (solo el título): el
-    // 5/10 hubo 12 alertas altas y la portada era una pared roja.
-    var urgentes = DATOS.alertas.filter(function (a) { return a.nivel === 'alta' && !esCargada(a); });
-    html += tarjetaPendientes();
-    if (urgentes.length) html += urgentes.map(avisoSinPlata).join('');
-
     if (!vigentes.length) html += '<div class="vacio">No hay ninguna edición abierta ni por venir.</div>';
     // Lo más próximo primero: es lo que hay que mirar hoy. Por cuándo EMPIEZA:
     // el curso de octubre va antes que un taller del 16/10 aunque siga vigente
@@ -1036,7 +1095,7 @@
     var plataTxt = [];
     if (g.saldo !== null && g.saldo !== undefined && g.total) plataTxt.push('Saldo a cobrar <b>' + plata(g.saldo) + '</b>');
     if (g.total !== null && g.total !== undefined) plataTxt.push('Total <b>' + plata(g.total) + '</b>');
-    if (g.sena) plataTxt.push('Seña <b>' + plata(g.sena) + '</b>');
+    if (g.sena) plataTxt.push('Seña cobrada <b>' + plata(g.sena) + '</b>');
     if (!plataTxt.length && g.precio) plataTxt.push('<b>' + plata(g.precio) + '</b> por persona');
     return '<div class="tarjeta">' +
       '<button class="cabeza" data-ed="' + id + '" aria-expanded="' + !!abierta + '">' +
@@ -1230,7 +1289,7 @@
     // En una propuesta la Seña es la que se le PIDIÓ, no una pagada (24/10): dice
     // «Seña pedida» y no lleva saldo, que daba a entender que ya había pagado.
     var conSaldo = e.estado === 'confirmado' || e.estado === 'realizado';
-    if (e.sena) plataTxt.push((conSaldo ? 'Seña' : 'Seña pedida') + ' <b>' + plata(e.sena) + '</b>');
+    if (e.sena) plataTxt.push((conSaldo ? 'Seña cobrada' : 'Seña pedida') + ' <b>' + plata(e.sena) + '</b>');
     if (conSaldo && e.saldo !== null && e.saldo !== undefined && e.total) plataTxt.push('Saldo <b>' + plata(e.saldo) + '</b>');
     if (!plataTxt.length && e.precio) plataTxt.push('<b>' + plata(e.precio) + '</b> por persona');
     return '<div class="tarjeta"><div class="grupo">' +
@@ -1642,6 +1701,18 @@
         return;
       }
       enviarRespuesta(enviar.dataset.enviar, BORRADOR);
+      return;
+    }
+
+    var abrir = ev.target.closest('[data-abrir]');
+    if (abrir) {
+      var id = abrir.dataset.abrir;
+      ABIERTAS[id] = true;
+      SOLAPA = 'cupos';
+      pintarSolapas();
+      pintarPanel();
+      var cab = document.querySelector('[data-ed="' + id + '"]');
+      if (cab && cab.scrollIntoView) cab.scrollIntoView({ block: 'start' }); else window.scrollTo(0, 0);
       return;
     }
 

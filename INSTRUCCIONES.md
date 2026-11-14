@@ -100,6 +100,7 @@ una alerta alta en vez de dejar de mostrar ediciones en silencio.
 
 | Solapa | Qué hay |
 |---|---|
+| **Inicio** | La pantalla principal (Leo, 14/11: «una pantalla principal y Cupos que sea una pestaña, pero que en la principal esté lo más importante de cupos»). Solo lo importante: la tarjeta **Pendientes**, los avisos rojos (sin montos) y **Próximas fechas**: un renglón por taller, curso o grupo confirmado que todavía no empezó, de las próximas dos semanas (y al menos tres), con el día, cuántos anotados y cuántos lugares libres o «Lleno», y si hay restricciones o gente esperando con lugar. Al tocar un renglón se abre su tarjeta en Cupos. Abajo, «Ver todos los cupos». Las gift cards, lo pasado y lo anulado no van acá (Leo, 14/11: «no sé si tiene sentido verlo, sí ver cosas importantes»). |
 | **Cupos** | Una tarjeta por edición vigente (una que está **Cerrada y sin nadie anotado** no se hace: no aparece ni suma al cupo de arriba) con `anotados / cupo` en número grande, barra de ocupación, cobrado y cuántos deben. Se toca la tarjeta y se despliega la gente. Si hay gente esperando, el pie lo dice, y en verde *"esperando, y hay lugar"* cuando hay lugar libre. Quien está en la lista de espera pero ya se anotó en esa misma edición (mismo mail o mismo celular) no cuenta como que espera, ni acá ni en Alertas. Entre las ediciones, por fecha, los grupos privados confirmados de «Eventos y empresas» (ver *Grupos*), que no suman a ningún cupo. Abajo, las ediciones pasadas o cerradas, colapsadas, y la gente de la lista de espera que no se pudo atar a una fecha, con lo que escribió que quiere. |
 | **Plata** | Cobrado total de lo que viene, desglose por edición, lista de quién debe y cuánto, y el bloque de Tikzet. Incluye el curso que ya empezó y se sigue pagando en cuotas, aunque haya cerrado la inscripción: ahí figura solo quien está en la pestaña "Pagos en cuotas". |
 | **Gente** | Todos los inscriptos con buscador por nombre, mail o celular, y su estado de pago. |
@@ -119,7 +120,7 @@ Además:
 - **Copiar la lista de anotados** de una edición: título, cupo y solo los nombres (sin estado
   de pago ni montos), para pegarla en el grupo o mandarla a la cocina.
 - **Funciona sin señal**: guarda el último estado en el teléfono y lo muestra enseguida al
-  abrir, mientras busca lo nuevo, con un cartel en las cinco solapas que dice de cuándo es y
+  abrir, mientras busca lo nuevo, con un cartel en las seis solapas que dice de cuándo es y
   por qué no es lo de ahora. Lo guardado va junto al PIN con que se obtuvo, pero como el PIN
   también queda guardado, quien abra la app en el teléfono desbloqueado la ve: lo que protege
   es el bloqueo del teléfono y el botón **Salir** (ver *Lo que queda guardado en el teléfono*).
@@ -135,7 +136,7 @@ La app dice qué pasó y no toca el PIN, salvo que el servidor lo rechace:
 | Google contesta con su página de error (el 403 cuando se revoca el permiso) | "Google no mandó los datos (error 403). Puede que haya que volver a autorizar la app." |
 | El teléfono está sin señal | "El teléfono está sin señal." |
 | El pedido queda colgado | A los 8 segundos avisa que sigue esperando; a los 30 corta y lo dice. |
-| La página y el servidor quedaron de versiones distintas (se publicó uno solo, o el teléfono tiene la página vieja) | Un aviso en las cinco solapas, sin montos: *"Cerrá la app y abrila de nuevo"* o *"Tocá Actualizar"*, y si sigue, que hay que volver a publicar. Ver *Desplegar cambios*. |
+| La página y el servidor quedaron de versiones distintas (se publicó uno solo, o el teléfono tiene la página vieja) | Un aviso en las seis solapas, sin montos: *"Cerrá la app y abrila de nuevo"* o *"Tocá Actualizar"*, y si sigue, que hay que volver a publicar. Ver *Desplegar cambios*. |
 
 Si hay datos guardados, en todos los casos menos el primero se muestran esos datos con el
 motivo en el cartel amarillo. Lo prueba `local/probar-arranque.js`.
@@ -231,6 +232,12 @@ cupo ni da alertas.
 - La fecha y las personas pueden ser texto («fines de noviembre», «8 a 10»): se muestran
   tal cual. Para ordenar se usa el primer día que aparezca en la fecha («jueves 10/12 o
   17/12» → 10/12).
+- **Realizado con saldo 0** (total cargado y nada por cobrar) cuenta como **Cobrado** aunque nadie
+  cambió el Estado (14/11: dos grupos pagos salían «hecho, falta cobrar»).
+- La columna O es la **seña cobrada** (desde el 14/11, Inscripciones dejó ahí solo lo pagado; la
+  pedida va en AA). En un confirmado la tarjeta dice «Seña cobrada»; en Inicio, el renglón del grupo
+  dice «seña cobrada» o «sin seña cargada», sin montos (Leo: «aparece confirmado pero no sé si
+  pagaron la seña»).
 - El Estado se lee por cómo empieza: Consulta, Propuesta…, Confirmado…, Realizado, Cobrado,
   Cancelado, Descartado, Auspicio, Contactada. Vacío cuenta como Consulta. **Auspicio** (todo lo que empiece
   así, ej. «Auspicio sí»): un compromiso hecho, sin fecha ni cobro; va en su sección
@@ -323,7 +330,7 @@ venció, y las cuotas que todavía no vencieron van aparte como **"Más adelante
 Son dos piezas y se publican en este orden: **primero el servidor, después la página.** La
 página nueva lee campos que agrega el servidor nuevo; al revés, si el servidor falla, en el
 teléfono queda una pantalla que espera datos que nadie le manda. Si igual quedan de versiones
-distintas, la app lo avisa en las cinco solapas (*"Los datos vienen de una versión anterior
+distintas, la app lo avisa en las seis solapas (*"Los datos vienen de una versión anterior
 de la app"* o *"Esta pantalla es más vieja que los datos"*): la marca es `FORMA_ESTADO` en
 `Codigo.gs` y `FORMA_ESPERADA` en `Index.html`, y se suben juntas, en 1, cada vez que el
 estado gana, pierde o cambia un campo que la página lee.
@@ -431,8 +438,10 @@ que copiaste de WhatsApp.
 
 ## La plata no se ve en la portada
 
-Lo primero que aparece al abrir la app son **anotados, lugares libres y pagos pendientes**.
-Ningún monto: ni arriba, ni en las tarjetas de cada edición. La app se abre en el local y
+Lo primero que aparece al abrir la app es **Inicio**: pendientes, avisos y próximas fechas.
+Ningún monto: ni ahí, ni en las tarjetas de cada edición de Cupos. La tira de arriba con
+anotados, lugares libres y pagos pendientes se sacó el 14/11 (Leo: «no sé si tiene sentido»:
+sumaba cursos y talleres juntos); los lugares libres se ven por fecha en Inicio. La app se abre en el local y
 en la calle, con gente al lado.
 
 Lo cobrado vive entero en la solapa **Plata**, a un toque: el total, lo que falta cobrar,
@@ -610,7 +619,7 @@ octubre en marcha con uno de más, «el cartel rojo no tiene sentido». La tarje
 
 Leo, 24/10: «lo que no aparece son las gift cards» (estaban solo al final de Plata). En Cupos,
 debajo de las actividades, va «Gift cards sin usar (n)»: a quién se la regalaron, para qué y
-quién se la regaló, sin montos (Cupos es la portada). Las pendientes de pago se cuentan en una
+quién se la regaló, sin montos (Cupos no lleva montos a la vista). No van en Inicio (14/11). Las pendientes de pago se cuentan en una
 línea, sin nombre; su detalle y los importes están en Plata. Una gift card con Estado
 «Anulada», «Cancelada», «Devuelta» o «Reembolsada» no se muestra ni se cuenta en ningún lado.
 

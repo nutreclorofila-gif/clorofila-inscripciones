@@ -1276,6 +1276,9 @@ function leerEventos(filas, hoy) {
              : /^contactad/.test(e) ? 'contactada' : 'otro';
     var total = parsearMonto(f[13]), sena = parsearMonto(f[14]), saldo = parsearMonto(f[15]);
     if (saldo === null && total !== null) saldo = total - (sena || 0);
+    // Hecho y pago del todo es cobrado, aunque nadie cambió el Estado: salía como
+    // «hecho, falta cobrar» (14/11, Leo: «en los grupos hay cosas que ya pagaron»).
+    if (estado === 'realizado' && total > 0 && saldo === 0) estado = 'cobrado';
     var chat = texto(6);
     res.push({
       fila: i + 2, grupo: grupo, contacto: texto(2), canal: texto(5),

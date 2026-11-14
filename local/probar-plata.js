@@ -1226,6 +1226,18 @@ caso(
   }
 );
 caso(
+  'un grupo realizado y pago del todo cuenta como cobrado; con saldo, sigue «falta cobrar»',
+  '14/11, Leo: «en los grupos hay cosas que ya pagaron»: dos realizados con saldo 0 salían como «hecho, falta cobrar»',
+  () => {
+    const e = conEventos([
+      { grupo: 'Grupo Pago', estado: 'Realizado', total: '19.500', sena: '19.500', saldo: '0' },
+      { grupo: 'Grupo Debe', estado: 'Realizado', total: '20.000', sena: '4.000', saldo: '16.000' },
+      { grupo: 'Grupo Sin Montos', estado: 'Realizado' }]);
+    const est = e.eventos.map(g => g.grupo + ':' + g.estado).join(', ');
+    return est === 'Grupo Pago:cobrado, Grupo Debe:realizado, Grupo Sin Montos:realizado' || est;
+  }
+);
+caso(
   'lee un grupo confirmado con su plata y su fecha',
   'es lo que Leo pidió ver en el celu: cuándo, cuántos, cuánto y qué falta',
   () => {

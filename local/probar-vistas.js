@@ -26,6 +26,7 @@ function correr(nombre, fn) {
 function probarEstado(titulo, estado) {
   console.log('\n--- ' + titulo + ' ---');
   const ui = cargarUI(estado);
+  correr('solapa Inicio',  () => ui.vistaInicio());
   correr('solapa Cupos',   () => ui.vistaCupos());
   correr('solapa Plata',   () => ui.vistaPlata());
   correr('solapa Gente',   () => ui.vistaGente(''));
@@ -108,15 +109,15 @@ function probarEstado(titulo, estado) {
   // La plata no puede aparecer en lo primero que se ve. La app se abre en el
   // local y en la calle, con gente al lado.
   corridos++;
-  ui.pintarTotales();
-  const barra = ui.verEscrito('totales');
+  // Desde el 14/11 la portada es Inicio (sin la tira de totales); Cupos sigue sin montos.
+  const barra = ui.vistaInicio();
   const cupos = ui.vistaCupos();
   const montos = (h) => (h.match(/\$\s?[\d.]+/g) || []);
   if (montos(barra).length === 0 && montos(cupos).length === 0) {
     console.log('  ok    no hay ningún monto en la portada');
   } else {
     fallas++;
-    console.log('  FALLA se ve plata en la portada: barra ' + JSON.stringify(montos(barra)) +
+    console.log('  FALLA se ve plata en la portada: Inicio ' + JSON.stringify(montos(barra)) +
                 ', solapa Cupos ' + JSON.stringify(montos(cupos)));
   }
 
@@ -140,7 +141,7 @@ function probarEstado(titulo, estado) {
       detalle:'Esos $ 5.400 están sumando al cobrado.' }
   ];
   const ui2 = cargarUI(conAlertas);
-  const cupos2 = ui2.vistaCupos();
+  const cupos2 = ui2.vistaInicio();
   const m2 = montos(cupos2);
   if (m2.length === 0 && /pago sin verificar/.test(cupos2) && /fila 5/.test(cupos2)) {
     console.log('  ok    las alertas altas se ven en la portada, pero sin los montos');
@@ -688,6 +689,29 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
   const fuera = ['Grupo Propuesta', 'Grupo Descartado', 'Grupo Cancelado', 'Grupo Cobrado'].filter(t => pc(t) !== -1);
   if (!fuera.length) console.log('  ok    propuestas, descartados, cancelados y cobrados no van en Cupos');
   else { fallas++; console.log('  FALLA están en Cupos: ' + fuera.join(', ')); }
+  // 14/11, Leo: «una pantalla principal y Cupos que sea una pestaña, pero que en
+  // la principal esté lo más importante de cupos». Próximas fechas: dos semanas,
+  // y al menos tres; los grupos confirmados entran, lo pasado y lo sin fecha no.
+  corridos++;
+  const ini = uiC.vistaInicio();
+  const pi = (t) => ini.indexOf(t);
+  const noVan = ['Grupo Realizado', 'Grupo Sin Fecha', 'Grupo Propuesta', 'Grupo Cobrado'].filter(t => pi(t) !== -1);
+  if (pi('Edicion Pronto') !== -1 && pi('Edicion Pronto') < pi('Grupo Medio') && pi('Grupo Medio') < pi('Edicion Tarde') && !noVan.length
+      && /seña cobrada/.test(ini.slice(pi('Grupo Medio'))) && /data-abrir="ed-pronto"/.test(ini) && /data-abrir="grupo-7"/.test(ini) && /data-ir="cupos"/.test(ini) && !/\$/.test(ini)) {
+    console.log('  ok    Inicio muestra las próximas fechas por orden, con los grupos confirmados, sin plata, y lleva a Cupos');
+  } else { fallas++; console.log('  FALLA próximas fechas en Inicio: ' + ['Edicion Pronto','Grupo Medio','Edicion Tarde'].map(pi).join(', ') + ' / no van: ' + noVan.join(', ')); }
+  corridos++;
+  const muchas = cargarUI(Object.assign({}, conGrupos, { eventos: [], ediciones: [3, 5, 8, 20, 40].map((d, i) =>
+    Object.assign({}, molde, { id: 'ed-' + i, subtitulo: 'Fecha' + d, edicion: 'Fecha' + d, titulo: 'Fecha' + d, inicio: enDias(d).toISOString(), fecha: enDias(d).toISOString(), vigente: true })) }));
+  const nProx = muchas.proximasFechas().length;
+  if (nProx === 3) console.log('  ok    las próximas fechas son las de dos semanas (y no las de dentro de 20 o 40 días si ya hay tres)');
+  else { fallas++; console.log('  FALLA próximas fechas: esperaba 3, hay ' + nProx); }
+  corridos++;
+  const conGift = cargarUI(Object.assign({}, conGrupos, { giftCards: [{ nombre: 'Regalada Prueba', actividad: 'Tapeo', usada: false, pendiente: false }] }));
+  if (conGift.vistaInicio().indexOf('Regalada Prueba') === -1 && conGift.vistaCupos().indexOf('Regalada Prueba') !== -1
+      && !/class="pend"/.test(uiC.vistaCupos())) {
+    console.log('  ok    las gift cards y los pendientes no se repiten: gift cards en Cupos, pendientes en Inicio');
+  } else { fallas++; console.log('  FALLA gift cards o pendientes en la solapa equivocada'); }
   corridos++;
   const tg = c.slice(pc('Grupo Medio') - 400, pc('Edicion Tarde'));
   // «en 10 días»: la fecha es de acá, no de Greenwich (que en Uruguay cae el día antes).
@@ -703,9 +727,7 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
   } else { fallas++; console.log('  FALLA al tocar la tarjeta del grupo: ' + ta.slice(0, 300)); }
   corridos++;
   const sinG = cargarUI(Object.assign({}, conGrupos, { eventos: [] }));
-  uiC.pintarTotales(); sinG.pintarTotales();
-  if (uiC.verEscrito('totales') && uiC.verEscrito('totales') === sinG.verEscrito('totales')
-      && (c.match(/lugares? libres?/g) || []).length === (sinG.vistaCupos().match(/lugares? libres?/g) || []).length) {
+  if ((c.match(/lugares? libres?/g) || []).length === (sinG.vistaCupos().match(/lugares? libres?/g) || []).length) {
     console.log('  ok    los grupos no suman a los cupos ni a los lugares libres');
   } else { fallas++; console.log('  FALLA los grupos cambian los cupos o los lugares libres'); }
   corridos++;
@@ -765,8 +787,8 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
   } else { fallas++; console.log('  FALLA el formato largo: ' + fLargo.slice(0, 300)); }
   corridos++;
   const tProp = tLargo.slice(0, 1500);
-  if (/Seña pedida <b>/.test(tProp) && !/Saldo/.test(tProp.slice(0, tProp.indexOf('Próximo paso'))) && /Seña <b>/.test(tCorto) && /Saldo <b>/.test(tCorto)) {
-    console.log('  ok    en una propuesta dice «Seña pedida» y no lleva saldo; en un confirmado, seña y saldo');
+  if (/Seña pedida <b>/.test(tProp) && !/Saldo/.test(tProp.slice(0, tProp.indexOf('Próximo paso'))) && /Seña cobrada <b>/.test(tCorto) && /Saldo <b>/.test(tCorto)) {
+    console.log('  ok    en una propuesta dice «Seña pedida» y no lleva saldo; en un confirmado, «Seña cobrada» y saldo');
   } else { fallas++; console.log('  FALLA la seña: ' + tProp.slice(0, 400).replace(/<[^>]+>/g, ' ')); }
 
   // Leo, 24/10: «aparecen muchos grupos que no están confirmados ni nada… es mucha información».
@@ -798,7 +820,7 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
 // Las piezas se prueban sueltas; esto comprueba que estén enchufadas.
 console.log('\n--- Que las piezas estén conectadas ---');
 const fuente = fs.readFileSync(path.join(base, 'apps-script', 'Index.html'), 'utf8');
-[['el aviso de novedades se pinta en Cupos', /SOLAPA === 'cupos'\)\s*p\.innerHTML = viejo \+ avisoDeNovedades\(\)/],
+[['el aviso de novedades se pinta en Inicio', /SOLAPA === 'inicio'\)\s*p\.innerHTML = viejo \+ avisoDeNovedades\(\)/],
  ['y NO en Plata, que es donde están los montos', /SOLAPA === 'plata'\) p\.innerHTML = viejo \+ vistaPlata/],
  ['cada estado que llega del servidor pasa por recibirEstado', /recibirEstado\(/],
  ['ya no se guarda la caché por afuera de recibirEstado', /^(?![\s\S]*guardarCache\(nuevo)/]
@@ -879,7 +901,7 @@ else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' vece
   };
   const est = JSON.parse(JSON.stringify(G.paraElTelefono(G.construirEstado(crudo, new Date(2026, 9, 5, 10)))));
   const ui = cargarUI(est);
-  const c = ui.vistaCupos(), a = ui.vistaAlertas();
+  const c = ui.vistaInicio(), a = ui.vistaAlertas();
   const tarjetas = (h) => (h.match(/class="aviso /g) || []).length;
   [
     ['la portada muestra los recordatorios en UNA tarjeta, no en 9', tarjetas(c) <= 2],
@@ -925,7 +947,7 @@ else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' vece
   };
   const est = JSON.parse(JSON.stringify(G.paraElTelefono(G.construirEstado(crudo, new Date(2026, 9, 5, 10)))));
   const ui = cargarUI(est);
-  const c = ui.vistaCupos(), a = ui.vistaAlertas();
+  const c = ui.vistaInicio(), a = ui.vistaAlertas();
   const seccionResp = a.split('Ya respondiste')[1] || '';
   [
     ['cada recordatorio pendiente tiene su botón Responder', /data-responder="decidir otra cosa">Responder</.test(a)],
@@ -962,10 +984,11 @@ else { fallas++; console.log('  FALLA recibirEstado aparece ' + cuantos + ' vece
   };
   const est = JSON.parse(JSON.stringify(G.paraElTelefono(G.construirEstado(crudo, new Date(2026, 10, 1, 10)))));
   const ui = cargarUI(est);
-  const c = ui.vistaCupos(), a = ui.vistaAlertas();
+  const c = ui.vistaInicio(), a = ui.vistaAlertas();
   [
     ['no hay cartel de restricción en la portada', !/Restricción alimentaria/.test(c) && !/class="aviso[^"]*">[^]*?gluten/.test(c.split('class="tarjeta')[0])],
-    ['la restricción está en la tarjeta de su actividad, a la vista', /class="restr"><b>Restricción:<\/b> Persona Prueba — Sin &lt;b&gt;gluten&lt;\/b&gt;/.test(c)],
+    ['la restricción está en la tarjeta de su actividad, a la vista', /class="restr"><b>Restricción:<\/b> Persona Prueba — Sin &lt;b&gt;gluten&lt;\/b&gt;/.test(ui.vistaCupos())],
+    ['y en Inicio la fecha avisa que hay una restricción', /prox-marca">1 restricción</.test(c)],
     ['«No sé» no aparece como restricción', !c.includes('Otra Prueba —')],
     ['tampoco va en Alertas', !/gluten/.test(a)]
   ].forEach(([nombre, ok]) => {
