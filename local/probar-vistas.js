@@ -799,6 +799,20 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
     console.log('  ok    las propuestas y consultas sin seña van plegadas en «En conversación», con su conteo');
   } else { fallas++; console.log('  FALLA las propuestas no quedaron plegadas: ' + (h.match(/<summary>[^<]*/g) || []).join(' | ')); }
   corridos++;
+  // 14/11, Leo: «habría que sacar los grupos que pasaron».
+  const ayer = new Date(); ayer.setDate(ayer.getDate() - 3);
+  const isoAyer = ayer.getFullYear() + '-' + String(ayer.getMonth() + 1).padStart(2, '0') + '-' + String(ayer.getDate()).padStart(2, '0');
+  const hpas = cargarUI(Object.assign({}, datosBase, { eventos: [
+    g({ grupo: 'Consulta Pasada', estado: 'consulta', fecha: isoAyer, fechaTexto: 'miércoles ' + ayer.getDate() + '/' + (ayer.getMonth() + 1) }),
+    g({ grupo: 'Consulta A Definir', estado: 'consulta', fecha: isoAyer, fechaTexto: 'a definir (pidieron el ' + ayer.getDate() + '/' + (ayer.getMonth() + 1) + ')' }),
+    g({ grupo: 'Consulta Futura', estado: 'consulta' })] })).vistaGrupos();
+  const enConv = hpas.slice(hpas.indexOf('<summary>En conversación'), hpas.indexOf('<details><summary>Cobrados'));
+  const cerr = hpas.slice(hpas.indexOf('<details><summary>Cobrados'));
+  if (enConv.indexOf('Consulta Pasada') === -1 && cerr.indexOf('Consulta Pasada') !== -1 && /Fecha pasada sin confirmar \(1\)/.test(cerr)
+      && enConv.indexOf('Consulta A Definir') !== -1 && enConv.indexOf('Consulta Futura') !== -1) {
+    console.log('  ok    una consulta con la fecha ya pasada sale de «En conversación» y queda plegada con lo cerrado');
+  } else { fallas++; console.log('  FALLA grupos pasados: ' + (hpas.match(/<summary>[^<]*/g) || []).join(' | ')); }
+  corridos++;
   const hs = cargarUI(Object.assign({}, datosBase, { eventos: [g({ grupo: 'Propuesta Con Seña', estado: 'propuesta', sena: 2000, total: 10000, saldo: 8000 }),
     g({ grupo: 'Consulta Sola', estado: 'consulta' })] })).vistaGrupos();
   const arriba = hs.slice(0, hs.indexOf('<details>'));

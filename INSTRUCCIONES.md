@@ -232,6 +232,10 @@ cupo ni da alertas.
 - La fecha y las personas pueden ser texto («fines de noviembre», «8 a 10»): se muestran
   tal cual. Para ordenar se usa el primer día que aparezca en la fecha («jueves 10/12 o
   17/12» → 10/12).
+- Una **consulta o propuesta cuya fecha ya pasó** sin confirmarse sale de «En conversación» y va
+  plegada abajo, en «Fecha pasada sin confirmar», junto a Cobrados, Cancelados y Descartados
+  (Leo, 14/11: «habría que sacar los grupos que pasaron»). No se borra ni cambia la planilla.
+  «A definir», «sin fecha» o «pospuesto» en la fecha no cuentan como fecha pasada.
 - **Realizado con saldo 0** (total cargado y nada por cobrar) cuenta como **Cobrado** aunque nadie
   cambió el Estado (14/11: dos grupos pagos salían «hecho, falta cobrar»).
 - La columna O es la **seña cobrada** (desde el 14/11, Inscripciones dejó ahí solo lo pagado; la

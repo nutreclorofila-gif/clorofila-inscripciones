@@ -1250,7 +1250,15 @@
     }).sort(porFecha);
     // Los tres conteos van siempre, aunque sean cero: «Descartados (0)» dice que
     // no hay, y no que la app no lo mira.
+    // Leo, 14/11: «habría que sacar los grupos que pasaron». Una consulta o propuesta
+    // cuya fecha ya pasó sin confirmarse sale de «En conversación» y va plegada con lo
+    // cerrado. No se borra. «A definir», «sin fecha» o «pospuesto» no es una fecha que pasó.
+    var h0 = new Date(), hoyISO = h0.getFullYear() + '-' + ('0' + (h0.getMonth() + 1)).slice(-2) + '-' + ('0' + h0.getDate()).slice(-2);
+    var yaPaso = function (e) { return !!e.fecha && e.fecha < hoyISO && !/sin fecha|a definir|pospuest/i.test(e.fechaTexto || ''); };
+    var pasados = abiertos.filter(yaPaso);
+    abiertos = abiertos.filter(function (e) { return !yaPaso(e); });
     var cerrados = [['Cobrados', de(['cobrado'])], ['Cancelados', de(['cancelado'])], ['Descartados', de(['descartado'])]];
+    if (pasados.length) cerrados.push(['Fecha pasada sin confirmar', pasados]);
     // Leo, 24/10: «aparecen muchos grupos que no están confirmados ni nada, que
     // solamente nosotros les escribimos; es mucha información». A la vista, solo lo
     // que está en pie (confirmado, hecho, auspicio); la charla va plegada. La Seña
