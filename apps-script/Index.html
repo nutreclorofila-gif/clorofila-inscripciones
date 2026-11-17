@@ -1538,7 +1538,7 @@
       var partes = String(a.texto || '').split(' — ');
       return { t: partes[0].replace(' viene al estudio a pagar', ' viene a pagar'), c: cuandoVisita(partes[1]), alta: true };
     }).concat(['Atrasado', 'Hoy', 'Mañana'].reduce(function (l, n) {
-      return l.concat(del(n).map(function (a) { return { t: corto(a), c: n === 'Atrasado' ? 'atrasado' : n.toLowerCase(), alta: true }; }));
+      return l.concat(del(n).map(function (a) { return { t: sinMontos(corto(a)), c: n === 'Atrasado' ? 'atrasado' : n.toLowerCase(), alta: true }; }));
     }, []));
     var muestro = renglones.slice(0, RENGLONES_PORTADA);
     var mas = [];
@@ -1553,6 +1553,14 @@
           '<span class="pend-t">' + esc(r.t) + '</span><span class="pend-c">' + esc(r.c) + '</span></div>';
       }).join('') +
       '<div class="pend-pie"><span>' + esc(mas.join(' · ')) + '</span><span class="boton-ir">Ver todo ›</span></div></div>';
+  }
+
+  /**
+   * Un recordatorio escrito «debe la 3 ($4.800)» salía en Pendientes como «($…)» (17/11):
+   * sin el monto se lee mejor. El monto queda en Alertas, al abrirlo.
+   */
+  function sinMontos(t) {
+    return String(t || '').replace(/\s*\(\s*\$\s?(?:[\d.,]+|…)\s*\)/g, '').replace(/\$\s?(?:[\d.,]+|…)/g, 'un monto');
   }
 
   /** «el 27/10 a las 19:00» → «27/10 19:00»; «día a confirmar» → «sin día». */

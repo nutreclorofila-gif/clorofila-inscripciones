@@ -439,6 +439,7 @@ caso(
       hojas: { 'Inscriptos Octubre 2026': [H, fila({nombre:'Ana', monto:'2600', edicion:ED13}),
         fila({nombre:'PRUEBA Uno', monto:'1', edicion:'Taller de prueba — 20/10/2026 (PRUEBA, anulada)'}),
         fila({nombre:'Ceci Espera', monto:'2600', edicion:'EN ESPERA: taller del 27/10 solo si queda lugar'}),
+        fila({nombre:'Dora Baja', monto:'2600', edicion:'Baja 17/10 (devolución) — era Taller de prueba — 20/10/2026'}),
         fila({nombre:'Beto Doble', monto:'2600', edicion:'Taller de prueba — 20/10/2026 (posible duplicado)'})] },
       extras: {}, generadoEn: HOY.toISOString()
     }, HOY);

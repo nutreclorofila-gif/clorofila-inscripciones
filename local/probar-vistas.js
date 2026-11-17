@@ -701,6 +701,10 @@ console.log('\n--- Solapa Grupos (Eventos y empresas) ---');
     console.log('  ok    Inicio muestra las próximas fechas por orden, con los grupos confirmados, sin plata, y lleva a Cupos');
   } else { fallas++; console.log('  FALLA próximas fechas en Inicio: ' + ['Edicion Pronto','Grupo Medio','Edicion Tarde'].map(pi).join(', ') + ' / no van: ' + noVan.join(', ')); }
   corridos++;
+  const conMonto = cargarUI(Object.assign({}, conGrupos, { alertas: [{ nivel: 'alta', tipo: 'recordatorio', clave: 'k1', texto: 'CUOTA ATRASADA: Fulana Prueba debe la 3 ($4.800) — era para el 15/10, ¿se hizo?', detalle: 'x' }] })).vistaInicio();
+  if (!/\$/.test(conMonto) && /Fulana Prueba debe la 3/.test(conMonto)) console.log('  ok    un recordatorio con monto no muestra la plata en Pendientes de Inicio');
+  else { fallas++; console.log('  FALLA plata en Pendientes: ' + (conMonto.match(/[^>]*\$[^<]*/g) || []).join(' | ')); }
+  corridos++;
   const muchas = cargarUI(Object.assign({}, conGrupos, { eventos: [], ediciones: [3, 5, 8, 20, 40].map((d, i) =>
     Object.assign({}, molde, { id: 'ed-' + i, subtitulo: 'Fecha' + d, edicion: 'Fecha' + d, titulo: 'Fecha' + d, inicio: enDias(d).toISOString(), fecha: enDias(d).toISOString(), vigente: true })) }));
   const nProx = muchas.proximasFechas().length;

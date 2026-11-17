@@ -442,6 +442,9 @@ que copiaste de WhatsApp.
 
 ## La plata no se ve en la portada
 
+Un recordatorio escrito con monto («debe la 3 ($4.800)») sale en Pendientes de Inicio sin el
+monto (17/11); el monto se ve en Alertas, al abrirlo.
+
 Lo primero que aparece al abrir la app es **Inicio**: pendientes, avisos y próximas fechas.
 Ningún monto: ni ahí, ni en las tarjetas de cada edición de Cupos. La tira de arriba con
 anotados, lugares libres y pagos pendientes se sacó el 14/11 (Leo: «no sé si tiene sentido»:
@@ -602,7 +605,8 @@ Salen en rojo en la portada, sin montos («Fulana: hay un pago sin verificar»; 
 - En la lista de espera, una fila cuyo «Espera para» empieza con «RESUELTO» o dice «no queda en
   espera» ya no cuenta como que espera (14/11).
 - «EN ESPERA: …» en la Edición (pagó otra fecha y entra solo si queda lugar, 14/11) no ocupa
-  cupo y no avisa que no entra en ninguna edición.
+  cupo y no avisa que no entra en ninguna edición. Lo mismo «Baja …» (17/11: una baja con
+  devolución del pan del 1/12 salía como fila suelta).
 - «Código GC-… (cubre una parte)» en el medio de pago: lo que cubre la gift card va a la cuenta del
   curso aunque sea menos que una seña, y queda debiendo el resto (antes: «Monto demasiado chico»).
 - Una fila con «PRUEBA» en la Edición no aparece entre los que no ocupan cupo ni da el aviso de

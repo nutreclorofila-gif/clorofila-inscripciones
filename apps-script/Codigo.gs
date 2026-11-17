@@ -130,7 +130,8 @@ var MAX_LARGO_RESPUESTA = 1000;
 
 /** Prefijos de la columna K que son intencionales, no errores de carga. */
 // «En espera»: pagó otra fecha y entra solo si queda lugar (14/11); no ocupa cupo.
-var PREFIJOS_INTENCIONALES = ['Reubicado', 'Lista de espera', 'En espera', 'Cancelado', 'Anulado', 'Gift card'];
+// «Baja …»: se fue (con o sin devolución); salía como fila suelta (17/11, una baja del pan del 1/12).
+var PREFIJOS_INTENCIONALES = ['Reubicado', 'Lista de espera', 'En espera', 'Baja', 'Cancelado', 'Anulado', 'Gift card'];
 
 
 /* ======================================================================
