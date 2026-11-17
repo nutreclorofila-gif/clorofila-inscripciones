@@ -95,7 +95,7 @@ const MUTACIONES = [
   ['el pago sin verificar vuelve a salir dos veces', CODIGO,
    "      if (p.enDuda) return;\n      alertas.push({\n        nivel: p.estadoPago === 'revisar'", "      alertas.push({\n        nivel: p.estadoPago === 'revisar'"],
   ['«En espera» vuelve a avisar que no entra en ninguna edición', CODIGO,
-   "'Lista de espera', 'En espera', 'Cancelado'", "'Lista de espera', 'Cancelado'"],
+   "'Lista de espera', 'En espera', 'Baja'", "'Lista de espera', 'Baja'"],
   ['un grupo realizado y pago vuelve a decir «falta cobrar»', CODIGO,
    "if (estado === 'realizado' && total > 0 && saldo === 0) estado = 'cobrado';", ""],
   ['un grupo realizado con saldo pasa a cobrado', CODIGO,
